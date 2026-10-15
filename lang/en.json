@@ -36,7 +36,9 @@
       "Penalty": "Penalty",
       "Enc": "Enc",
       "Hint": "Double-click to equip/unequip · Right-click to open",
-      "APShort": "AP"
+      "APShort": "AP",
+      "HasTable": "Description has a table - right-click to open",
+      "HintOpen": "Right-click to open"
     },
     "Money": {
       "gc": "GC",

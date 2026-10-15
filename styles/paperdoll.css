@@ -589,6 +589,12 @@
 .wfrp-paperdoll-tooltip .pd-tt-quality { color: #1eff00; margin-top: 4px; }
 .wfrp-paperdoll-tooltip .pd-tt-flaw { color: #ff4f4f; margin-top: 2px; }
 .wfrp-paperdoll-tooltip .pd-tt-desc { color: #ffd100; margin-top: 6px; font-style: italic; }
+.wfrp-paperdoll-tooltip .pd-tt-props { margin-top: 6px; display: grid; gap: 1px; }
+.wfrp-paperdoll-tooltip .pd-tt-prop { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-prop span:first-child { color: #a89c86; }
+.wfrp-paperdoll-tooltip .pd-tt-prop span:last-child { color: #fff; text-align: right; }
+.wfrp-paperdoll-tooltip .pd-tt-text { margin-top: 6px; color: #d8ccb4; font-size: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-more { margin-top: 4px; font-size: 11px; color: #8a7a5e; font-style: italic; }
 .wfrp-paperdoll-tooltip .pd-tt-footer { color: #a89c86; margin-top: 6px; font-size: 12px; }
 .wfrp-paperdoll-tooltip .pd-tt-avail { font-size: 12px; }
 .wfrp-paperdoll-tooltip .pd-tt-hint { margin-top: 6px; font-size: 11px; color: #6f6a80; }

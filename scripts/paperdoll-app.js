@@ -54,10 +54,52 @@ function esc(value) {
     .replaceAll('"', "&quot;");
 }
 
-function stripHTML(html) {
-  const div = document.createElement("div");
-  div.innerHTML = html ?? "";
-  return (div.textContent ?? "").replace(/\s+/g, " ").trim();
+/**
+ * Разворачивает служебную разметку Foundry в обычный текст:
+ *   [[/r 1d10]]           -> 1d10
+ *   [[/r 1d10]]{подпись}  -> подпись
+ *   @Pay[6зк]{6 ЗК}       -> 6 ЗК
+ *   @Condition[устал]     -> устал
+ *   @UUID[...]{Имя}       -> Имя
+ */
+function plainEnrichers(text) {
+  return String(text ?? "")
+    .replace(/\[\[\s*\/(?:r|roll|gmr|br|pr)\s+([^\]]+?)\s*\]\](?:\{([^}]*)\})?/gi, (_, f, label) => label || f)
+    .replace(/\[\[\s*([^\]]+?)\s*\]\](?:\{([^}]*)\})?/g, (_, f, label) => label || f)
+    .replace(/@\w+\[([^\]]*)\](?:\{([^}]*)\})?/g, (_, ref, label) => label || ref.split(".").pop());
+}
+
+/**
+ * Разбирает описание предмета для тултипа:
+ * абзацы вида «<strong>Метка:</strong> значение» -> строки свойств,
+ * остальное -> текст. Таблицы в тултип не тащим, только помечаем.
+ */
+function parseDescription(html) {
+  const root = document.createElement("div");
+  root.innerHTML = html ?? "";
+  const hasTable = !!root.querySelector("table");
+  root.querySelectorAll("table").forEach((t) => t.remove());
+  const clean = (t) => plainEnrichers(t).replace(/\s+/g, " ").trim();
+
+  const props = [];
+  const text = [];
+  const blocks = root.querySelectorAll("p, li, h1, h2, h3, h4, blockquote");
+  const nodes = blocks.length ? [...blocks] : [root];
+  for (const node of nodes) {
+    const strong = node.querySelector("strong, b");
+    const full = clean(node.textContent);
+    if (!full) continue;
+    if (strong && node.textContent.trim().startsWith(strong.textContent.trim()) && /:\s*$/.test(strong.textContent.trim())) {
+      const label = clean(strong.textContent).replace(/:\s*$/, "");
+      const value = clean(full.slice(full.indexOf(":") + 1));
+      if (label && value) {
+        props.push([label, value]);
+        continue;
+      }
+    }
+    text.push(full);
+  }
+  return { props, text: text.join(" "), hasTable };
 }
 
 function safe(fn, fallback = null) {
@@ -829,11 +871,21 @@ class PaperdollTooltip {
     if (qualities.length) lines.push(`<div class="pd-tt-quality">${qualities.map(esc).join(", ")}</div>`);
     if (flaws.length) lines.push(`<div class="pd-tt-flaw">${flaws.map(esc).join(", ")}</div>`);
 
-    const desc = stripHTML(sys.description?.value);
-    if (desc) {
-      const short = desc.length > 220 ? `${desc.slice(0, 220)}…` : desc;
-      lines.push(`<div class="pd-tt-desc">«${esc(short)}»</div>`);
+    const desc = parseDescription(sys.description?.value);
+    if (desc.props.length) {
+      const rows = desc.props
+        .slice(0, 8)
+        .map(([k, v]) => `<div class="pd-tt-prop"><span>${esc(k)}</span><span>${esc(v)}</span></div>`)
+        .join("");
+      lines.push(`<div class="pd-tt-props">${rows}</div>`);
     }
+    if (desc.text) {
+      const short = desc.text.length > 260 ? `${desc.text.slice(0, 260).trim()}…` : desc.text;
+      // Короткий текст без свойств - это «флейвор», как жёлтая цитата в WoW
+      const flavor = !desc.props.length && short.length < 160;
+      lines.push(flavor ? `<div class="pd-tt-desc">«${esc(short)}»</div>` : `<div class="pd-tt-text">${esc(short)}</div>`);
+    }
+    if (desc.hasTable) lines.push(`<div class="pd-tt-more">${esc(L("WFRPPD.Tooltip.HasTable"))}</div>`);
 
     // Низ: нагрузка, цена, доступность
     const footer = [];
@@ -847,7 +899,9 @@ class PaperdollTooltip {
     if (avail && sys.availability?.value !== "None")
       lines.push(`<div class="pd-tt-avail rarity-${rarity}">${esc(L(avail))}</div>`);
 
-    lines.push(`<div class="pd-tt-hint">${esc(L("WFRPPD.Tooltip.Hint"))}</div>`);
+    // Двойной клик имеет смысл только для того, что вообще можно надеть
+    const wearable = !!sys.isEquippable && safe(() => sys.canEquip, true) !== false;
+    lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}</div>`);
     return lines.join("");
   }
 
