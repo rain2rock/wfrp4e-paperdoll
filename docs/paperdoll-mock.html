@@ -617,7 +617,7 @@
   position: fixed;
   z-index: 10000;
   display: none;
-  max-width: 300px;
+  max-width: 320px;
   padding: 8px 10px;
   font-size: 13px;
   line-height: 1.35;
@@ -1420,6 +1420,31 @@
 /* «+N» у одежды - только при наведении на слот */
 .wfrp-paperdoll .pd-layers.is-hover-only { opacity: 0; transition: opacity 0.12s; }
 .wfrp-paperdoll .pd-slot:hover .pd-layers.is-hover-only { opacity: 1; }
+
+/* Тултип: крупная иконка предмета перед описанием */
+.wfrp-paperdoll-tooltip .pd-tt-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.wfrp-paperdoll-tooltip .pd-tt-icon {
+  position: relative;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  padding: 3px;
+  background: var(--pd-well);
+}
+.wfrp-paperdoll-tooltip .pd-tt-icon img { width: 100%; height: 100%; object-fit: cover; border: none; display: block; }
+.wfrp-paperdoll-tooltip .pd-tt-icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAABLNJREFUeAHlW+9uG0UQn70722mdCmgcO24QVVu3cqhASCCkfoHXQrwB8LniAXgMhIAPAbUCPhVVhRKqkObsRGlTxUns+7PLzOzees+gSm1VqdX8kjutd+/2budmd343N6Oublw08AwweLRSz9f+Iue+CJ7Wb0K7r7/6HLTWUOI2m2Vw65c78OEHQ4jjGOsNt2luy+HBToodalhf60KEvWrsvSw11hnI8hy2d0ZcXu9je4RXNfzPGO0dwM7uHrx9YRW6nfP+5ow7Ym//EfyzO8b2LqyuvGXbcdNlCXfu/gXXNwZ+IMY/Nnt/v9/dgnc3LoMC5WrtAXRvD9N9Lq/3O1YS2PT95q+QpmNQpAE3v/gMvrz5Dd84b9pwB3QR6txe0LAw6C/PC4ijmC5tB+DqNZ9AFy0hiiN/g/MbNm5ABttV2FwbVKlL7D/yzcFYg1/zE01wYKjOJtzjOBT16QTe63Yg3R1ZDeAniIP47tufX4ICvnoYvnfFKKdKLGZ+6vBMS8FrDsXTl8AC0KhyxsgRQGup6cssgFLb+S0Fg0sXodWyQmAB2JVTjgBotAUu5AQWQLPVQpMVgRTc/3vbE4OIVIEsQO4kIgGzLPN8IiLic3wyAWmoCBPrfYZPXwuyAgSvAbQjtmcEWQGCqvMAWURoCRf9ivIyFWYNEDQFBpfegRwXQgJrQKQiUVOAnn4W8oDW0hmIkxik4P6DbfuqDo4H0BTIJPEANP3VGsA8YHKMPECyFciyXNQiSFgwg1qUGaSxVwKYm0GQg+vDa5A4lx3vu6sdWG63QQqG1y7jy1/OZRbA5HgKk4mcF6LDx0+gLEouR2+cOwft9pKoKbB5+zdfjp4cHcF4vC/JIQRT9gcEVkDU6MH6AqK6WxzEYUEDZEH5neMB0hRgePUKtM+2uMwaQN/JlttnQQpWzr8Jp6czLlseMDmFo8kJSMHB48O5T5B4wHL7DEiaCPf+2Jp7hYkHpOM9EAV6GYoWrIC0hdA7RHhvamEIIlCPD7BVIAZqUQMARHmEhgPkAc7sswAajQQkobOCPGAa8IBerweScPDosD4FRqMxSMK9P7f8lHdeYfpMJGcN4FA9F/43twKSrCAFd+pAA6SxIAoJosg4gvcISZLBJzc+4rBgQkCE5ODHn277sEDLA5IGSMJ0Nqsvgv3+mji/YE0D0jQFSeCgdhNowCyjz0SCVMDlOBACr7Cct0EmQiETdOkRIAVVVAxBJBH69MbH/0OFBeGHzVt1ItRkf4AcMUyns7oZvNDvgyyY+hR4uJvKsoKwwAOyPJP2NlznARI/j9c8Qq4GpIA4DyV3EgIiJAjGeCZo/eHGEuHh+wOfbUrpq2AUJC6IOgwqsOmvdg4lYZA1fm3Js4Jj8Ao8v9WoXrOV32dFju0xFIVGz0zi6l07nk/5PI04gbwofGpbldNWpfZSeC/nOhnj66tVnKwbhcI38NrzdF2bU2vzlO3xFQ/g3OG1fo8v7jcIPh1Fim/QtoFrt2XqMK4CDsPzcStwAE0SgOuvisnx7aiCxD8W66u+8wIF2Gz4m6Vw/tIlcVeJ3vQU6UFU9aX573Ha2FxmWvVtnW2nRfD05MRqwCiV5RYP8S8Ubpl3kOmR/gAAAABJRU5ErkJggg==") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-common::after { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAEl0lEQVR4nOWby04rORCGP7ubJCKC6HAPBCFgHfFYPAMbljwFrwIvwAbEghUSIiGAEBJEQNLpi2cRyukbI2bOzDlHcUmtTrpsp/2nqvy7bKuDgwPDPxBjDEqpf6X/mbo/I3/Xrg9wdHSUeXh5eUm73S6t0Ol0ANjc3CzoRqMRNzc3ALRaLXzfByBJEowxdDodHh4eWF1dZWNjA2MMxhiSJAHg7u6OXq9Hs9mk2WxafRRFnJ+fs7e3ZzsidYwxxHHMxcUF7XYbpZStBxBFEd1uF4D19XWrPz09pdvtog4ODkwegDx68iNyDYdDPM8jjmOiKCKOY5IksfcgCPA8jyRJMpd0djAYUKlUbLtpfRzHBEGA7/u2vLSdfpf053z76XrpdwdsXa01nU5nbAEix8fHFtl05wXN9L1MV1Yuff+q3XyZ/Ofv6MrK5OvKs2azidYaIAuAMYb9/f3/3gn/IDk8PDRaazzPA0CnlXm0plVqtZqNJc4BoJRie3ubWq0G5ABwQSqVClproigCHLSA0WjE7e2tDYJaTCEd/addoiiaADAcDgHseDrtopRCa10MgkIUpl0EgAIPEIbkgnieN3EBeeiKBcB4JCh1ARcsQCnF1tZWkQfIxGHaRXhAGIZACoD/Yx7+J0oYhvR6vclcQEwhCAJnhsFSHuBC52EMgAyF8OkCknVxIQYAGR5gAXDFAmDMAzLDYDp95ILs7OwwNzcHfALg+z6VSuW3vtSvEqUUrVarOAwOBgMnLKDRaDAYDKzL60ajAbhDhfv9PldXV5MY8Pr66gwHgLELxHGcTYpKAHTBBeCLYdAVF4ASAKB8EWEapTQj5BoRarVa1Ot14BOAer1OtVr9rS/1K2V2dpbRaASkXODj48MJF5ifn2c0Gk1cQHiAK1T47e2N+/v7SRB8fX2l3+87FQMKi6Mu8QClVHE26NookE6I+DABwCULEHFyXWBtbS3LAzzPc+LfFynwgEaj4YwLzM3NEQRBNgi+vLw40XmA9/d3np6ebH81jDcNuDQKSBYcHEyKSucl6GfWBl2STFK0bOPitIoxht3d3awFuJQRMsZwdXWVjQEzMzNOWcBwOMxawPLysjMxQIJgxgIeHx+dAkB2uUOOB7jiAgULEIUrAIRhmI0BQoRcEDks4SwTBGi32+4ywSRJODs7yzJBl3gAkFke92F8msoVCygdBrvdrjMAJElSnA26xgPiOC6fDbogpTzApbQ4kIkBdl0gjmOUUhweHhp5JosHkkBM35MkyaywyHPZfiI7MtP15Md93/+WPq/L5y3SK1pfHeTMX/kYYAGAcb5cOi2Z03q9ju/7tlOif39/R2tNo9HA93276aDf7xOGIdVqlaWlJbsbQxYknp+fCcOQWq3G6uqq1cv19PREEATMzs5mzvrKvzYYDLi+vrZnl4XXiz4IAnq9HouLi5n0l5RLXxaAk5OTwovMzMzYRcT0/lq5fvz4MW4g1XmtNQsLC3ieRxiGhTaVUqysrNjt6un2pcza2hqe5xEEAVrrQifk3F8YhvZMcVoP4+m9fJd/PA9UxgLu7u6+5zxTKH8B/kRP4GlDx9EAAAAASUVORK5CYII="); }
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-scarce::after { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFYElEQVR4nOWbzW4URxCAv+qZ8e4aJ0b+izGGEHHBiCg8BE+SU465hHfIAyRvk5xyREAkLiiRMGBgJQcTg7F3dqarcuiZnp0FoRCUP3dZ1ni6esZdNfXf1bJ+c914HzBA/iL+Q579EHjHe3OAG9/e4Pb922Bw9cpV7t29x871HQoKDGveYUyYsPt4FwwuXrwY8YpiGGVd8uzhM8yMzQubZHkGBqqKmTF+OKber8nXcla3V4GAa/GHe4fU45p8I+fM+TOYGaZGVVcc3zlm9MUIXEOQAQpmBh5Ofj5h+PkQEQljzRzzRrVXgUGxVTB9MEUGQnm/pNqrkPWb67by5Qor51cAeL77nJ1rO2jz4/EAePOoKt57yrIky7O4eO89ZhavZVkiLizEvIECvlusHiuyIHGBKL15OlEkn8Nrg2/nGr3nWnzE+blnKkOPlUtfXQJg9/td6ud1kABmlODohyNu/XSL+fH278jdufH4VWbG3zmXsLBWut6Y92feN/9/37bG+WsLLlxygOtXrnPn3h2Ofjzi6ddP/w4t/C+BZWcz3McO9hs+GMbOtZ0glglAtpIhEmh17aC28njaQWDhswVkmCgDZCCIExrbHhgwZBju3i8i+F+CTY3p3hSycO9kKBhGTZ0EA4Dw9RvZdzYxXvMatURUQAQcfSPo8Xjv05AAIdiAVgUguEGzFKgn5AQZSDbvBVRj3H/aQQYSk6MoAV4TUQFg4eJcHCAIqpoEA2QhGME34oDWKp52sNqox3U/DgCYVtMkJABCyhzdYBsHmCZCvTS/oRAQVKCmDnFAIiCuyQeY8QJqaRhBIFSbem5QDfWJhMJOKD4tcEshBHIAy26ZoiiSkYC1rbVYjos24GRy8m+u6R8Dt+yYlJNo9F22nOFwXdX2lIO+VA5/OexsgD/0HEwPAkdOP/2BcO2SoRy6en0ykNEVRNqxpCTA0Y8DVDVYxUQYIE76EmAYiRSFEYTh1hC3OBMHrIxWoCAZCRiNRljVuEGAkhI7SYF6cEsuZL6tCmTLWdjmTiQb1CPleP+4M4L+0LP/cj+ZQCh6gF5VeKahIAnI5txg24mRBMy5wX4kmAgPyOZ2hmIrSwogsLq+ymBxADQMyLIsKRuwOFykqiqgYcDG8kYyyVC2lFHVVfjoNAwYvxgnkwzpsXLw+0EsAjuA6XSaTjIEeO9jDTQHUNN03CCgtWL1TC7QusEkIsG2g3SWASntCZga2xe2+9lgbElNAQwe/foI6nDrAPI8TycOMLCJ9VXg3Cfnuibj0w4WGqd7DNh7tpdMScwsEN+zAVpqOslQ4wF6EhDGU6CeqAI9I4gSBlLgQXumoJ53g4nkAhgsXVnq2wCz5rhJChwweHX3VV8CpJBkkiEzQ08UQjkgMGDz3GY6yZAC1ZwNGD8ZJyMBEML+fjZYprM3GCPBeSOYihcwtbcEQgb6KhERMPAvfAyEcoDqSRVPVNLKgRG3j6Cpo7ftxE2bSdttGccI45JLf1xm8H6mT094Y57VhuRdI+PsnJ6UNjYrFnFaG9YWPFqjbnQHNM24/M1lAB5896BjwOzOcLac4ZZcsAsSdlMll+6QgQuL0iNFnODOOqRoFizgDz1WG27gyDfybhvKBYb63zw2NWQkFFtFDydOqMYVVhrujGNwYUDmMsyMuq7j8dfyfsnCpYVAVJPYWB3CWy2V6nFFvpaH2KbFewtfvoVGAmT95roV2wU2aQj+yHWLkuZrzWwoRiY0WYQUEqRjHleDjKTbiHQdI8QJVhmyKPGZiGvubWIMPhqgqtRVHfXWqqZ8V1mf+KpLct5238b//qUPiV8WVCGowF7VcWafpOAPy+pwuRrib2EAAAAASUVORK5CYII="); }
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-rare::after { background-image: url("data:image/png;base64,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"); }
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-exotic::after { background-image: url("data:image/png;base64,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"); }
+.wfrp-paperdoll-tooltip .pd-tt-title { min-width: 0; }
+.wfrp-paperdoll-tooltip .pd-tt-head .pd-tt-sub { margin-bottom: 0; }
 
 </style>
 </head>
@@ -2704,8 +2729,8 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         art: ui(SLOT_ART[key]),
         top: views[0] ?? null,
         layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
-        // У одежды «+N» путает: показываем только при наведении
-        layersOnHover: key === "accessory",
+        // «+N» (сколько ещё вещей под верхней) путает: показываем только при наведении
+        layersOnHover: true,
         showAP,
         ap: showAP ? (sys.status?.armour?.[key]?.value ?? 0) : null
       };
@@ -4006,14 +4031,19 @@ class PaperdollTooltip {
     const rarity = RARITY[sys.availability?.value] ?? "none";
     const lines = [];
 
-    lines.push(`<div class="pd-tt-name rarity-${rarity}">${esc(item.name)}</div>`);
-
-    // Подзаголовок: тип и состояние
+    // Шапка: крупная иконка в рамке редкости, рядом название, тип и состояние
     const typeKey = `TYPES.Item.${item.type}`;
     const typeLabel = game.i18n.has(typeKey) ? L(typeKey) : item.type;
     const sub = [typeLabel];
     if (sys.isEquipped) sub.push(L("WFRPPD.Tooltip.Equipped"));
-    lines.push(`<div class="pd-tt-sub">${esc(sub.join(" · "))}</div>`);
+    lines.push(`
+      <div class="pd-tt-head">
+        <div class="pd-tt-icon rarity-${rarity}"><img src="${esc(itemImg(item.img, item.name))}" alt=""></div>
+        <div class="pd-tt-title">
+          <div class="pd-tt-name rarity-${rarity}">${esc(item.name)}</div>
+          <div class="pd-tt-sub">${esc(sub.join(" · "))}</div>
+        </div>
+      </div>`);
 
     if (item.type === "weapon") {
       const group = safe(() => sys.WeaponGroup);

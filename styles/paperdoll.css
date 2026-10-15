@@ -588,7 +588,7 @@
   position: fixed;
   z-index: 10000;
   display: none;
-  max-width: 300px;
+  max-width: 320px;
   padding: 8px 10px;
   font-size: 13px;
   line-height: 1.35;
@@ -1391,3 +1391,28 @@
 /* «+N» у одежды - только при наведении на слот */
 .wfrp-paperdoll .pd-layers.is-hover-only { opacity: 0; transition: opacity 0.12s; }
 .wfrp-paperdoll .pd-slot:hover .pd-layers.is-hover-only { opacity: 1; }
+
+/* Тултип: крупная иконка предмета перед описанием */
+.wfrp-paperdoll-tooltip .pd-tt-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.wfrp-paperdoll-tooltip .pd-tt-icon {
+  position: relative;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  padding: 3px;
+  background: var(--pd-well);
+}
+.wfrp-paperdoll-tooltip .pd-tt-icon img { width: 100%; height: 100%; object-fit: cover; border: none; display: block; }
+.wfrp-paperdoll-tooltip .pd-tt-icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("../assets/ui/frame-bag-cell.png") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-common::after { background-image: url("../assets/ui/frame-rarity-common.png"); }
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-scarce::after { background-image: url("../assets/ui/frame-rarity-scarce.png"); }
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-rare::after { background-image: url("../assets/ui/frame-rarity-rare.png"); }
+.wfrp-paperdoll-tooltip .pd-tt-icon.rarity-exotic::after { background-image: url("../assets/ui/frame-rarity-exotic.png"); }
+.wfrp-paperdoll-tooltip .pd-tt-title { min-width: 0; }
+.wfrp-paperdoll-tooltip .pd-tt-head .pd-tt-sub { margin-bottom: 0; }

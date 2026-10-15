@@ -345,8 +345,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         art: ui(SLOT_ART[key]),
         top: views[0] ?? null,
         layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
-        // У одежды «+N» путает: показываем только при наведении
-        layersOnHover: key === "accessory",
+        // «+N» (сколько ещё вещей под верхней) путает: показываем только при наведении
+        layersOnHover: true,
         showAP,
         ap: showAP ? (sys.status?.armour?.[key]?.value ?? 0) : null
       };
@@ -1647,14 +1647,19 @@ class PaperdollTooltip {
     const rarity = RARITY[sys.availability?.value] ?? "none";
     const lines = [];
 
-    lines.push(`<div class="pd-tt-name rarity-${rarity}">${esc(item.name)}</div>`);
-
-    // Подзаголовок: тип и состояние
+    // Шапка: крупная иконка в рамке редкости, рядом название, тип и состояние
     const typeKey = `TYPES.Item.${item.type}`;
     const typeLabel = game.i18n.has(typeKey) ? L(typeKey) : item.type;
     const sub = [typeLabel];
     if (sys.isEquipped) sub.push(L("WFRPPD.Tooltip.Equipped"));
-    lines.push(`<div class="pd-tt-sub">${esc(sub.join(" · "))}</div>`);
+    lines.push(`
+      <div class="pd-tt-head">
+        <div class="pd-tt-icon rarity-${rarity}"><img src="${esc(itemImg(item.img, item.name))}" alt=""></div>
+        <div class="pd-tt-title">
+          <div class="pd-tt-name rarity-${rarity}">${esc(item.name)}</div>
+          <div class="pd-tt-sub">${esc(sub.join(" · "))}</div>
+        </div>
+      </div>`);
 
     if (item.type === "weapon") {
       const group = safe(() => sys.WeaponGroup);
