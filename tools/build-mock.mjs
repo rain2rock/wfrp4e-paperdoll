@@ -5,6 +5,8 @@
  *   npm run mock           демо-персонаж из tools/mock-data.mjs
  *   node tools/build-mock.mjs --snapshot tools/snapshot.json --out mock-hugo.html
  *                          персонаж из слепка, снятого скриптом из консоли Foundry
+ *   --profile mage|metal|ulric|duelist
+ *                          подменить навыки, таланты и бога (проверка ограничений)
  *   --loot                 добавить тестовый лут (tools/mock-loot.mjs): все слоты и все редкости
  *   --icons DIR --icons-core DIR
  *                          настоящие иконки: DIR с иконками wfrp4e-core и DIR со стандартными
@@ -21,7 +23,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import crypto from "node:crypto";
-import { actorData as demoActor, config, systemStrings } from "./mock-data.mjs";
+import { actorData as demoActor, config, systemStrings, PROFILES } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT } from "./mock-loot.mjs";
 
@@ -34,6 +36,16 @@ const args = Object.fromEntries(
 // ---------- Персонаж ----------
 let actor = demoActor;
 if (args.snapshot) actor = fromSnapshot(JSON.parse(fs.readFileSync(args.snapshot, "utf8")));
+if (args.profile) {
+  const pr = PROFILES[args.profile];
+  if (!pr) throw new Error(`Нет профиля «${args.profile}». Есть: ${Object.keys(PROFILES).join(", ")}`);
+  actor = {
+    ...actor,
+    skills: pr.skills,
+    talents: pr.talents,
+    system: { ...actor.system, details: { ...actor.system.details, god: { value: pr.god } } }
+  };
+}
 if ("loot" in args) {
   // Эмодзи-заглушка на случай сборки без папок с иконками
   const GLYPH = { weapon: ["⚔️", "#5a6a7a"], armour: ["🛡️", "#6a5a4a"], trapping: ["💍", "#5a4a6a"], container: ["🎒", "#6a5530"] };
@@ -45,9 +57,20 @@ function emojiIcon(glyph, color) {
 }
 
 // ---------- Иконки ----------
+const CAREER_SLUG = { "флагеллант": "flagellant", "flagellant": "flagellant", "маг": "wizard", "жрец": "priest", "дуэлянт": "duellist" };
 const ROOTS = { icons: args.icons, core: args["icons-core"] };
 const iconStats = { path: 0, rule: 0, placeholder: 0, emoji: 0 };
-if (ROOTS.icons || ROOTS.core) actor = { ...actor, items: actor.items.map((i) => ({ ...i, img: resolveIcon(i) })) };
+if (ROOTS.icons || ROOTS.core) {
+  actor = { ...actor, items: actor.items.map((i) => ({ ...i, img: resolveIcon(i) })) };
+  // Иконка карьеры: путь из слепка или icons/careers/<карьера>-0<уровень>.png
+  const c = actor.career ?? {};
+  const slug = CAREER_SLUG[(c.name ?? "").toLowerCase()] ?? (c.name ?? "").toLowerCase().replace(/[^a-z]+/g, "-");
+  const ref = c.img?.startsWith("modules/wfrp4e-core/icons/")
+    ? `icons:${c.img.slice("modules/wfrp4e-core/icons/".length)}`
+    : `icons:careers/${slug}-0${Math.min(4, Math.max(1, c.level ?? 1))}.png`;
+  const f = fileFor(ref);
+  if (f) actor = { ...actor, career: { ...c, img: dataUri(f) } };
+}
 
 function fileFor(ref) {
   const [root, rel] = ref.split(":");
@@ -216,7 +239,10 @@ function fromSnapshot(snap) {
     id: "snapshot",
     name: snap.name,
     img: demoActor.img,
-    career: { name: snap.career?.name ?? "", level: snap.career?.level },
+    career: { name: snap.career?.name ?? "", level: snap.career?.level, img: snap.career?.img, class: snap.career?.class },
+    skills: snap.skills ?? [],
+    talents: (snap.talents ?? []).map((t) => (typeof t === "string" ? { name: t } : t)),
+    spells: snap.spells ?? [],
     system: {
       characteristics: chars,
       status: {
@@ -225,7 +251,7 @@ function fromSnapshot(snap) {
         corruption: snap.corruption, sin: snap.sin, encumbrance: { current: 0, max: 0 }
       },
       details: {
-        species: { value: snap.species }, status: { value: snap.status },
+        species: { value: snap.species }, status: { value: snap.status }, god: { value: snap.god ?? "" },
         move: snap.move, experience: snap.experience
       },
       settings: { equipPoints: 2 }

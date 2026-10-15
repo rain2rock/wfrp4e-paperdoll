@@ -35,7 +35,9 @@ export const actorData = {
   id: "hugo",
   name: "Хьюго Брандлин",
   img: portrait,
-  career: { name: "Флагеллант", level: 1 },
+  career: { name: "Флагеллант", level: 1, class: "Странники" },
+  skills: ["Melee (Basic)", "Melee (Flail)", "Ranged (Sling)", "Language (Magick)"],
+  talents: [{ name: "Arcane Magic (Fire)" }],
   system: {
     characteristics: {
       ws: ch(33, 5), bs: ch(27), s: ch(36, 5), t: ch(39, 5), i: ch(31, 2),
@@ -131,4 +133,35 @@ export const systemStrings = {
   "WFRP4E.GroupType.basic": "Обычное", "WFRP4E.GroupType.flail": "Цепы", "WFRP4E.GroupType.parry": "Парирующее", "WFRP4E.GroupType.sling": "Пращи",
   "WFRP4E.Reach.average": "Средняя", "WFRP4E.Reach.vshort": "Очень короткая", "WFRP4E.Reach.long": "Длинная", "WFRP4E.Reach.personal": "Личная",
   "TYPES.Item.weapon": "Оружие", "TYPES.Item.armour": "Броня", "TYPES.Item.trapping": "Снаряжение", "TYPES.Item.container": "Контейнер"
+};
+
+/**
+ * Тестовые профили для флага --profile: подменяют навыки, таланты и бога,
+ * чтобы проверить ограничения в списке быстрой смены.
+ */
+export const PROFILES = {
+  // Маг Огня: штраф брони к касту, стрелкового навыка нет
+  mage: {
+    skills: ["Melee (Basic)", "Language (Magick)", "Channelling (Aqshy)"],
+    talents: [{ name: "Arcane Magic (Fire)" }],
+    god: ""
+  },
+  // Маг Металла: металл можно, кожа мешает
+  metal: {
+    skills: ["Melee (Basic)", "Language (Magick)"],
+    talents: [{ name: "Arcane Magic (Metal)" }],
+    god: ""
+  },
+  // Жрец Ульрика: обеты против пороха, шлемов и арбалетов
+  ulric: {
+    skills: ["Melee (Basic)", "Melee (Two-Handed)", "Melee (Polearm)", "Ranged (Blackpowder)", "Pray"],
+    talents: [{ name: "Bless (Ulric)" }, { name: "Invoke (Ulric)" }],
+    god: "Ulric"
+  },
+  // Боец с двумя руками: амбидекстр, парирование
+  duelist: {
+    skills: ["Melee (Basic)", "Melee (Fencing)", "Melee (Parry)", "Ranged (Blackpowder)"],
+    talents: [{ name: "Ambidextrous", advances: 1 }],
+    god: ""
+  }
 };

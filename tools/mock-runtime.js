@@ -192,17 +192,29 @@
   };
 
   const LOCS = ["head", "body", "rArm", "lArm", "rLeg", "lLeg"];
+  const GROUP_SPEC = {
+    basic: "basic", cavalry: "cavalry", fencing: "fencing", brawling: "brawling", flail: "flail", parry: "parry",
+    polearm: "polearm", twohanded: "two-handed", blackpowder: "blackpowder", bow: "bow", crossbow: "crossbow",
+    entangling: "entangling", engineering: "engineering", explosives: "explosives", sling: "sling", throwing: "throwing"
+  };
 
   function makeSystem(item, data) {
     const sys = structuredClone(data);
     const type = item.type;
     const getters = {
-      isPhysical: { get: () => true },
+      isPhysical: { get: () => ["armour", "weapon", "trapping", "container", "ammunition"].includes(type) },
       isEquippable: { get: () => ["armour", "weapon", "trapping", "container"].includes(type) },
       isEquipped: { get: () => !!sys.equipped?.value },
       canEquip: { get: () => type !== "trapping" || sys.trappingType?.value === "clothingAccessories" },
-      Qualities: { get: () => sys._qualities ?? [] },
-      Flaws: { get: () => sys._flaws ?? [] },
+      // Как в системе: без навыка оружие ближнего боя теряет достоинства, цепы становятся опасными
+      Qualities: { get: () => (type === "weapon" && !sys._ranged && item.parent._hasSkills && !sys.skillToUse ? [] : sys._qualities ?? []) },
+      Flaws: {
+        get: () => {
+          const f = sys._flaws ?? [];
+          const untrainedFlail = type === "weapon" && sys.weaponGroup?.value === "flail" && item.parent._hasSkills && !sys.skillToUse;
+          return untrainedFlail && !f.includes("Опасное") ? [...f, "Опасное"] : f;
+        }
+      },
       properties: {
         get: () => ({ qualities: Object.fromEntries((sys._qualities ?? []).map((q) => [q.split(" ")[0].toLowerCase() === "щит" ? "shield" : q, true])) })
       }
@@ -217,6 +229,14 @@
       getters.WeaponGroup = { get: () => `WFRP4E.GroupType.${sys.weaponGroup?.value}` };
       getters.Reach = { get: () => (sys._ranged ? null : `WFRP4E.Reach.${sys.reach?.value}`) };
       getters.Range = { get: () => sys._range ?? null };
+      // Навык, которым владеет персонаж для этой группы (как getSkillToUse в системе)
+      getters.skillToUse = {
+        get: () => {
+          const spec = GROUP_SPEC[sys.weaponGroup?.value];
+          if (!spec) return undefined;
+          return item.parent.items.find((i) => i.type === "skill" && i.name.toLowerCase().includes(`(${spec})`));
+        }
+      };
       getters.Damage = {
         get: () => {
           const sb = item.parent.system.characteristics.s.bonus;
@@ -269,13 +289,26 @@
       this.type = "character";
       this.isOwner = true;
       this.system = structuredClone(data.system);
-      const arr = data.items.map((d) => new FakeItem(this, d));
+      // Навыки и таланты - обычные предметы актёра, как в Foundry
+      const extra = [
+        ...(data.skills ?? []).map((name, i) => ({ id: `skill-${i}`, name, type: "skill", system: {} })),
+        ...(data.talents ?? []).map((t, i) => ({ id: `talent-${i}`, name: t.name ?? t, type: "talent", system: { advances: { value: t.advances ?? 1 } } })),
+        ...(data.spells ?? []).map((name, i) => ({ id: `spell-${i}`, name, type: "spell", system: {} }))
+      ];
+      this._hasSkills = extra.some((e) => e.type === "skill");
+      const arr = [...data.items, ...extra].map((d) => new FakeItem(this, d));
       arr.get = (id) => arr.find((i) => i.id === id);
       this.items = arr;
       this.career = data.career;
       const actor = this;
       Object.defineProperties(this.system, {
-        currentCareer: { get: () => ({ name: actor.career.name, system: { level: { value: actor.career.level } } }) },
+        currentCareer: {
+          get: () => ({
+            name: actor.career.name,
+            img: actor.career.img,
+            system: { level: { value: actor.career.level }, class: { value: actor.career.class } }
+          })
+        },
         equipPointsUsed: {
           get: () => actor.items.filter((i) => i.type === "weapon" && i.system.isEquipped).reduce((n, w) => n + (w.system.twohanded?.value ? 2 : 1), 0)
         }
@@ -310,6 +343,7 @@
       let enc = 0;
       for (const i of this.items) {
         const sys = i.system;
+        if (!sys.isPhysical) continue;
         let e = (sys.encumbrance?.value ?? 0) * (sys.quantity?.value ?? 1);
         if (sys.isEquipped && ["armour", "trapping"].includes(i.type)) e = Math.max(0, e - 1);
         sys.encumbrance.total = e;

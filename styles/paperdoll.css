@@ -78,6 +78,18 @@
   border: none;
 }
 .wfrp-paperdoll .pd-hero-text { min-width: 0; text-align: center; flex: 1; }
+/* Иконка карьеры справа: симметрично портрету слева */
+.wfrp-paperdoll .pd-hero-career {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid var(--pd-gold-soft);
+  box-shadow: 0 0 0 2px #2a2016, 0 0 12px rgba(201, 164, 92, 0.35);
+}
+.wfrp-paperdoll .pd-hero-career img { width: 100%; height: 100%; object-fit: cover; border: none; }
+.wfrp-paperdoll .pd-hero-career.is-empty { border-color: transparent; box-shadow: none; }
 .wfrp-paperdoll .pd-hero-name {
   font-size: 19px;
   font-weight: 700;
@@ -734,3 +746,31 @@
 .wfrp-paperdoll-flyout .pd-fly-delta.is-up { color: #1eff00; }
 .wfrp-paperdoll-flyout .pd-fly-delta.is-down { color: #ff4f4f; }
 .wfrp-paperdoll-flyout .pd-fly-delta.is-same { color: #a89c86; }
+
+/* ==========================================================
+   Ограничения в списке быстрой смены
+   ========================================================== */
+
+.wfrp-paperdoll-flyout .pd-fly-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.wfrp-paperdoll-flyout .pd-chip {
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  border-radius: 3px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.wfrp-paperdoll-flyout .pd-chip.is-forbid { color: #fff; background: #8b1a12; border-color: #c0392b; }
+.wfrp-paperdoll-flyout .pd-chip.is-warn { color: #ffb37a; background: rgba(255, 120, 40, 0.12); border-color: rgba(255, 140, 60, 0.4); }
+.wfrp-paperdoll-flyout .pd-chip.is-info { color: #a89c86; background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); }
+
+/* Запрещённое по правилам: можно надеть, но выглядит «выключенным» */
+.wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-icon,
+.wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-name,
+.wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-meta { opacity: 0.5; }
+.wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-icon { filter: grayscale(0.7); }

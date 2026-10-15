@@ -30,6 +30,45 @@ const RARITY = {
 
 const BAG_FILTERS = ["all", "weapon", "armour", "clothing", "other"];
 
+/* -------------------------------------------- */
+/*  Ограничения по правилам (базовая книга 4e)  */
+/* -------------------------------------------- */
+
+const METAL_ARMOUR = ["plate", "mail", "otherMetal", "gromril"];
+const LEATHER_ARMOUR = ["softLeather", "boiledLeather"];
+
+/** Стрелковое, которое можно использовать через соседнюю специализацию (без достоинств) */
+const RANGED_FALLBACK = ["crossbow", "throwing"];
+
+/** Специализация навыка для группы оружия (как в названиях навыков системы) */
+const GROUP_SKILL = {
+  basic: "Melee (Basic)", cavalry: "Melee (Cavalry)", fencing: "Melee (Fencing)", brawling: "Melee (Brawling)",
+  flail: "Melee (Flail)", parry: "Melee (Parry)", polearm: "Melee (Polearm)", twohanded: "Melee (Two-Handed)",
+  blackpowder: "Ranged (Blackpowder)", bow: "Ranged (Bow)", crossbow: "Ranged (Crossbow)", entangling: "Ranged (Entangling)",
+  engineering: "Ranged (Engineering)", explosives: "Ranged (Explosives)", sling: "Ranged (Sling)", throwing: "Ranged (Throwing)"
+};
+
+/**
+ * Обеты культов, которые касаются снаряжения.
+ * В базовой книге это только Ульрик; список легко расширить.
+ */
+const CULT_RULES = [
+  {
+    god: "WFRPPD.Gods.Ulric",
+    match: /ulric|ульрик/i,
+    hint: "WFRPPD.Restr.CultUlric",
+    forbids: (item) => {
+      const sys = item.system;
+      if (item.type === "weapon") return ["blackpowder", "engineering", "explosives", "crossbow"].includes(sys.weaponGroup?.value);
+      if (item.type === "armour") {
+        const helmet = (sys.AP?.head ?? 0) > 0 && (METAL_ARMOUR.includes(sys.armorType?.value) || /helm|шлем/i.test(item.name));
+        return helmet;
+      }
+      return false;
+    }
+  }
+];
+
 /** Вес редкости для сравнения предметов */
 const RARITY_RANK = { None: 0, common: 1, scarce: 2, rare: 3, exotic: 4, special: 4 };
 
@@ -52,6 +91,37 @@ function esc(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+/* -------------------------------------------- */
+/*  Расшифровка сокращений: «6 ЗК» -> «6 золотых крон (ЗК)»   */
+/* -------------------------------------------- */
+
+function plural(n, forms) {
+  const a = Math.abs(Math.trunc(n)) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return forms[2];
+  if (b === 1) return forms[0];
+  if (b >= 2 && b <= 4) return forms[1];
+  return forms[2];
+}
+
+/** Сокращение -> [формы слова для 1/2/5, как подписать сокращение] */
+const TERMS = [
+  [/(ЗК|зк|GC)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.gc").split("|"))} (ЗК)`],
+  [/(СШ|сш|SS)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.ss").split("|"))} (СШ)`],
+  [/(П|п|BP)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.bp").split("|"))} (П)`],
+  [/(УУ|SL)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.sl").split("|"))} (УУ)`]
+];
+
+/** «-2 УУ» -> «-2 уровня успеха (УУ)», «6 ЗК» -> «6 золотых крон (ЗК)» */
+function humanizeTerms(text) {
+  let out = String(text ?? "");
+  for (const [abbr, word] of TERMS) {
+    const re = new RegExp(`([+\\-–]?\\d+)\\s*${abbr.source}(?![\\p{L}])`, "gu");
+    out = out.replace(re, (_, num) => `${num} ${word(Number(num.replace("–", "-")))}`);
+  }
+  return out;
 }
 
 /**
@@ -100,6 +170,10 @@ function parseDescription(html) {
     text.push(full);
   }
   return { props, text: text.join(" "), hasTable };
+}
+
+function sys(doc) {
+  return doc?.system ?? {};
 }
 
 function safe(fn, fallback = null) {
@@ -285,12 +359,24 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (encRatio > 2) encState = "max";
     else if (encRatio > 1) encState = "over";
 
+    // Иконка карьеры справа в шапке (у карьер WFRP своя картинка на каждый уровень)
+    const careerClass = career?.system?.class?.value;
+    const careerIcon = career?.img && !/mystery-man|item-bag|trapping\.png/.test(career.img)
+      ? {
+          img: career.img,
+          title: [careerClass && `${L("WFRPPD.Class")}: ${careerClass}`, `${L("WFRPPD.Career")}: ${career.name}${level ? ` (${L("WFRPPD.Level")} ${level})` : ""}`]
+            .filter(Boolean)
+            .join("\n")
+        }
+      : null;
+
     return {
       actor,
       editable,
       img: actor.img,
       name: actor.name,
       subtitle,
+      careerIcon,
       groups,
       bag,
       bagEmpty: !bag.length,
@@ -364,7 +450,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         row(cfg.locations?.head ?? "head", ap("head"), "is-armour"),
         row(cfg.locations?.body ?? "body", ap("body"), "is-armour"),
         row("WFRPPD.Stats.Arms", `${ap("rArm")} / ${ap("lArm")}`, "is-armour"),
-        row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, "is-armour")
+        row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, "is-armour"),
+        ...(() => {
+          const profile = this._profile();
+          if (!profile.caster) return [];
+          const pen = this._castPenalty(profile);
+          return [row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} УУ` : "0", pen ? "is-down" : "is-up")];
+        })()
       ],
       combat: [
         row("WFRPPD.Stats.MainDmg", dmg(mainItems), "is-melee"),
@@ -518,6 +610,119 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /* -------------------------------------------- */
+  /*  Профиль ограничений персонажа               */
+  /* -------------------------------------------- */
+
+  /** Навыки, таланты, магия и бог - всё, что влияет на выбор снаряжения */
+  _profile() {
+    const actor = this.actor;
+    const names = (type) => (actor.itemTypes[type] ?? []).map((i) => i.name);
+    const skills = names("skill");
+    const talents = actor.itemTypes.talent ?? [];
+    const talentLevel = (re) =>
+      talents.filter((t) => re.test(t.name)).reduce((n, t) => n + (Number(t.system?.advances?.value) || 1), 0);
+
+    const arcane = talents.filter((t) => /^(arcane magic|школа магии)/i.test(t.name)).map((t) => t.name);
+    const petty = talentLevel(/^(petty magic|малая магия)/i) > 0;
+    const witch = talentLevel(/^(witch|ведьм)/i) > 0;
+    const lores = arcane.map((n) => (n.match(/\(([^)]+)\)/)?.[1] ?? "").toLowerCase());
+
+    const godText = [sys(actor).details?.god?.value ?? "", ...talents.map((t) => t.name)].join(" ");
+    const cults = CULT_RULES.filter((c) => c.match.test(godText));
+
+    return {
+      hasSkills: skills.length > 0,
+      hasSkill: (name) => skills.some((s) => s.toLowerCase() === name.toLowerCase()),
+      caster: arcane.length > 0 || petty || witch || (actor.itemTypes.spell ?? []).length > 0,
+      metalLore: lores.some((l) => /metal|металл/.test(l)),
+      beastLore: lores.some((l) => /beast|звер/.test(l)),
+      ambidextrous: Math.min(2, talentLevel(/^(ambidextrous|амбидекстр)/i)),
+      cults
+    };
+  }
+
+  /** Даёт ли эта броня штраф к касту этому магу */
+  _castsThrough(item, profile) {
+    const type = item.system.armorType?.value;
+    if (profile.metalLore && (METAL_ARMOUR.includes(type) || item.system.isMetal)) return false;
+    if (profile.beastLore && LEATHER_ARMOUR.includes(type)) return false;
+    return true;
+  }
+
+  /** Штраф брони к касту: максимум AP по локациям среди «мешающей» брони */
+  _castPenalty(profile, extra = null) {
+    if (!profile.caster) return 0;
+    const worn = this.actor.itemTypes.armour?.filter((a) => a.system.isEquipped) ?? [];
+    const list = extra && !worn.includes(extra) ? [...worn, extra] : worn;
+    let max = 0;
+    for (const loc of LOCATIONS) {
+      const ap = list
+        .filter((a) => this._castsThrough(a, profile))
+        .reduce((n, a) => n + (safe(() => a.system.currentAP?.[loc], null) ?? a.system.AP?.[loc] ?? 0), 0);
+      max = Math.max(max, ap);
+    }
+    return max;
+  }
+
+  /**
+   * Ограничения предмета для слота.
+   * forbid - нельзя по правилам (не участвует в BIS),
+   * warn - можно, но со штрафом (score - насколько это хуже).
+   */
+  _restrictions(item, slot, profile = this._profile()) {
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const sys = item.system;
+    const forbid = [];
+    const warn = [];
+    let score = 0;
+
+    if (item.type === "weapon") {
+      const group = sys.weaponGroup?.value;
+      const skillName = GROUP_SKILL[group] ?? group;
+      const trained = !!safe(() => sys.skillToUse, null);
+      if (profile.hasSkills && !trained) {
+        if (safe(() => sys.isRanged) && !RANGED_FALLBACK.includes(group)) {
+          forbid.push({ label: F("WFRPPD.Restr.NoSkill", { skill: skillName }) });
+        } else {
+          warn.push({ label: L("WFRPPD.Restr.Untrained"), hint: F("WFRPPD.Restr.UntrainedHint", { skill: skillName }) });
+        }
+      }
+      if (profile.hasSkills && group === "cavalry" && sys.twohanded?.value && !profile.hasSkill(GROUP_SKILL.twohanded)) {
+        warn.push({ label: L("WFRPPD.Restr.Cavalry") });
+        score -= 100;
+      }
+      // Неосновная рука: щиты и защитное оружие с Ближним боем (парирующее) без штрафа
+      if (slot === "off" && !shieldValue(item)) {
+        const defensive = (safe(() => sys.Qualities, []) ?? []).some((q) => /defensive|защитн/i.test(q));
+        const parry = defensive && profile.hasSkill(GROUP_SKILL.parry);
+        const pen = parry ? 0 : -20 + 10 * profile.ambidextrous;
+        if (pen < 0) {
+          warn.push({ label: F("WFRPPD.Restr.OffHand", { n: pen }), hint: L("WFRPPD.Restr.OffHandHint") });
+          score += pen * 10;
+        }
+      }
+    }
+
+    if (item.type === "armour") {
+      if (profile.caster && !sys.isEquipped && this._castsThrough(item, profile)) {
+        const delta = this._castPenalty(profile, item) - this._castPenalty(profile);
+        if (delta > 0) {
+          warn.push({ label: F("WFRPPD.Restr.Cast", { n: -delta }), hint: L("WFRPPD.Restr.CastHint") });
+          score -= delta * 150;
+        }
+      }
+      if (sys.penalty?.value) warn.push({ label: sys.penalty.value, info: true });
+    }
+
+    for (const cult of profile.cults) {
+      if (cult.forbids(item)) forbid.push({ label: F("WFRPPD.Restr.Cult", { god: L(cult.god) }), hint: L(cult.hint) });
+    }
+
+    return { forbid, warn, score };
+  }
+
+  /* -------------------------------------------- */
   /*  BIS: что лучше всего в этот слот            */
   /* -------------------------------------------- */
 
@@ -526,7 +731,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * value - главное число для сравнения (AP, урон, значение щита),
    * score - итог с учётом качеств, изъянов и редкости (для сортировки и BIS).
    */
-  _slotValue(item, slot) {
+  _slotValue(item, slot, profile = this._profile()) {
+    const base = this._slotValueBase(item, slot);
+    const r = this._restrictions(item, slot, profile);
+    return { ...base, score: base.score + r.score, restr: r, forbidden: r.forbid.length > 0 };
+  }
+
+  _slotValueBase(item, slot) {
     const sys = item.system;
     const q = (safe(() => sys.Qualities, []) ?? []).length;
     const f = (safe(() => sys.Flaws, []) ?? []).length;
@@ -875,12 +1086,13 @@ class PaperdollTooltip {
     if (desc.props.length) {
       const rows = desc.props
         .slice(0, 8)
-        .map(([k, v]) => `<div class="pd-tt-prop"><span>${esc(k)}</span><span>${esc(v)}</span></div>`)
+        .map(([k, v]) => `<div class="pd-tt-prop"><span>${esc(k)}</span><span>${esc(humanizeTerms(v))}</span></div>`)
         .join("");
       lines.push(`<div class="pd-tt-props">${rows}</div>`);
     }
     if (desc.text) {
-      const short = desc.text.length > 260 ? `${desc.text.slice(0, 260).trim()}…` : desc.text;
+      const full = humanizeTerms(desc.text);
+      const short = full.length > 300 ? `${full.slice(0, 300).trim()}…` : full;
       // Короткий текст без свойств - это «флейвор», как жёлтая цитата в WoW
       const flavor = !desc.props.length && short.length < 160;
       lines.push(flavor ? `<div class="pd-tt-desc">«${esc(short)}»</div>` : `<div class="pd-tt-text">${esc(short)}</div>`);
@@ -912,7 +1124,7 @@ class PaperdollTooltip {
     if (price.gc) parts.push(`${price.gc} ${L("WFRPPD.Money.gc")}`);
     if (price.ss) parts.push(`${price.ss} ${L("WFRPPD.Money.ss")}`);
     if (price.bp) parts.push(`${price.bp} ${L("WFRPPD.Money.bp")}`);
-    return parts.join(" ");
+    return humanizeTerms(parts.join(" "));
   }
 }
 
@@ -960,13 +1172,17 @@ class PaperdollFlyout {
     const { current, available } = app._swapCandidates(slot);
 
     // Сортировка по силе, BIS - лучший предмет среди всего подходящего
-    const val = new Map([...current, ...available].map((i) => [i.id, app._slotValue(i, slot)]));
-    const byScore = (a, b) => val.get(b.id).score - val.get(a.id).score || a.name.localeCompare(b.name, game.i18n.lang);
+    const profile = app._profile();
+    const val = new Map([...current, ...available].map((i) => [i.id, app._slotValue(i, slot, profile)]));
+    // Запрещённое по правилам - всегда в конце списка
+    const rank = (i) => (val.get(i.id).forbidden ? -1e6 : 0) + val.get(i.id).score;
+    const byScore = (a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name, game.i18n.lang);
     current.sort(byScore);
     available.sort(byScore);
     const all = [...current, ...available];
-    const bestScore = all.length ? Math.max(...all.map((i) => val.get(i.id).score)) : null;
-    const bisCount = all.filter((i) => val.get(i.id).score === bestScore).length;
+    const allowed = all.filter((i) => !val.get(i.id).forbidden);
+    const bestScore = allowed.length ? Math.max(...allowed.map((i) => val.get(i.id).score)) : null;
+    const bisCount = allowed.filter((i) => val.get(i.id).score === bestScore).length;
     const curValue = current.length ? Math.max(...current.map((i) => val.get(i.id).value ?? 0)) : 0;
 
     const deltaChip = (item) => {
@@ -988,15 +1204,21 @@ class PaperdollFlyout {
       if (where) meta += ` · ${game.i18n.format("WFRPPD.Fly.Now", { slot: app._slotLabel(where) })}`;
       const icon = act === "unequip" ? `<i class="fa-solid fa-xmark pd-fly-act" title="${esc(L("WFRPPD.Fly.Unequip"))}"></i>` : "";
       // BIS только если он один: при равенстве подсвечивать нечего
-      const bis = bisCount === 1 && val.get(item.id).score === bestScore && all.length > 1;
+      const v = val.get(item.id);
+      const bis = !v.forbidden && bisCount === 1 && v.score === bestScore && all.length > 1;
+      const chips = [
+        ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}">${esc(r.label)}</span>`),
+        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${esc(humanizeTerms(r.label))}</span>`)
+      ].join("");
       const bisBadge = bis ? `<span class="pd-fly-bis" title="${esc(L("WFRPPD.Fly.BisHint"))}">BIS</span>` : "";
       const delta = act === "equip" ? deltaChip(item) : "";
       return `
-        <div class="pd-fly-row ${bis ? "is-bis" : ""}" data-item-id="${item.id}" data-act="${act}">
+        <div class="pd-fly-row ${bis ? "is-bis" : ""} ${v.forbidden ? "is-forbidden" : ""}" data-item-id="${item.id}" data-act="${act}">
           <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(item.img)}" alt="">${qty}</div>
           <div class="pd-fly-text">
             <div class="pd-fly-name rarity-${rarity}">${esc(item.name)}</div>
             <div class="pd-fly-meta">${esc(meta)}</div>
+            ${chips ? `<div class="pd-fly-chips">${chips}</div>` : ""}
           </div>
           <div class="pd-fly-side">${bisBadge}${delta}</div>
           ${icon}

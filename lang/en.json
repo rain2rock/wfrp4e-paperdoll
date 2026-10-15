@@ -96,7 +96,33 @@
       "Sin": "Sin",
       "ExpTotal": "Total",
       "ExpSpent": "Spent",
-      "ExpCurrent": "Available"
+      "ExpCurrent": "Available",
+      "CastPenalty": "Armour casting penalty"
+    },
+    "Terms": {
+      "gc": "gold crown|gold crowns|gold crowns",
+      "ss": "silver shilling|silver shillings|silver shillings",
+      "bp": "brass penny|brass pennies|brass pennies",
+      "sl": "success level|success levels|success levels"
+    },
+    "Restr": {
+      "NoSkill": "No skill: {skill}",
+      "Untrained": "Untrained: no qualities",
+      "UntrainedHint": "No {skill} specialisation: the weapon loses its qualities, flaws stay",
+      "Cavalry": "On foot needs Melee (Two-Handed)",
+      "OffHand": "{n} off hand",
+      "OffHandHint": "Attacking with the off hand is penalised. Ambidextrous reduces it",
+      "Cast": "{n} SL to casting",
+      "CastHint": "A caster takes -1 SL to Language (Magick) and Channelling per armour point on the most armoured location",
+      "Cult": "Against strictures: {god}",
+      "CultUlric": "Ulric: blackpowder, helmets, crossbows and technology are not the way of Ulric",
+      "Penalty": "{text}",
+      "ForbiddenHint": "Not allowed by the rules - excluded from BIS"
+    },
+    "Class": "Class",
+    "Career": "Career",
+    "Gods": {
+      "Ulric": "Ulric"
     }
   }
 }

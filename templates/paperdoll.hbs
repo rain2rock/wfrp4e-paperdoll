@@ -10,6 +10,13 @@
         <div class="pd-hero-name">{{name}}</div>
         {{#if subtitle}}<div class="pd-hero-sub">{{subtitle}}</div>{{/if}}
       </div>
+      {{#if careerIcon}}
+      <div class="pd-hero-career" title="{{careerIcon.title}}">
+        <img src="{{careerIcon.img}}" alt="">
+      </div>
+      {{else}}
+      <div class="pd-hero-career is-empty"></div>
+      {{/if}}
     </header>
 
     <div class="pd-doll">
