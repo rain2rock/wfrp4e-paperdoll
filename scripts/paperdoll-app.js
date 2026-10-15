@@ -345,6 +345,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         art: ui(SLOT_ART[key]),
         top: views[0] ?? null,
         layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
+        // У одежды «+N» путает: показываем только при наведении
+        layersOnHover: key === "accessory",
         showAP,
         ap: showAP ? (sys.status?.armour?.[key]?.value ?? 0) : null
       };

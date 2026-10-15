@@ -1377,7 +1377,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -1px;
+  bottom: 0;
   height: 1px;
   background: var(--pd-tab-merge);
 }
@@ -1387,3 +1387,7 @@
 /* Монеты: иконки самих предметов-денег */
 .wfrp-paperdoll .pd-coin.has-img::before { display: none; }
 .wfrp-paperdoll .pd-coin img { width: 18px; height: 18px; border: none; object-fit: contain; }
+
+/* «+N» у одежды - только при наведении на слот */
+.wfrp-paperdoll .pd-layers.is-hover-only { opacity: 0; transition: opacity 0.12s; }
+.wfrp-paperdoll .pd-slot:hover .pd-layers.is-hover-only { opacity: 1; }
