@@ -381,7 +381,9 @@
       for (const i of this.items) {
         const sys = i.system;
         if (!sys.isPhysical) continue;
-        // Как в системе: вещи внутри контейнеров не считаются напрямую, только сам контейнер
+        // Как в системе: AP считается по всей надетой броне, где бы она ни «лежала»
+        if (i.type === "armour" && sys.isEquipped) for (const l of LOCS) s.status.armour[l].value += sys.AP?.[l] ?? 0;
+        // Как в системе: вещи внутри контейнеров не считаются в нагрузку напрямую, только сам контейнер
         if (sys.location?.value) {
           sys.encumbrance.total = (sys.encumbrance?.value ?? 0) * (sys.quantity?.value ?? 1);
           continue;
@@ -390,7 +392,6 @@
         if (sys.isEquipped && ["armour", "trapping"].includes(i.type)) e = Math.max(0, e - 1);
         sys.encumbrance.total = e;
         enc += e;
-        if (i.type === "armour" && sys.isEquipped) for (const l of LOCS) s.status.armour[l].value += sys.AP?.[l] ?? 0;
       }
       s.status.encumbrance.current = Math.round(enc * 100) / 100;
       s.status.encumbrance.max = s.characteristics.s.bonus + s.characteristics.t.bonus;

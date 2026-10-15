@@ -1119,6 +1119,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     try {
+      // Надетая вещь не может лежать в сумке: сначала достаём её
+      // (иначе система считает её «в контейнере» - нет AP и нагрузки)
+      if (item.system.location?.value) await item.update({ "system.location.value": "" });
       if (item.type === "weapon") await this._equipWeapon(item, slot);
       else if (isBagSlot(slot)) await this._equipBag(item, slot);
       else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
