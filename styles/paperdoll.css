@@ -1357,15 +1357,33 @@
     0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000;
 }
 
-/* Активная вкладка без нижней линии: линия полосы вкладок рисуется под вкладками,
-   активная перекрывает её, а нижняя кромка её картинки уходит за край */
+/* Активная вкладка: только рамка из tab-active.png (верх и бока), внутри прозрачно -
+   видно тот же фон, что у панели под ней, а линия полосы вкладок под ней не рисуется */
 .wfrp-paperdoll .pd-tabs {
   border-bottom: none;
   align-items: flex-end;
   box-shadow: inset 0 -1px 0 var(--pd-frame);
 }
 .wfrp-paperdoll .pd-tab.is-active {
+  position: relative;
   height: 31px;
-  background-size: 100% calc(100% + 8px);
-  background-position: center top;
+  background: transparent;
+  border-style: solid;
+  border-width: 4px 4px 0;
+  border-image: url("../assets/ui/tab-active.png") 8 8 0 8 / 4px 4px 0 4px stretch;
 }
+.wfrp-paperdoll .pd-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--pd-tab-merge);
+}
+.wfrp-paperdoll { --pd-tab-merge: #070504; }
+.wfrp-paperdoll.pd-theme-parchment { --pd-tab-merge: #beb8b4; }
+
+/* Монеты: иконки самих предметов-денег */
+.wfrp-paperdoll .pd-coin.has-img::before { display: none; }
+.wfrp-paperdoll .pd-coin img { width: 18px; height: 18px; border: none; object-fit: contain; }

@@ -34,7 +34,7 @@
         {{#if subtitle}}<div class="pd-hero-sub">{{subtitle}}</div>{{/if}}
         {{#if money}}
         <div class="pd-money" title="{{localize "WFRPPD.Money.Title"}}. {{money.hint}}">
-          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}}" title="{{title}}">{{value}}</span>{{/each}}
+          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}} {{#if img}}has-img{{/if}}" title="{{title}}">{{#if img}}<img src="{{img}}" alt="">{{/if}}{{value}}</span>{{/each}}
         </div>
         {{/if}}
       </div>
@@ -158,7 +158,6 @@
       {{/each}}
     </div>
 
-    <footer class="pd-bag-hint">{{localize "WFRPPD.Hint"}}</footer>
     {{else}}
     <div class="pd-ecs">
       {{#each statCategories}}

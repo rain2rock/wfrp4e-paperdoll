@@ -28,6 +28,7 @@ import crypto from "node:crypto";
 import { actorData as demoActor, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT, COINS } from "./mock-loot.mjs";
+import { ownIconFor } from "../scripts/icon-rules.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
@@ -144,18 +145,13 @@ const OVERRIDES = new Set();
     else OVERRIDES.add(pre + e.name);
   }
 })(path.join(root, "assets/icons"));
-const overrideFor = (rel) => {
-  if (!rel) return null;
-  if (OVERRIDES.has(rel)) return rel;
-  const base = rel.replace(/(-(fine|flaw)(-?\d+)?|\d+)(\.\w+)$/, "$4");
-  return base !== rel && OVERRIDES.has(base) ? base : null;
-};
+
 let ownIcons = 0;
 const withOwnIcon = (i) => {
   const src = i._srcImg?.startsWith("modules/wfrp4e-core/icons/")
     ? i._srcImg.slice("modules/wfrp4e-core/icons/".length)
     : i._icon?.startsWith("icons:") ? i._icon.slice(6) : null;
-  const rel = overrideFor(src);
+  const rel = src && ownIconFor(src, i.name, OVERRIDES);
   if (!rel) return i;
   assetUri(`icons/${rel}`);
   ownIcons++;
@@ -165,7 +161,7 @@ const withOwnIcon = (i) => {
 actor = { ...actor, items: actor.items.map(withOwnIcon) };
 
 if (!(ROOTS.icons || ROOTS.core)) {
-  const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"] };
+  const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"], money: ["🪙", "#6a5a20"] };
   actor = {
     ...actor,
     effects: (actor.effects ?? []).map((e) => ({ ...e, img: e.img ?? emojiIcon(e.statuses?.length ? "🩸" : "☠️", "#5a1a3a") })),
@@ -177,7 +173,7 @@ const require = createRequire(import.meta.url);
 const handlebars = fs.readFileSync(require.resolve("handlebars/dist/handlebars.min.js"), "utf8");
 const lang = JSON.parse(read("lang/ru.json"));
 const css = read("styles/paperdoll.css").replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
-const appSrc = read("scripts/icon-index.js") + "\n" + read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "");
+const appSrc = [read("scripts/icon-index.js"), read("scripts/icon-rules.js").replace(/^export /gm, ""), read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "")].join("\n");
 const template = read("templates/paperdoll.hbs");
 const runtime = read("tools/mock-runtime.js");
 const tplPath = "modules/wfrp4e-paperdoll/templates/paperdoll.hbs";

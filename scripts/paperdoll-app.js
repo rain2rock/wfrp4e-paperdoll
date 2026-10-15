@@ -1,4 +1,5 @@
 import { ICON_OVERRIDES } from "./icon-index.js";
+import { ownIconFor } from "./icon-rules.js";
 
 export const MODULE_ID = "wfrp4e-paperdoll";
 
@@ -32,15 +33,10 @@ const CORE_ICONS = "modules/wfrp4e-core/icons/";
  * Иконка предмета: заглушки wfrp4e-core подменяем своими из assets/icons.
  * Варианты (-fine, -flaw, dagger2) без своей картинки берут картинку базового предмета.
  */
-export function itemImg(img) {
+export function itemImg(img, name = "") {
   if (!img?.startsWith(CORE_ICONS) || !setting("itemIcons", true)) return img;
-  let rel = img.slice(CORE_ICONS.length);
-  if (!ICON_OVERRIDES.has(rel)) {
-    const base = rel.replace(/(-(fine|flaw)(-?\d+)?|\d+)(\.\w+)$/, "$4");
-    if (base === rel || !ICON_OVERRIDES.has(base)) return img;
-    rel = base;
-  }
-  return asset(`icons/${rel}`);
+  const rel = ownIconFor(img.slice(CORE_ICONS.length), name, ICON_OVERRIDES);
+  return rel ? asset(`icons/${rel}`) : img;
 }
 
 /** Силуэты пустых слотов */
@@ -616,16 +612,16 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!coins.length) return null;
     let total = 0;
     const by = { gc: 0, ss: 0, bp: 0 };
+    const img = {};
     for (const c of coins) {
       const qty = Number(c.system.quantity?.value) || 0;
       const value = Number(c.system.coinValue?.value) || 1;
       total += qty * value;
-      if (value === 240) by.gc += qty;
-      else if (value === 12) by.ss += qty;
-      else if (value === 1) by.bp += qty;
-      else by.bp += qty * value;
+      const key = value === 240 ? "gc" : value === 12 ? "ss" : "bp";
+      by[key] += value === 240 || value === 12 || value === 1 ? qty : qty * value;
+      img[key] ??= c.img;
     }
-    const parts = ["gc", "ss", "bp"].map((k) => ({ key: k, value: by[k], label: L(`WFRPPD.Money.${k}`), title: L(`WFRPPD.Money.Name.${k}`) }));
+    const parts = ["gc", "ss", "bp"].map((k) => ({ key: k, value: by[k], img: img[k] ?? null, label: L(`WFRPPD.Money.${k}`), title: L(`WFRPPD.Money.Name.${k}`) }));
     const gc = Math.floor(total / 240);
     const ss = Math.floor((total % 240) / 12);
     const bp = total % 12;
@@ -641,7 +637,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       id: item.id,
       name: item.name,
-      img: itemImg(item.img),
+      img: itemImg(item.img, item.name),
       rarity: RARITY[sys.availability?.value] ?? "none",
       qty: qty > 1 ? qty : null,
       draggable: editable && !extra.ghost,
@@ -760,7 +756,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         id: c.id,
         kind,
         name: c.name,
-        img: itemImg(c.img),
+        img: itemImg(c.img, c.name),
         slotLabel: kind === "worn" ? this._slotLabel(assign.slotOf.get(c.id) ?? "") : L("WFRPPD.Bags.NotWorn"),
         used,
         cap,
@@ -992,7 +988,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "injury",
         id: injury.id,
         name: injury.name,
-        img: itemImg(injury.img),
+        img: itemImg(injury.img, injury.name),
         value: dur.active && Number(dur.value) ? Number(dur.value) : null,
         debuff: true,
         lines: [
@@ -1009,7 +1005,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "critical",
         id: crit.id,
         name: crit.name,
-        img: itemImg(crit.img),
+        img: itemImg(crit.img, crit.name),
         debuff: true,
         lines: [
           sys.location?.value ? `${L("WFRPPD.Effects.Location")}: ${locName(sys.location.key ?? sys.location.value)}` : "",
@@ -1032,7 +1028,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "disease",
         id: disease.id,
         name: disease.name,
-        img: itemImg(disease.img),
+        img: itemImg(disease.img, disease.name),
         debuff: true,
         lines: [state, sys.symptoms?.value ? `${L("WFRPPD.Effects.Symptoms")}: ${sys.symptoms.value}` : ""],
         hint: L("WFRPPD.Effects.HintOpen")
@@ -1834,7 +1830,7 @@ class PaperdollFlyout {
       const delta = act === "equip" ? deltaChip(item) : "";
       return `
         <div class="pd-fly-row ${bis ? "is-bis" : ""} ${v.forbidden ? "is-forbidden" : ""}" data-item-id="${item.id}" data-act="${act}">
-          <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(itemImg(item.img))}" alt="">${qty}</div>
+          <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(itemImg(item.img, item.name))}" alt="">${qty}</div>
           <div class="pd-fly-text">
             <div class="pd-fly-name rarity-${rarity}">${esc(item.name)}</div>
             <div class="pd-fly-meta">${esc(meta)}</div>
