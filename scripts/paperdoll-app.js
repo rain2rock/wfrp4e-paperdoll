@@ -172,6 +172,12 @@ function parseDescription(html) {
   return { props, text: text.join(" "), hasTable };
 }
 
+function stripTags(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html ?? "";
+  return (div.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
 function sys(doc) {
   return doc?.system ?? {};
 }
@@ -377,6 +383,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       name: actor.name,
       subtitle,
       careerIcon,
+      effects: this._effectsCache = this._effectsView(),
       groups,
       bag,
       bagEmpty: !bag.length,
@@ -610,6 +617,141 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /* -------------------------------------------- */
+  /*  Эффекты: состояния, травмы, болезни         */
+  /* -------------------------------------------- */
+
+  /**
+   * Всё, что сейчас висит на персонаже, в одну ленту как баффы/дебаффы в WoW:
+   * - состояния WFRP (кровотечение, усталость...) - ЛКМ снимает 1 уровень;
+   * - эффекты на самом персонаже (например, от местности) - ЛКМ выключает/включает;
+   * - травмы, критические раны, болезни - со сроком заживления, ЛКМ открывает.
+   */
+  _effectsView() {
+    const actor = this.actor;
+    const cfg = game.wfrp4e.config;
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const out = [];
+
+    for (const effect of actor.effects ?? []) {
+      const statuses = [...(effect.statuses ?? [])];
+      const condition = statuses.find((st) => cfg.conditions?.[st]);
+      if (condition) {
+        const value = Number(effect.conditionValue ?? effect.system?.condition?.value) || null;
+        out.push({
+          kind: "condition",
+          id: effect.id,
+          key: condition,
+          name: effect.name || L(cfg.conditions[condition]),
+          img: effect.img,
+          value: value && value > 1 ? value : null,
+          debuff: true,
+          lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
+          hint: L("WFRPPD.Effects.HintCondition")
+        });
+        continue;
+      }
+      // Эффекты, перенесённые с предметов и талантов, сюда не тащим - это «пассивки»
+      if (effect.parent !== actor || effect.transfer === true && effect.origin) continue;
+      out.push({
+        kind: "effect",
+        id: effect.id,
+        name: effect.name,
+        img: effect.img,
+        disabled: !!effect.disabled,
+        debuff: true,
+        lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
+        hint: L(effect.disabled ? "WFRPPD.Effects.HintEnable" : "WFRPPD.Effects.HintDisable")
+      });
+    }
+
+    const locName = (key) => (cfg.locations?.[key] ? L(cfg.locations[key]) : key);
+    for (const injury of actor.itemTypes.injury ?? []) {
+      const sys = injury.system;
+      const dur = sys.duration ?? {};
+      let left = null;
+      if (dur.permanent) left = L("WFRPPD.Effects.Permanent");
+      else if (dur.active && dur.value) left = F("WFRPPD.Effects.DaysLeft", { n: dur.value });
+      else if (dur.value) left = F("WFRPPD.Effects.HealsIn", { n: dur.value });
+      out.push({
+        kind: "injury",
+        id: injury.id,
+        name: injury.name,
+        img: injury.img,
+        value: dur.active && Number(dur.value) ? Number(dur.value) : null,
+        debuff: true,
+        lines: [
+          sys.location?.value ? `${L("WFRPPD.Effects.Location")}: ${locName(sys.location.key ?? sys.location.value)}` : "",
+          sys.penalty?.value ? `${L("WFRPPD.Effects.Penalty")}: ${sys.penalty.value}` : "",
+          left ?? ""
+        ],
+        hint: L("WFRPPD.Effects.HintOpen")
+      });
+    }
+    for (const crit of actor.itemTypes.critical ?? []) {
+      const sys = crit.system;
+      out.push({
+        kind: "critical",
+        id: crit.id,
+        name: crit.name,
+        img: crit.img,
+        debuff: true,
+        lines: [
+          sys.location?.value ? `${L("WFRPPD.Effects.Location")}: ${locName(sys.location.key ?? sys.location.value)}` : "",
+          sys.wounds?.value ? `${L("WFRPPD.Wounds")}: ${sys.wounds.value}` : "",
+          sys.modifier?.value ? `${L("WFRPPD.Effects.Penalty")}: ${sys.modifier.value}` : ""
+        ],
+        hint: L("WFRPPD.Effects.HintOpen")
+      });
+    }
+    for (const disease of actor.itemTypes.disease ?? []) {
+      const sys = disease.system;
+      const inc = sys.incubation ?? {};
+      const dur = sys.duration ?? {};
+      const state = dur.active
+        ? F("WFRPPD.Effects.DiseaseActive", { n: dur.value ?? "?", unit: dur.unit ?? "" })
+        : inc.active
+          ? F("WFRPPD.Effects.DiseaseIncubation", { n: inc.value ?? "?", unit: inc.unit ?? "" })
+          : "";
+      out.push({
+        kind: "disease",
+        id: disease.id,
+        name: disease.name,
+        img: disease.img,
+        debuff: true,
+        lines: [state, sys.symptoms?.value ? `${L("WFRPPD.Effects.Symptoms")}: ${sys.symptoms.value}` : ""],
+        hint: L("WFRPPD.Effects.HintOpen")
+      });
+    }
+
+    return out.map((e) => ({ ...e, lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
+  }
+
+  /** ЛКМ по эффекту */
+  async _onEffectClick(entry) {
+    if (!this.editable) return;
+    try {
+      if (entry.kind === "condition") {
+        if (typeof this.actor.removeCondition === "function") await this.actor.removeCondition(entry.key, 1);
+        else await this.actor.effects.get(entry.id)?.delete();
+      } else if (entry.kind === "effect") {
+        const effect = this.actor.effects.get(entry.id);
+        await effect?.update({ disabled: !effect.disabled });
+      } else {
+        this.actor.items.get(entry.id)?.sheet?.render(true);
+      }
+    } catch (err) {
+      console.warn(`${MODULE_ID} | effect action failed`, err);
+    }
+  }
+
+  /** ПКМ по эффекту - открыть его лист */
+  _onEffectContext(entry) {
+    if (entry.kind === "condition" || entry.kind === "effect") this.actor.effects.get(entry.id)?.sheet?.render(true);
+    else this.actor.items.get(entry.id)?.sheet?.render(true);
+  }
+
+  /* -------------------------------------------- */
   /*  Профиль ограничений персонажа               */
   /* -------------------------------------------- */
 
@@ -809,6 +951,21 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!!item.system.offhand?.value !== wantOff) await item.update({ "system.offhand.value": wantOff });
   }
 
+  /** Снять всё, что сейчас в слоте */
+  async _clearSlot(slot) {
+    if (!this.editable) return;
+    const { current } = this._swapCandidates(slot);
+    if (!current.length) return;
+    try {
+      await this.actor.updateEmbeddedDocuments(
+        "Item",
+        current.map((i) => ({ _id: i.id, "system.equipped.value": false }))
+      );
+    } catch (err) {
+      console.warn(`${MODULE_ID} | clear slot failed`, err);
+    }
+  }
+
   async _unequip(item) {
     if (!this.editable || !item?.system?.isEquipped) return;
     try {
@@ -886,6 +1043,27 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this._statPanels[Number(select.dataset.panel)] = select.value;
         this._saveUiState();
         this.render();
+      });
+    }
+
+    // Лента эффектов
+    for (const el of root.querySelectorAll(".pd-effect")) {
+      const entry = this._effectsCache?.[Number(el.dataset.index)];
+      if (!entry) continue;
+      el.addEventListener("pointerenter", (ev) => PaperdollTooltip.showHtml(effectTooltip(entry), ev));
+      el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+      el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        PaperdollTooltip.hide();
+        this._onEffectClick(entry);
+      });
+      el.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        PaperdollTooltip.hide();
+        this._onEffectContext(entry);
       });
     }
 
@@ -993,6 +1171,19 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 /*  Тултип в стиле WoW                          */
 /* ============================================ */
 
+function effectTooltip(entry) {
+  const L = (k) => game.i18n.localize(k);
+  const kind = L(`WFRPPD.Effects.Kind.${entry.kind}`);
+  const state = entry.disabled ? ` · ${L("WFRPPD.Effects.Disabled")}` : "";
+  const value = entry.value ? ` ${entry.value}` : "";
+  const lines = entry.lines.map((l) => `<div class="pd-tt-text">${esc(l.length > 260 ? `${l.slice(0, 260)}…` : l)}</div>`).join("");
+  return `
+    <div class="pd-tt-name ${entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
+    <div class="pd-tt-sub">${esc(kind + state)}</div>
+    ${lines}
+    <div class="pd-tt-hint">${esc(entry.hint)} · ${esc(L("WFRPPD.Effects.HintSheet"))}</div>`;
+}
+
 class PaperdollTooltip {
   static el = null;
 
@@ -1002,6 +1193,13 @@ class PaperdollTooltip {
     this.el.className = "wfrp-paperdoll-tooltip";
     document.body.append(this.el);
     return this.el;
+  }
+
+  static showHtml(html, event) {
+    const el = this.ensure();
+    el.innerHTML = html;
+    el.classList.add("is-visible");
+    this.move(event);
   }
 
   static show(item, event) {
@@ -1234,6 +1432,17 @@ class PaperdollFlyout {
     html += available.length
       ? available.map((i) => row(i, "equip")).join("")
       : `<div class="pd-fly-empty">${esc(L("WFRPPD.Fly.Empty"))}</div>`;
+    // Явная кнопка «оставить слот пустым» - удобно снять всё одним кликом
+    if (current.length) {
+      html += `
+        <div class="pd-fly-row pd-fly-clear" data-act="clear">
+          <div class="pd-fly-icon"><i class="fa-solid fa-ban"></i></div>
+          <div class="pd-fly-text">
+            <div class="pd-fly-name">${esc(L("WFRPPD.Fly.Clear"))}</div>
+            <div class="pd-fly-meta">${esc(game.i18n.format("WFRPPD.Fly.ClearHint", { n: current.length }))}</div>
+          </div>
+        </div>`;
+    }
 
     const el = document.createElement("div");
     el.className = "wfrp-paperdoll-flyout";
@@ -1253,7 +1462,14 @@ class PaperdollFlyout {
     el.style.left = `${Math.max(8, x)}px`;
     el.style.top = `${y}px`;
 
-    for (const rowEl of el.querySelectorAll(".pd-fly-row")) {
+    el.querySelector(".pd-fly-clear")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      PaperdollTooltip.hide();
+      this.close();
+      app._clearSlot(slot);
+    });
+
+    for (const rowEl of el.querySelectorAll(".pd-fly-row[data-item-id]")) {
       const item = app.actor.items.get(rowEl.dataset.itemId);
       if (!item) continue;
       rowEl.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev));

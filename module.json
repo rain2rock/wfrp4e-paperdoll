@@ -2,7 +2,7 @@
   "id": "wfrp4e-paperdoll",
   "title": "WFRP4e Paperdoll",
   "description": "Окно персонажа в стиле WoW для системы WFRP4e: куколка со слотами, сумка, статы и смена снаряжения перетаскиванием.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "authors": [{ "name": "Mikhail" }],
   "compatibility": {
     "minimum": "13",

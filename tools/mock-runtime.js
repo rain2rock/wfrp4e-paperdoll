@@ -280,6 +280,32 @@
     }
   }
 
+  class FakeEffect {
+    constructor(actor, data) {
+      this.parent = actor;
+      this.id = data.id;
+      this.name = data.name;
+      this.img = data.img;
+      this.description = data.description ?? "";
+      this.statuses = new Set(data.statuses ?? []);
+      this.disabled = !!data.disabled;
+      this.conditionValue = data.value ?? null;
+    }
+    get sheet() {
+      return { render: () => toast(`ПКМ: в Foundry тут откроется эффект «${this.name}»`, "info") };
+    }
+    async update(changes) {
+      Object.assign(this, changes);
+      Hooks.call("updateActor", this.parent, {});
+      return this;
+    }
+    async delete() {
+      const list = this.parent.effects;
+      list.splice(list.indexOf(this), 1);
+      Hooks.call("updateActor", this.parent, {});
+    }
+  }
+
   class FakeActor {
     constructor(data) {
       this.id = data.id;
@@ -299,6 +325,9 @@
       const arr = [...data.items, ...extra].map((d) => new FakeItem(this, d));
       arr.get = (id) => arr.find((i) => i.id === id);
       this.items = arr;
+      const effects = (data.effects ?? []).map((e) => new FakeEffect(this, e));
+      effects.get = (id) => effects.find((e) => e.id === id);
+      this.effects = effects;
       this.career = data.career;
       const actor = this;
       Object.defineProperties(this.system, {
@@ -322,6 +351,14 @@
     }
     get sheet() {
       return { render: () => toast("В Foundry тут откроется лист персонажа", "info") };
+    }
+    /** Как в системе: снять N уровней состояния, на нуле состояние исчезает */
+    async removeCondition(key, value = 1) {
+      const effect = this.effects.find((e) => e.statuses.has(key));
+      if (!effect) return;
+      const left = (effect.conditionValue ?? 1) - value;
+      if (left > 0 && effect.conditionValue) await effect.update({ conditionValue: left });
+      else await effect.delete();
     }
     async updateEmbeddedDocuments(type, updates) {
       for (const u of updates) {

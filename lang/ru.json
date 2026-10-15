@@ -61,7 +61,9 @@
         "AP": "брони (AP)",
         "dmg": "урона",
         "shield": "щита"
-      }
+      },
+      "Clear": "Снять всё",
+      "ClearHint": "Оставить слот пустым ({n} шт.)"
     },
     "StatsTab": "Характеристики",
     "Level": "ур.",
@@ -123,6 +125,29 @@
     "Career": "Карьера",
     "Gods": {
       "Ulric": "Ульрик"
+    },
+    "Effects": {
+      "Kind": {
+        "condition": "Состояние",
+        "effect": "Эффект",
+        "injury": "Травма",
+        "critical": "Критическая рана",
+        "disease": "Болезнь"
+      },
+      "Disabled": "выключен",
+      "Permanent": "Навсегда",
+      "DaysLeft": "Заживает: осталось {n} дн.",
+      "HealsIn": "Срок заживления: {n} дн.",
+      "Location": "Где",
+      "Penalty": "Штраф",
+      "DiseaseActive": "Болеет: осталось {n} {unit}",
+      "DiseaseIncubation": "Инкубация: {n} {unit}",
+      "Symptoms": "Симптомы",
+      "HintCondition": "ЛКМ - снять 1 уровень",
+      "HintDisable": "ЛКМ - выключить (например, ушёл с территории)",
+      "HintEnable": "ЛКМ - включить снова",
+      "HintOpen": "ЛКМ - открыть",
+      "HintSheet": "ПКМ - подробнее"
     }
   }
 }

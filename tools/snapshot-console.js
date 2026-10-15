@@ -25,8 +25,12 @@ const dump = {
   skills: a.itemTypes.skill.map((i) => i.name),
   talents: a.itemTypes.talent.map((i) => ({ name: i.name, advances: i.system.advances?.value ?? 1 })),
   spells: (a.itemTypes.spell ?? []).map((i) => i.name),
+  effects: a.effects.map((e) => ({
+    id: e.id, name: e.name, img: e.img, description: e.description, disabled: e.disabled,
+    statuses: [...e.statuses], value: e.conditionValue ?? null
+  })),
   items: a.items
-    .filter((i) => i.system.isPhysical && i.type !== "money")
+    .filter((i) => (i.system.isPhysical && i.type !== "money") || ["injury", "critical", "disease"].includes(i.type))
     .map((i) => ({ id: i.id, name: i.name, type: i.type, img: i.img, system: i.system.toObject?.() ?? i.system }))
 };
 copy(JSON.stringify(dump, null, 2));

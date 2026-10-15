@@ -50,6 +50,16 @@
       <div class="pd-center">
         <div class="pd-model" data-action="openSheet">
           <img src="{{img}}" alt="{{name}}">
+          {{#if effects.length}}
+          <div class="pd-effects">
+            {{#each effects}}
+            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
+              <img src="{{img}}" alt="">
+              {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
+            </button>
+            {{/each}}
+          </div>
+          {{/if}}
           <div class="pd-enc is-{{encumbrance.state}}" title="{{localize "WFRPPD.Encumbrance"}}">
             <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
             <span>{{localize "WFRPPD.Encumbrance"}}: {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>

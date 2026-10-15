@@ -61,7 +61,9 @@
         "AP": "AP",
         "dmg": "dmg",
         "shield": "shield"
-      }
+      },
+      "Clear": "Unequip all",
+      "ClearHint": "Leave the slot empty ({n})"
     },
     "StatsTab": "Stats",
     "Level": "lvl",
@@ -123,6 +125,29 @@
     "Career": "Career",
     "Gods": {
       "Ulric": "Ulric"
+    },
+    "Effects": {
+      "Kind": {
+        "condition": "Condition",
+        "effect": "Effect",
+        "injury": "Injury",
+        "critical": "Critical wound",
+        "disease": "Disease"
+      },
+      "Disabled": "disabled",
+      "Permanent": "Permanent",
+      "DaysLeft": "Healing: {n} days left",
+      "HealsIn": "Heals in {n} days",
+      "Location": "Location",
+      "Penalty": "Penalty",
+      "DiseaseActive": "Sick: {n} {unit} left",
+      "DiseaseIncubation": "Incubating: {n} {unit}",
+      "Symptoms": "Symptoms",
+      "HintCondition": "Click to remove 1 level",
+      "HintDisable": "Click to disable (e.g. left the area)",
+      "HintEnable": "Click to enable again",
+      "HintOpen": "Click to open",
+      "HintSheet": "Right-click for details"
     }
   }
 }

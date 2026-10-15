@@ -7,7 +7,9 @@
  *                          персонаж из слепка, снятого скриптом из консоли Foundry
  *   --profile mage|metal|ulric|duelist
  *                          подменить навыки, таланты и бога (проверка ограничений)
+ *   --effects              добавить тестовые состояния, эффект местности, травму, крит и болезнь
  *   --loot                 добавить тестовый лут (tools/mock-loot.mjs): все слоты и все редкости
+ *   --icons-system DIR     иконки самой системы WFRP4e (static/icons из её репо) - для состояний
  *   --icons DIR --icons-core DIR
  *                          настоящие иконки: DIR с иконками wfrp4e-core и DIR со стандартными
  *                          иконками Foundry (см. tools/icon-fallbacks.mjs). Без них - эмодзи.
@@ -23,7 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import crypto from "node:crypto";
-import { actorData as demoActor, config, systemStrings, PROFILES } from "./mock-data.mjs";
+import { actorData as demoActor, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT } from "./mock-loot.mjs";
 
@@ -46,6 +48,13 @@ if (args.profile) {
     system: { ...actor.system, details: { ...actor.system.details, god: { value: pr.god } } }
   };
 }
+if ("effects" in args) {
+  actor = {
+    ...actor,
+    effects: [...(actor.effects ?? []), ...structuredClone(TEST_EFFECTS.effects)],
+    items: [...actor.items, ...structuredClone(TEST_EFFECTS.items)]
+  };
+}
 if ("loot" in args) {
   // Эмодзи-заглушка на случай сборки без папок с иконками
   const GLYPH = { weapon: ["⚔️", "#5a6a7a"], armour: ["🛡️", "#6a5a4a"], trapping: ["💍", "#5a4a6a"], container: ["🎒", "#6a5530"] };
@@ -58,10 +67,11 @@ function emojiIcon(glyph, color) {
 
 // ---------- Иконки ----------
 const CAREER_SLUG = { "флагеллант": "flagellant", "flagellant": "flagellant", "маг": "wizard", "жрец": "priest", "дуэлянт": "duellist" };
-const ROOTS = { icons: args.icons, core: args["icons-core"] };
+const ROOTS = { icons: args.icons, core: args["icons-core"], sys: args["icons-system"] };
 const iconStats = { path: 0, rule: 0, placeholder: 0, emoji: 0 };
 if (ROOTS.icons || ROOTS.core) {
   actor = { ...actor, items: actor.items.map((i) => ({ ...i, img: resolveIcon(i) })) };
+  actor.effects = (actor.effects ?? []).map((e) => ({ ...e, img: (e._icon && fileFor(e._icon) && dataUri(fileFor(e._icon))) || e.img }));
   // Иконка карьеры: путь из слепка или icons/careers/<карьера>-0<уровень>.png
   const c = actor.career ?? {};
   const slug = CAREER_SLUG[(c.name ?? "").toLowerCase()] ?? (c.name ?? "").toLowerCase().replace(/[^a-z]+/g, "-");
@@ -119,6 +129,14 @@ function resolveIcon(item) {
   return item.img;
 }
 
+if (!(ROOTS.icons || ROOTS.core)) {
+  const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"] };
+  actor = {
+    ...actor,
+    effects: (actor.effects ?? []).map((e) => ({ ...e, img: e.img ?? emojiIcon(e.statuses?.length ? "🩸" : "☠️", "#5a1a3a") })),
+    items: actor.items.map((i) => (G[i.type] && !i.img ? { ...i, img: emojiIcon(...G[i.type]) } : i))
+  };
+}
 // ---------- Сборка ----------
 const require = createRequire(import.meta.url);
 const handlebars = fs.readFileSync(require.resolve("handlebars/dist/handlebars.min.js"), "utf8");
@@ -241,6 +259,7 @@ function fromSnapshot(snap) {
     img: demoActor.img,
     career: { name: snap.career?.name ?? "", level: snap.career?.level, img: snap.career?.img, class: snap.career?.class },
     skills: snap.skills ?? [],
+    effects: (snap.effects ?? []).map((e) => ({ ...e, _icon: e.img?.startsWith("systems/wfrp4e/icons/") ? `sys:${e.img.slice("systems/wfrp4e/icons/".length)}` : e.img?.startsWith("icons/") ? `core:${e.img.slice(6)}` : null })),
     talents: (snap.talents ?? []).map((t) => (typeof t === "string" ? { name: t } : t)),
     spells: snap.spells ?? [],
     system: {

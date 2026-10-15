@@ -112,7 +112,12 @@ export const config = {
   characteristicsAbbrev: { ws: "CHARAbbrev.WS", bs: "CHARAbbrev.BS", s: "CHARAbbrev.S", t: "CHARAbbrev.T", i: "CHARAbbrev.I", ag: "CHARAbbrev.Ag", dex: "CHARAbbrev.Dex", int: "CHARAbbrev.Int", wp: "CHARAbbrev.WP", fel: "CHARAbbrev.Fel" },
   availability: { None: "-", common: "WFRP4E.Availability.Common", scarce: "WFRP4E.Availability.Scarce", rare: "WFRP4E.Availability.Rare", exotic: "WFRP4E.Availability.Exotic", special: "WFRP4E.Availability.Special" },
   armorTypes: { softLeather: "WFRP4E.ArmourType.SLeather", mail: "WFRP4E.ArmourType.Mail" },
-  species: { human: "Человек" }
+  species: { human: "Человек" },
+  conditions: {
+    ablaze: "Горит", bleeding: "Кровотечение", blinded: "Ослеплён", broken: "Сломлен", deafened: "Оглушён (слух)",
+    entangled: "Опутан", fatigued: "Усталость", poisoned: "Отравлен", prone: "Сбит с ног", stunned: "Ошеломлён",
+    surprised: "Застигнут врасплох", unconscious: "Без сознания", grappling: "В клинче", engaged: "В бою"
+  }
 };
 
 /** Строки системы WFRP4e (в Foundry их даёт локализация системы) */
@@ -164,4 +169,25 @@ export const PROFILES = {
     talents: [{ name: "Ambidextrous", advances: 1 }],
     god: ""
   }
+};
+
+/** Тестовые эффекты для флага --effects: состояния, эффект местности, травма, крит, болезнь */
+export const TEST_EFFECTS = {
+  effects: [
+    { id: "eff-bleed", name: "Кровотечение", statuses: ["bleeding"], value: 2, _icon: "sys:conditions/bleeding.png",
+      description: "<p>Теряешь 1 пункт здоровья в конце каждого раунда за каждый уровень. При 0 здоровья - проверка на смерть.</p>" },
+    { id: "eff-fatigue", name: "Усталость", statuses: ["fatigued"], value: 1, _icon: "sys:conditions/fatigued.png",
+      description: "<p>-10 ко всем проверкам за каждый уровень.</p>" },
+    { id: "eff-swamp", name: "Проклятая топь", _icon: "core:magic/unholy/silhouette-robe-evil-glow.webp",
+      description: "<p>Пока персонаж в топях Драквальда: -10 к Хладнокровию и Стойкости. Выключить, когда персонаж покинет территорию.</p>" }
+  ],
+  items: [
+    { id: "inj-arm", name: "Лёгкий перелом руки", type: "injury", _icon: "icons:injuries/broken-arm.png",
+      system: { location: { value: "lArm", key: "lArm" }, penalty: { value: "-20 к проверкам этой рукой" }, duration: { value: "5", active: true, permanent: false } } },
+    { id: "crit-cut", name: "Глубокий порез", type: "critical", _icon: "icons:injuries/tornbody.png",
+      system: { location: { value: "body", key: "body" }, wounds: { value: "2" }, modifier: { value: "+1 Кровотечение" } } },
+    { id: "dis-fever", name: "Гнилая лихорадка", type: "disease", _icon: "icons:diseases/disease.png",
+      system: { incubation: { value: "1", unit: "день", active: true }, duration: { value: "5", unit: "дней", active: false },
+        symptoms: { value: "Лихорадка, Слабость" } } }
+  ]
 };

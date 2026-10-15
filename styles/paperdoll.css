@@ -774,3 +774,84 @@
 .wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-name,
 .wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-meta { opacity: 0.5; }
 .wfrp-paperdoll-flyout .pd-fly-row.is-forbidden .pd-fly-icon { filter: grayscale(0.7); }
+
+/* ==========================================================
+   Лента эффектов поверх модели (как баффы/дебаффы в WoW)
+   ========================================================== */
+
+.wfrp-paperdoll .pd-effects {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  left: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  pointer-events: none;
+}
+.wfrp-paperdoll .pd-effect {
+  pointer-events: auto;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 3px;
+  border: 1px solid #c0392b;
+  background: #0b0907;
+  box-shadow: 0 0 6px rgba(192, 57, 43, 0.6);
+  cursor: pointer;
+  overflow: visible;
+}
+.wfrp-paperdoll .pd-effect img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+  border-radius: 2px;
+}
+.wfrp-paperdoll .pd-effect--injury,
+.wfrp-paperdoll .pd-effect--critical { border-color: #e67e22; box-shadow: 0 0 6px rgba(230, 126, 34, 0.6); }
+.wfrp-paperdoll .pd-effect--disease { border-color: #8bc34a; box-shadow: 0 0 6px rgba(139, 195, 74, 0.55); }
+.wfrp-paperdoll .pd-effect--effect { border-color: #9b59b6; box-shadow: 0 0 6px rgba(155, 89, 182, 0.6); }
+.wfrp-paperdoll .pd-effect:hover { filter: brightness(1.25); }
+
+/* Выключенный эффект: серый и перечёркнутый */
+.wfrp-paperdoll .pd-effect.is-disabled { filter: grayscale(1); opacity: 0.55; box-shadow: none; border-color: #555; }
+.wfrp-paperdoll .pd-effect.is-disabled::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 46%, #ff3b30 46%, #ff3b30 54%, transparent 54%);
+}
+.wfrp-paperdoll .pd-effect-value {
+  position: absolute;
+  right: -3px;
+  bottom: -4px;
+  min-width: 14px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  color: #fff;
+  background: #2a0f0c;
+  border: 1px solid #c0392b;
+  border-radius: 7px;
+}
+.wfrp-paperdoll-tooltip .pd-tt-name.is-debuff { color: #ff6b5b; }
+
+/* «Снять всё» в списке быстрой смены */
+.wfrp-paperdoll-flyout .pd-fly-clear { margin-top: 6px; border-top: 1px solid #4a4339; border-radius: 0 0 4px 4px; }
+.wfrp-paperdoll-flyout .pd-fly-clear .pd-fly-icon {
+  display: grid;
+  place-items: center;
+  color: #a89c86;
+  font-size: 16px;
+  border-color: #4a4339;
+  box-shadow: none;
+}
+.wfrp-paperdoll-flyout .pd-fly-clear .pd-fly-name { color: #d8ccb4; }
+.wfrp-paperdoll-flyout .pd-fly-clear:hover .pd-fly-icon { color: #ff6b5b; }
