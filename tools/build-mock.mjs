@@ -160,6 +160,7 @@ const html = `<!doctype html>
   body { padding: 20px; }
   .mock-note { color: #cfcfcf; font-size: 13px; margin: 0 0 12px; max-width: 960px; line-height: 1.4; }
   #mock-reopen { margin-bottom: 12px; }
+  .mock-gm { display: inline-flex; gap: 6px; align-items: center; color: #cfcfcf; font-size: 13px; margin: 0 0 12px; cursor: pointer; }
   .app.window-app { max-width: 100%; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden;
     box-shadow: 0 10px 40px rgba(0,0,0,.6); border: 1px solid #000; }
   .window-header { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; background: #0b0a09;
@@ -182,6 +183,7 @@ ${css}
 <body>
 <p class="mock-note">Мок окна модуля: работает настоящий код модуля поверх заглушки Foundry. ${ROOTS.icons || ROOTS.core ? "Иконки из wfrp4e-core и стандартного набора Foundry." : "Иконки предметов пока эмодзи."}
 Наведи на слот - справа стрелочка быстрой смены. Перетаскивание, двойной клик, вкладка «Характеристики» и выпадашки статов тоже работают.</p>
+<label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
 <script>${handlebars}</script>
@@ -203,6 +205,7 @@ const PaperdollApp = window.PaperdollApp;
 const actor = window.__PD_makeActor__(${json(actor)});
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
 document.getElementById("mock-reopen").addEventListener("click", open);
+document.getElementById("mock-gm").addEventListener("change", (ev) => { game.user.isGM = ev.target.checked; });
 open();
 </script>
 </body>

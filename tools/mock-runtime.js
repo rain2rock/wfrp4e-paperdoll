@@ -400,7 +400,7 @@
 
   window.game = {
     i18n,
-    user: { isGM: true },
+    user: { isGM: false },
     wfrp4e: { config: window.__PD_CONFIG__ }
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);

@@ -1301,7 +1301,8 @@ class PaperdollTooltip {
     const footer = [];
     const enc = sys.encumbrance?.total ?? sys.encumbrance?.value;
     if (enc !== undefined && enc !== null) footer.push(`${L("WFRPPD.Tooltip.Enc")}: ${enc}`);
-    const price = this.formatPrice(sys.price);
+    // Цену видит только ГМ: игрокам не нужно знать, сколько стоит их добыча
+    const price = game.user?.isGM ? this.formatPrice(sys.price) : "";
     if (price) footer.push(price);
     if (footer.length) lines.push(`<div class="pd-tt-footer">${esc(footer.join(" · "))}</div>`);
 
