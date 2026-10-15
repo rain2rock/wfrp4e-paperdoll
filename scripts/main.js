@@ -4,16 +4,6 @@ const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
 Hooks.once("init", () => {
   const rerender = () => PaperdollApp.renderAll();
-  game.settings.register(MODULE_ID, "theme", {
-    name: "WFRPPD.Settings.Theme.Name",
-    hint: "WFRPPD.Settings.Theme.Hint",
-    scope: "client",
-    config: true,
-    type: String,
-    choices: { dark: "WFRPPD.Settings.Theme.dark", parchment: "WFRPPD.Settings.Theme.parchment" },
-    default: "dark",
-    onChange: rerender
-  });
   game.settings.register(MODULE_ID, "itemIcons", {
     name: "WFRPPD.Settings.ItemIcons.Name",
     hint: "WFRPPD.Settings.ItemIcons.Hint",

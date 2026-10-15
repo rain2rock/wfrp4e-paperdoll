@@ -25,7 +25,8 @@ const setting = (key, fallback) => {
   }
 };
 /** Тема окна: dark (тёмная) или parchment (пергамент) */
-export const currentTheme = () => (setting("theme", "dark") === "parchment" ? "parchment" : "dark");
+/** Тема окна: осталась одна - пергамент */
+export const currentTheme = () => "parchment";
 const themeClass = () => `pd-theme-${currentTheme()}`;
 
 const CORE_ICONS = "modules/wfrp4e-core/icons/";
@@ -242,7 +243,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
   static instances = new Map();
 
-  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "combat"] };
+  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "fate"] };
 
   _saveUiState() {
     PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels] };
@@ -265,25 +266,19 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const app of this.instances.values()) if (app.rendered) app.render();
   }
 
-  static async onToggleTheme() {
-    await game.settings.set(MODULE_ID, "theme", currentTheme() === "dark" ? "parchment" : "dark");
-  }
-
   static DEFAULT_OPTIONS = {
     classes: ["wfrp-paperdoll"],
     tag: "div",
     window: {
       icon: "fa-solid fa-user-shield",
-      resizable: true,
-      controls: [{ icon: "fa-solid fa-palette", label: "WFRPPD.ThemeToggle", action: "toggleTheme" }]
+      resizable: true
     },
     position: { width: 960, height: 720 },
     actions: {
       setFilter: PaperdollApp.onSetFilter,
       setTab: PaperdollApp.onSetTab,
       autoPack: PaperdollApp.onAutoPack,
-      openSheet: PaperdollApp.onOpenSheet,
-      toggleTheme: PaperdollApp.onToggleTheme
+      openSheet: PaperdollApp.onOpenSheet
     }
   };
 
@@ -502,7 +497,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
         value: c.value ?? "-",
         cls: mod > 0 ? "is-up" : mod < 0 ? "is-down" : "",
-        hint: c.bonus !== undefined ? `${L("WFRPPD.Stats.Bonus")} ${c.bonus}` : ""
+        hint: [
+          c.bonus !== undefined ? `${L("WFRPPD.Stats.Bonus")} ${c.bonus}` : "",
+          mod ? game.i18n.format("WFRPPD.Stats.Modified", { mod: `${mod > 0 ? "+" : "-"}${Math.abs(mod)}` }) : ""
+        ]
+          .filter(Boolean)
+          .join("\n")
       };
     };
     const row = (labelKey, value, cls = "") => ({
@@ -542,23 +542,23 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           const profile = this._profile();
           if (!profile.caster) return [];
           const pen = this._castPenalty(profile);
-          return [row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} УУ` : "0", pen ? "is-down" : "is-up")];
+          return [row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} УУ` : "0", pen ? "is-down" : "")];
         })()
       ],
       combat: [
-        row("WFRPPD.Stats.MainDmg", dmg(mainItems), "is-melee"),
-        row("WFRPPD.Stats.OffDmg", dmg(offItems), "is-melee"),
-        row("WFRPPD.Stats.RangedDmg", ranged ? dmg([ranged]) : "-", "is-melee"),
+        row("WFRPPD.Stats.MainDmg", dmg(mainItems)),
+        row("WFRPPD.Stats.OffDmg", dmg(offItems)),
+        row("WFRPPD.Stats.RangedDmg", ranged ? dmg([ranged]) : "-"),
         row("WFRPPD.Stats.SB", chars.s?.bonus),
         row("WFRPPD.Stats.TB", chars.t?.bonus),
         row("WFRPPD.Stats.Advantage", st.advantage?.value ?? 0)
       ],
       fate: [
-        row("WFRPPD.Stats.Fate", st.fate?.value, "is-fate"),
-        row("WFRPPD.Stats.Fortune", st.fortune?.value, "is-fate"),
-        row("WFRPPD.Stats.Resilience", st.resilience?.value, "is-fate"),
-        row("WFRPPD.Stats.Resolve", st.resolve?.value, "is-fate"),
-        row("WFRPPD.Stats.Corruption", pair(st.corruption?.value ?? 0, st.corruption?.max), "is-chaos"),
+        row("WFRPPD.Stats.Fate", st.fate?.value),
+        row("WFRPPD.Stats.Fortune", st.fortune?.value),
+        row("WFRPPD.Stats.Resilience", st.resilience?.value),
+        row("WFRPPD.Stats.Resolve", st.resolve?.value),
+        row("WFRPPD.Stats.Corruption", pair(st.corruption?.value ?? 0, st.corruption?.max)),
         row("WFRPPD.Stats.Sin", st.sin?.value ?? 0, (st.sin?.value ?? 0) > 0 ? "is-sin" : "")
       ]
     };
@@ -599,7 +599,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         rows: [
           row("WFRPPD.Stats.ExpTotal", exp.total),
           row("WFRPPD.Stats.ExpSpent", exp.spent),
-          row("WFRPPD.Stats.ExpCurrent", exp.current, "is-up")
+          row("WFRPPD.Stats.ExpCurrent", exp.current)
         ]
       });
     return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`), art: STAT_ART[c.key] ? ui(STAT_ART[c.key]) : null }));

@@ -410,7 +410,7 @@
     wfrp4e: { config: window.__PD_CONFIG__ },
     // Настройки модуля: тема и свои иконки
     settings: {
-      _values: { "wfrp4e-paperdoll.theme": "dark", "wfrp4e-paperdoll.itemIcons": true },
+      _values: { "wfrp4e-paperdoll.itemIcons": true },
       get(ns, key) {
         return this._values[`${ns}.${key}`];
       },

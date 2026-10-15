@@ -215,7 +215,6 @@ ${css}
 <p class="mock-note">Мок окна модуля: работает настоящий код модуля поверх заглушки Foundry. ${ROOTS.icons || ROOTS.core ? "Иконки из wfrp4e-core и стандартного набора Foundry." : "Иконки предметов пока эмодзи."}
 Наведи на слот - справа стрелочка быстрой смены. Перетаскивание, двойной клик, вкладка «Характеристики» и выпадашки статов тоже работают.</p>
 <label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
-<label class="mock-gm"><input type="checkbox" id="mock-theme"> Тема «Пергамент»</label>
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
 <script>${handlebars}</script>
@@ -239,7 +238,6 @@ const actor = window.__PD_makeActor__(${json(actor)});
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
 document.getElementById("mock-reopen").addEventListener("click", open);
 document.getElementById("mock-gm").addEventListener("change", (ev) => { game.user.isGM = ev.target.checked; });
-document.getElementById("mock-theme").addEventListener("change", (ev) => game.settings.set("wfrp4e-paperdoll", "theme", ev.target.checked ? "parchment" : "dark"));
 open();
 </script>
 </body>
