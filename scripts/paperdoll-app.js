@@ -30,6 +30,9 @@ const RARITY = {
 
 const BAG_FILTERS = ["all", "weapon", "armour", "clothing", "other"];
 
+/** Наборы статов для выпадашек под портретом */
+const STAT_SETS = ["physical", "mental", "combat", "defence", "fate"];
+
 function esc(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -56,6 +59,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
   static instances = new Map();
 
+  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "combat"] };
+
+  _saveUiState() {
+    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels] };
+  }
+
   static openFor(actor) {
     if (!actor) return null;
     let app = this.instances.get(actor.uuid);
@@ -75,9 +84,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       icon: "fa-solid fa-user-shield",
       resizable: true
     },
-    position: { width: 900, height: 700 },
+    position: { width: 960, height: 720 },
     actions: {
       setFilter: PaperdollApp.onSetFilter,
+      setTab: PaperdollApp.onSetTab,
       openSheet: PaperdollApp.onOpenSheet
     }
   };
@@ -93,7 +103,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const safeId = actor.uuid.replace(/[^a-zA-Z0-9_-]/g, "-");
     super({ ...options, id: `wfrp-paperdoll-${safeId}` });
     this.actor = actor;
-    this._filter = "all";
+    // Выбор вкладки и выпадашек запоминаем между открытиями окна
+    this._filter = PaperdollApp.uiState.filter;
+    this._tab = PaperdollApp.uiState.tab;
+    this._statPanels = [...PaperdollApp.uiState.statPanels];
     this._dragging = null;
 
     this._debouncedRender = foundry.utils.debounce(() => {
@@ -126,23 +139,35 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.actor;
     const sys = actor.system;
     const cfg = game.wfrp4e.config;
-    const loc = (key) => game.i18n.localize(key);
+    const L = (key) => game.i18n.localize(key);
     const editable = this.editable;
 
     const view = (item, extra = {}) => this._itemView(item, editable, extra);
     const equipped = (type) => (actor.itemTypes[type] ?? []).filter((i) => i.system.isEquipped);
 
-    // --- Броня по локациям ---
+    /** Слот в стиле WoW: одна иконка сверху, остальные слои считаем */
+    const makeSlot = (key, items, { showAP = false, ghost = null } = {}) => {
+      const views = items.map((i) => view(i));
+      if (!views.length && ghost) views.push(view(ghost, { ghost: true }));
+      return {
+        key,
+        label: this._slotLabel(key),
+        icon: SLOT_ICONS[key],
+        top: views[0] ?? null,
+        layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
+        showAP,
+        ap: showAP ? (sys.status?.armour?.[key]?.value ?? 0) : null
+      };
+    };
+
+    // --- Броня: сверху слой с наибольшим AP на этой локации ---
     const armour = equipped("armour");
-    const armourSlot = (key) => ({
-      key,
-      kind: "armour",
-      label: loc(cfg.locations[key]),
-      icon: SLOT_ICONS[key],
-      showAP: true,
-      ap: sys.status?.armour?.[key]?.value ?? 0,
-      items: armour.filter((a) => a.system.protects?.[key]).map((a) => view(a))
-    });
+    const armourSlot = (key) => {
+      const items = armour
+        .filter((a) => a.system.protects?.[key])
+        .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0));
+      return makeSlot(key, items, { showAP: true });
+    };
 
     // --- Оружие ---
     const weapons = equipped("weapon");
@@ -150,66 +175,52 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const offItems = weapons.filter((w) => w.system.offhand?.value);
     const twoHander = mainItems.find((w) => w.system.twohanded?.value);
 
-    const mainSlot = {
-      key: "main",
-      kind: "weapon",
-      label: loc("WFRPPD.Slot.Main"),
-      icon: SLOT_ICONS.main,
-      items: mainItems.map((w) => view(w))
-    };
-    const offSlot = {
-      key: "off",
-      kind: "weapon",
-      label: loc("WFRPPD.Slot.Off"),
-      icon: SLOT_ICONS.off,
-      items: offItems.map((w) => view(w))
-    };
-    // Двуручное оружие показываем «призраком» во второй руке
-    if (twoHander && !offItems.length) offSlot.items.push(view(twoHander, { ghost: true }));
-
-    const accessorySlot = {
-      key: "accessory",
-      kind: "accessory",
-      label: loc("WFRPPD.Slot.Accessory"),
-      icon: SLOT_ICONS.accessory,
-      items: equipped("trapping")
-        .filter((t) => t.system.trappingType?.value === "clothingAccessories")
-        .map((t) => view(t))
-    };
-    const containerSlot = {
-      key: "container",
-      kind: "container",
-      label: loc("WFRPPD.Slot.Container"),
-      icon: SLOT_ICONS.container,
-      items: equipped("container").map((c) => view(c))
-    };
+    const clothing = equipped("trapping").filter((t) => t.system.trappingType?.value === "clothingAccessories");
 
     const groups = [
       { area: "left", slots: ["head", "body", "rArm", "lArm"].map(armourSlot) },
-      { area: "right", slots: [armourSlot("rLeg"), armourSlot("lLeg"), accessorySlot, containerSlot] },
-      { area: "weapons", slots: [mainSlot, offSlot] }
+      {
+        area: "right",
+        slots: [armourSlot("rLeg"), armourSlot("lLeg"), makeSlot("accessory", clothing), makeSlot("container", equipped("container"))]
+      },
+      {
+        area: "weapons",
+        slots: [makeSlot("main", mainItems), makeSlot("off", offItems, { ghost: twoHander })]
+      }
     ];
 
-    // --- Сумка: всё физическое, что не надето ---
+    // --- Сумка ---
     const bagAll = actor.items
       .filter((i) => i.system?.isPhysical && i.type !== "money" && !i.system.isEquipped)
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name, game.i18n.lang));
     const bag = bagAll.filter((i) => this._matchesFilter(i, this._filter)).map((i) => view(i));
-
     const filters = BAG_FILTERS.map((key) => ({
       key,
-      label: loc(`WFRPPD.Filter.${key}`),
+      label: L(`WFRPPD.Filter.${key}`),
       active: key === this._filter,
       count: bagAll.filter((i) => this._matchesFilter(i, key)).length
     }));
 
     // --- Статы ---
-    const characteristics = Object.entries(cfg.characteristicsAbbrev).map(([key, label]) => ({
-      key,
-      label: loc(label),
-      value: sys.characteristics?.[key]?.value ?? "-",
-      bonus: sys.characteristics?.[key]?.bonus ?? 0
+    const sets = this._statSets(mainItems, offItems, weapons);
+    const statPanels = this._statPanels.map((selected) => ({
+      options: STAT_SETS.map((key) => ({ key, label: L(`WFRPPD.Stats.Set.${key}`), selected: key === selected })),
+      rows: sets[selected] ?? []
     }));
+    const statCategories = this._statCategories(sets);
+
+    // --- Шапка: имя, карьера, вид ---
+    const career = safe(() => sys.currentCareer ?? actor.currentCareer);
+    const level = career?.system?.level?.value;
+    const speciesKey = sys.details?.species?.value;
+    const species = speciesKey ? L(cfg.species?.[speciesKey] ?? speciesKey) : "";
+    const subtitle = [
+      career ? `${career.name}${level ? ` (${L("WFRPPD.Level")} ${level})` : ""}` : "",
+      species,
+      sys.details?.status?.value ?? ""
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
     const enc = sys.status?.encumbrance ?? {};
     const encCurrent = Number(enc.current) || 0;
@@ -219,36 +230,145 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (encRatio > 2) encState = "max";
     else if (encRatio > 1) encState = "over";
 
-    const equipPointsMax = sys.settings?.equipPoints;
-    const equipPointsUsed = safe(() => sys.equipPointsUsed, null);
-
     return {
       actor,
       editable,
       img: actor.img,
       name: actor.name,
+      subtitle,
       groups,
       bag,
       bagEmpty: !bag.length,
       filters,
-      characteristics,
-      wounds: {
-        value: sys.status?.wounds?.value ?? 0,
-        max: sys.status?.wounds?.max ?? 0,
-        pct: Math.clamp(((sys.status?.wounds?.value ?? 0) / (sys.status?.wounds?.max || 1)) * 100, 0, 100)
-      },
+      statPanels,
+      statCategories,
+      tabBag: this._tab === "bag",
+      tabStats: this._tab === "stats",
       encumbrance: {
         current: encCurrent,
         max: encMax,
         pct: Math.clamp(encRatio * 100, 0, 100),
         state: encState,
-        stateLabel: loc(`WFRPPD.Enc.${encState}`)
-      },
-      equipPoints:
-        equipPointsMax != null && equipPointsUsed != null
-          ? { used: equipPointsUsed, max: equipPointsMax }
-          : null
+        stateLabel: L(`WFRPPD.Enc.${encState}`)
+      }
     };
+  }
+
+  /* -------------------------------------------- */
+  /*  Статы в стиле WoW / ECS                     */
+  /* -------------------------------------------- */
+
+  /** Все наборы строк для выпадашек под портретом */
+  _statSets(mainItems, offItems, weapons) {
+    const sys = this.actor.system;
+    const cfg = game.wfrp4e.config;
+    const L = (key) => game.i18n.localize(key);
+    const chars = sys.characteristics ?? {};
+    const st = sys.status ?? {};
+    const det = sys.details ?? {};
+
+    const charRow = (key) => {
+      const c = chars[key] ?? {};
+      const mod = Number(c.modifier) || 0;
+      const full = cfg.characteristics?.[key];
+      return {
+        label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
+        value: c.value ?? "-",
+        cls: mod > 0 ? "is-up" : mod < 0 ? "is-down" : "",
+        hint: c.bonus !== undefined ? `${L("WFRPPD.Stats.Bonus")} ${c.bonus}` : ""
+      };
+    };
+    const row = (labelKey, value, cls = "") => ({
+      label: L(labelKey),
+      value: value === undefined || value === null || value === "" ? "-" : value,
+      cls
+    });
+    const pair = (a, b) => (a === undefined || a === null ? "-" : `${a} / ${b ?? "-"}`);
+    const dmg = (items) => {
+      const w = items[0];
+      if (!w) return "-";
+      const d = safe(() => w.system.Damage);
+      return d === null || d === undefined || d === "" ? "-" : `+${d}`;
+    };
+    const ap = (loc) => st.armour?.[loc]?.value ?? 0;
+    const ranged = weapons.find((w) => safe(() => w.system.isRanged));
+
+    const wounds = st.wounds ?? {};
+    const woundsCls = wounds.max && wounds.value < wounds.max ? "is-down" : "";
+
+    return {
+      physical: ["ws", "bs", "s", "t", "i", "ag"].map(charRow),
+      mental: [
+        ...["dex", "int", "wp", "fel"].map(charRow),
+        row("WFRPPD.Stats.Move", det.move?.value),
+        row("WFRPPD.Stats.Run", det.move?.run)
+      ],
+      defence: [
+        row("WFRPPD.Wounds", pair(wounds.value, wounds.max), woundsCls),
+        row("WFRPPD.Stats.Crits", pair(st.criticalWounds?.value ?? 0, st.criticalWounds?.max), (st.criticalWounds?.value ?? 0) > 0 ? "is-down" : ""),
+        row(cfg.locations?.head ?? "head", ap("head"), "is-armour"),
+        row(cfg.locations?.body ?? "body", ap("body"), "is-armour"),
+        row("WFRPPD.Stats.Arms", `${ap("rArm")} / ${ap("lArm")}`, "is-armour"),
+        row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, "is-armour")
+      ],
+      combat: [
+        row("WFRPPD.Stats.MainDmg", dmg(mainItems), "is-melee"),
+        row("WFRPPD.Stats.OffDmg", dmg(offItems), "is-melee"),
+        row("WFRPPD.Stats.RangedDmg", ranged ? dmg([ranged]) : "-", "is-melee"),
+        row("WFRPPD.Stats.SB", chars.s?.bonus),
+        row("WFRPPD.Stats.TB", chars.t?.bonus),
+        row("WFRPPD.Stats.Advantage", st.advantage?.value ?? 0)
+      ],
+      fate: [
+        row("WFRPPD.Stats.Fate", st.fate?.value, "is-fate"),
+        row("WFRPPD.Stats.Fortune", st.fortune?.value, "is-fate"),
+        row("WFRPPD.Stats.Resilience", st.resilience?.value, "is-fate"),
+        row("WFRPPD.Stats.Resolve", st.resolve?.value, "is-fate"),
+        row("WFRPPD.Stats.Corruption", pair(st.corruption?.value ?? 0, st.corruption?.max), "is-chaos"),
+        row("WFRPPD.Stats.Sin", st.sin?.value ?? 0, (st.sin?.value ?? 0) > 0 ? "is-sin" : "")
+      ]
+    };
+  }
+
+  /** Категории для вкладки «Характеристики» справа (как аддон ECS) */
+  _statCategories(sets) {
+    const sys = this.actor.system;
+    const L = (key) => game.i18n.localize(key);
+    const det = sys.details ?? {};
+    const exp = det.experience;
+    const enc = sys.status?.encumbrance ?? {};
+    const row = (labelKey, value, cls = "") => ({
+      label: L(labelKey),
+      value: value === undefined || value === null || value === "" ? "-" : value,
+      cls
+    });
+
+    const cats = [
+      {
+        key: "general",
+        rows: [
+          row("WFRPPD.Stats.Move", det.move?.value),
+          row("WFRPPD.Stats.Walk", det.move?.walk),
+          row("WFRPPD.Stats.Run", det.move?.run),
+          row("WFRPPD.Encumbrance", `${Number(enc.current) || 0} / ${Number(enc.max) || 0}`)
+        ]
+      },
+      { key: "physical", rows: sets.physical },
+      { key: "mental", rows: sets.mental.slice(0, 4) },
+      { key: "combat", rows: sets.combat },
+      { key: "defence", rows: sets.defence },
+      { key: "fate", rows: sets.fate }
+    ];
+    if (exp)
+      cats.push({
+        key: "experience",
+        rows: [
+          row("WFRPPD.Stats.ExpTotal", exp.total),
+          row("WFRPPD.Stats.ExpSpent", exp.spent),
+          row("WFRPPD.Stats.ExpCurrent", exp.current, "is-up")
+        ]
+      });
+    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`) }));
   }
 
   _itemView(item, editable, extra = {}) {
@@ -415,6 +535,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static onSetFilter(event, target) {
     this._filter = target.dataset.filter ?? "all";
+    this._saveUiState();
+    this.render();
+  }
+
+  static onSetTab(event, target) {
+    this._tab = target.dataset.tab === "stats" ? "stats" : "bag";
+    this._saveUiState();
     this.render();
   }
 
@@ -456,6 +583,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!this.editable) continue;
       el.addEventListener("dragstart", (ev) => this._onDragStart(ev, item, el));
       el.addEventListener("dragend", () => this._onDragEnd());
+    }
+
+    // Выпадашки статов под портретом
+    for (const select of root.querySelectorAll(".pd-statbox select")) {
+      select.addEventListener("change", () => {
+        this._statPanels[Number(select.dataset.panel)] = select.value;
+        this._saveUiState();
+        this.render();
+      });
     }
 
     // Кнопки быстрой смены (стрелочка справа от иконки)

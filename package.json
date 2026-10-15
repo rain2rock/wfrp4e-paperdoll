@@ -1,0 +1,11 @@
+{
+  "name": "wfrp4e-paperdoll",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "mock": "node tools/build-mock.mjs"
+  },
+  "devDependencies": {
+    "handlebars": "^4.7.8"
+  }
+}

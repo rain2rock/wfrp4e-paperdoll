@@ -2,51 +2,107 @@
    WFRP4e Paperdoll - окно персонажа в стиле WoW
    ========================================================== */
 
-.wfrp-paperdoll {
-  --pd-bg: #17130f;
-  --pd-bg-2: #211b15;
-  --pd-panel: #2a221a;
-  --pd-border: #5c4a32;
-  --pd-gold: #c9a45c;
-  --pd-gold-dim: #8a7040;
-  --pd-text: #e8dcc4;
-  --pd-text-dim: #a8987a;
-  --pd-red: #a8261f;
-  --pd-green: #3f8f3a;
+.wfrp-paperdoll,
+.wfrp-paperdoll-tooltip,
+.wfrp-paperdoll-flyout {
+  --pd-bg: #0f0d0b;
+  --pd-bg-2: #1a1612;
+  --pd-panel: #15120f;
+  --pd-frame: #4a4339;
+  --pd-frame-hi: #6e6556;
+  --pd-gold: #ffd100;
+  --pd-gold-soft: #c9a45c;
+  --pd-text: #f0e6d2;
+  --pd-text-dim: #a89c86;
 
-  --rarity-none: #6b5f52;
-  --rarity-common: #c8c8c8;
+  --pd-up: #1eff00;
+  --pd-down: #ff3b30;
+  --pd-fate: #69ccf0;
+  --pd-chaos: #c26cff;
+  --pd-melee: #ff9a5a;
+
+  /* Цвета редкости как в WoW */
+  --rarity-none: #9d9d9d;
+  --rarity-common: #ffffff;
   --rarity-scarce: #1eff00;
-  --rarity-rare: #3a8dff;
-  --rarity-exotic: #b45cff;
+  --rarity-rare: #0070dd;
+  --rarity-exotic: #a335ee;
 }
 
 .wfrp-paperdoll .window-content {
   padding: 0;
-  background:
-    radial-gradient(ellipse at 50% 30%, #2b2219 0%, var(--pd-bg) 70%),
-    var(--pd-bg);
+  background: radial-gradient(ellipse at 40% 35%, #231c15 0%, var(--pd-bg) 75%), var(--pd-bg);
   color: var(--pd-text);
   overflow: hidden;
 }
 
 .wfrp-paperdoll .pd-root {
   display: grid;
-  grid-template-columns: minmax(540px, 1fr) minmax(260px, 320px);
+  grid-template-columns: minmax(560px, 1fr) minmax(260px, 300px);
   height: 100%;
   min-height: 0;
+}
+
+/* ---------- Шапка с портретом ---------- */
+
+.wfrp-paperdoll .pd-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.wfrp-paperdoll .pd-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #1d1813, #110e0b);
+  border-bottom: 1px solid var(--pd-frame);
+}
+.wfrp-paperdoll .pd-hero-portrait {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--pd-gold-soft);
+  box-shadow: 0 0 0 2px #2a2016, 0 0 12px rgba(201, 164, 92, 0.35);
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-hero-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border: none;
+}
+.wfrp-paperdoll .pd-hero-text { min-width: 0; text-align: center; flex: 1; }
+.wfrp-paperdoll .pd-hero-name {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--pd-text);
+  text-shadow: 0 1px 2px #000;
+}
+.wfrp-paperdoll .pd-hero-sub {
+  font-size: 13px;
+  color: var(--pd-gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------- Куколка ---------- */
 
 .wfrp-paperdoll .pd-doll {
+  flex: 1;
   display: grid;
-  grid-template-columns: 156px 1fr 156px;
+  grid-template-columns: 82px 1fr 82px;
   grid-template-rows: 1fr auto;
   grid-template-areas:
     "left center right"
-    "weapons weapons weapons";
-  gap: 10px;
+    "left weapons right";
+  gap: 8px 10px;
   padding: 12px;
   min-height: 0;
   overflow: auto;
@@ -55,7 +111,7 @@
 .wfrp-paperdoll .pd-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .wfrp-paperdoll .pd-group--left { grid-area: left; }
 .wfrp-paperdoll .pd-group--right { grid-area: right; }
@@ -63,89 +119,92 @@
   grid-area: weapons;
   flex-direction: row;
   justify-content: center;
+  gap: 18px;
 }
-.wfrp-paperdoll .pd-group--weapons .pd-slot { width: 200px; }
 
-/* ---------- Слот ---------- */
+/* ---------- Слот: квадрат + стрелочка ---------- */
 
 .wfrp-paperdoll .pd-slot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wfrp-paperdoll .pd-slot-frame {
   position: relative;
-  background: linear-gradient(180deg, var(--pd-panel), var(--pd-bg-2));
-  border: 1px solid var(--pd-border);
-  border-radius: 4px;
-  padding: 4px 6px 6px;
-  min-height: 74px;
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  padding: 3px;
+  border-radius: 5px;
+  background: linear-gradient(145deg, #2b2620, #0c0a08);
+  border: 1px solid var(--pd-frame);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 
-.wfrp-paperdoll .pd-slot-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.wfrp-paperdoll .pd-slot-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--pd-gold);
-}
-
-.wfrp-paperdoll .pd-ap {
-  min-width: 22px;
-  padding: 0 5px;
-  font-weight: 700;
-  font-size: 12px;
-  text-align: center;
-  color: #fff;
-  background: #3b3126;
-  border: 1px solid var(--pd-gold-dim);
-  border-radius: 10px;
-}
-
-.wfrp-paperdoll .pd-slot-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-height: 44px;
-}
-
 .wfrp-paperdoll .pd-slot-placeholder {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
-  border: 1px dashed var(--pd-border);
-  border-radius: 4px;
-  color: #4a3e30;
-  font-size: 20px;
+  border-radius: 3px;
+  background: radial-gradient(circle, #1c1814 0%, #0b0907 80%);
+  color: #3d352b;
+  font-size: 22px;
+}
+
+/* AP и количество слоёв поверх иконки */
+.wfrp-paperdoll .pd-ap,
+.wfrp-paperdoll .pd-layers {
+  position: absolute;
+  z-index: 2;
+  min-width: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 8px;
+  pointer-events: auto;
+}
+.wfrp-paperdoll .pd-ap {
+  right: -6px;
+  bottom: -6px;
+  color: #fff;
+  background: #2c2620;
+  border: 1px solid var(--pd-gold-soft);
+}
+.wfrp-paperdoll .pd-layers {
+  right: -6px;
+  top: -6px;
+  color: #1a140e;
+  background: var(--pd-gold-soft);
 }
 
 /* Подсветка при перетаскивании */
-.wfrp-paperdoll .pd-slot.is-valid {
+.wfrp-paperdoll .pd-slot.is-valid .pd-slot-frame {
   border-color: var(--pd-gold);
-  box-shadow: 0 0 10px rgba(201, 164, 92, 0.55), inset 0 0 12px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 12px rgba(255, 209, 0, 0.5), inset 0 0 8px rgba(0, 0, 0, 0.9);
 }
-.wfrp-paperdoll .pd-slot.is-invalid { opacity: 0.45; }
+.wfrp-paperdoll .pd-slot.is-invalid .pd-slot-frame { opacity: 0.4; }
 
-/* ---------- Иконка предмета ---------- */
+/* ---------- Иконка предмета + свечение редкости ---------- */
 
 .wfrp-paperdoll .pd-item {
+  --glow: var(--rarity-none);
   position: relative;
-  width: 44px;
-  height: 44px;
-  border: 2px solid var(--rarity-none);
-  border-radius: 4px;
-  background: #0d0b09;
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  background: #0b0907;
   cursor: grab;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  transition: transform 0.1s, filter 0.1s;
-}
-.wfrp-paperdoll .pd-item:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.2);
+  border: 1px solid var(--glow);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 0 6px -1px var(--glow),
+    inset 0 0 8px -2px var(--glow);
+  transition: transform 0.1s, box-shadow 0.15s, filter 0.15s;
 }
 .wfrp-paperdoll .pd-item img {
   width: 100%;
@@ -155,273 +214,54 @@
   border-radius: 2px;
   pointer-events: none;
 }
+.wfrp-paperdoll .pd-item:hover {
+  filter: brightness(1.2);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 0 14px 1px var(--glow),
+    inset 0 0 12px -2px var(--glow);
+}
+
+.wfrp-paperdoll .pd-item.rarity-none { --glow: var(--rarity-none); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8); }
+.wfrp-paperdoll .pd-item.rarity-common { --glow: var(--rarity-common); }
+.wfrp-paperdoll .pd-item.rarity-scarce { --glow: var(--rarity-scarce); }
+.wfrp-paperdoll .pd-item.rarity-rare { --glow: var(--rarity-rare); }
+.wfrp-paperdoll .pd-item.rarity-exotic {
+  --glow: var(--rarity-exotic);
+  animation: pd-epic-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pd-epic-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 0 6px -1px var(--glow), inset 0 0 8px -2px var(--glow); }
+  50% { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 0 13px 1px var(--glow), inset 0 0 12px -1px var(--glow); }
+}
+
 .wfrp-paperdoll .pd-item.is-dragging { opacity: 0.35; }
 .wfrp-paperdoll .pd-item.is-ghost {
   opacity: 0.35;
-  filter: grayscale(0.8);
+  filter: grayscale(0.9);
   cursor: default;
+  animation: none;
 }
 .wfrp-paperdoll .pd-item.is-plain { cursor: default; }
 .wfrp-paperdoll .is-readonly .pd-item { cursor: default; }
 
 .wfrp-paperdoll .pd-qty {
   position: absolute;
-  right: 2px;
-  bottom: 0;
+  right: 3px;
+  bottom: 1px;
   font-size: 11px;
   font-weight: 700;
   color: #fff;
   text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000;
 }
 
-.wfrp-paperdoll .rarity-common { border-color: var(--rarity-common); }
-.wfrp-paperdoll .rarity-scarce { border-color: var(--rarity-scarce); }
-.wfrp-paperdoll .rarity-rare { border-color: var(--rarity-rare); }
-.wfrp-paperdoll .rarity-exotic { border-color: var(--rarity-exotic); }
-
-/* ---------- Центр: портрет и статы ---------- */
-
-.wfrp-paperdoll .pd-center {
-  grid-area: center;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.wfrp-paperdoll .pd-portrait {
-  position: relative;
-  flex: 1;
-  min-height: 180px;
-  border: 1px solid var(--pd-border);
-  border-radius: 6px;
-  overflow: hidden;
-  cursor: pointer;
-  background: #0d0b09;
-}
-.wfrp-paperdoll .pd-portrait img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
-  border: none;
-}
-.wfrp-paperdoll .pd-name {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 18px 8px 6px;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--pd-gold);
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-  text-shadow: 0 1px 2px #000;
-}
-
-.wfrp-paperdoll .pd-chars {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-}
-.wfrp-paperdoll .pd-char {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3px 0;
-  background: var(--pd-panel);
-  border: 1px solid var(--pd-border);
-  border-radius: 3px;
-}
-.wfrp-paperdoll .pd-char-label {
-  font-size: 10px;
-  color: var(--pd-text-dim);
-  text-transform: uppercase;
-}
-.wfrp-paperdoll .pd-char-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--pd-text);
-}
-
-.wfrp-paperdoll .pd-vitals {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.wfrp-paperdoll .pd-bar {
-  position: relative;
-  height: 20px;
-  border: 1px solid var(--pd-border);
-  border-radius: 3px;
-  background: #0d0b09;
-  overflow: hidden;
-}
-.wfrp-paperdoll .pd-bar-fill {
-  height: 100%;
-  transition: width 0.3s;
-}
-.wfrp-paperdoll .pd-bar-text {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  color: #fff;
-  text-shadow: 0 1px 2px #000;
-}
-.wfrp-paperdoll .pd-bar--wounds .pd-bar-fill { background: linear-gradient(180deg, #c0392b, #7a1d14); }
-.wfrp-paperdoll .pd-bar--enc .pd-bar-fill { background: linear-gradient(180deg, #8a7040, #5c4a2a); }
-.wfrp-paperdoll .pd-bar--enc.is-over .pd-bar-fill { background: linear-gradient(180deg, #d08a1f, #8a5410); }
-.wfrp-paperdoll .pd-bar--enc.is-max .pd-bar-fill { background: linear-gradient(180deg, #c0392b, #7a1d14); }
-
-.wfrp-paperdoll .pd-equip-points {
-  font-size: 12px;
-  text-align: center;
-  color: var(--pd-text-dim);
-}
-
-/* ---------- Сумка ---------- */
-
-.wfrp-paperdoll .pd-bag {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-left: 1px solid var(--pd-border);
-  background: rgba(0, 0, 0, 0.25);
-  transition: box-shadow 0.15s;
-}
-.wfrp-paperdoll .pd-bag.is-valid { box-shadow: inset 0 0 18px rgba(201, 164, 92, 0.4); }
-
-.wfrp-paperdoll .pd-bag-head {
-  padding: 10px 10px 6px;
-  border-bottom: 1px solid var(--pd-border);
-}
-.wfrp-paperdoll .pd-bag-title {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--pd-gold);
-}
-.wfrp-paperdoll .pd-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.wfrp-paperdoll .pd-filter {
-  flex: 0 0 auto;
-  width: auto;
-  height: auto;
-  margin: 0;
-  padding: 2px 8px;
-  font-size: 11px;
-  line-height: 18px;
-  color: var(--pd-text-dim);
-  background: var(--pd-panel);
-  border: 1px solid var(--pd-border);
-  border-radius: 10px;
-  cursor: pointer;
-}
-.wfrp-paperdoll .pd-filter:hover { color: var(--pd-text); }
-.wfrp-paperdoll .pd-filter.is-active {
-  color: #1a140e;
-  background: var(--pd-gold);
-  border-color: var(--pd-gold);
-}
-.wfrp-paperdoll .pd-filter-count { opacity: 0.7; }
-
-.wfrp-paperdoll .pd-bag-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 44px);
-  grid-auto-rows: 44px;
-  gap: 6px;
-  align-content: start;
-  padding: 10px;
-  overflow-y: auto;
-}
-.wfrp-paperdoll .pd-bag-empty {
-  grid-column: 1 / -1;
-  padding: 20px 0;
-  text-align: center;
-  color: var(--pd-text-dim);
-  font-style: italic;
-}
-.wfrp-paperdoll .pd-bag-hint {
-  padding: 6px 10px 8px;
-  font-size: 11px;
-  color: var(--pd-text-dim);
-  border-top: 1px solid var(--pd-border);
-}
-
-/* Кнопка в шапке листа персонажа */
-.wfrp-paperdoll-open { color: inherit; }
-
-/* ==========================================================
-   Тултип (висит в body, поэтому без префикса окна)
-   ========================================================== */
-
-.wfrp-paperdoll-tooltip {
-  --rarity-none: #e8dcc4;
-  --rarity-common: #ffffff;
-  --rarity-scarce: #1eff00;
-  --rarity-rare: #3a8dff;
-  --rarity-exotic: #b45cff;
-
-  position: fixed;
-  z-index: 10000;
-  display: none;
-  max-width: 300px;
-  padding: 8px 10px;
-  font-size: 13px;
-  line-height: 1.35;
-  color: #e8dcc4;
-  background: rgba(12, 10, 20, 0.95);
-  border: 1px solid #8a8aa0;
-  border-radius: 5px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-}
-.wfrp-paperdoll-tooltip.is-visible { display: block; }
-
-.wfrp-paperdoll-tooltip .pd-tt-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--rarity-none);
-}
-.wfrp-paperdoll-tooltip .pd-tt-name.rarity-common { color: var(--rarity-common); }
-.wfrp-paperdoll-tooltip .pd-tt-name.rarity-scarce { color: var(--rarity-scarce); }
-.wfrp-paperdoll-tooltip .pd-tt-name.rarity-rare { color: var(--rarity-rare); }
-.wfrp-paperdoll-tooltip .pd-tt-name.rarity-exotic { color: var(--rarity-exotic); }
-
-.wfrp-paperdoll-tooltip .pd-tt-sub { color: #a8987a; font-size: 12px; margin-bottom: 4px; }
-.wfrp-paperdoll-tooltip .pd-tt-row { display: flex; justify-content: space-between; gap: 12px; }
-.wfrp-paperdoll-tooltip .pd-tt-stat { color: #fff; }
-.wfrp-paperdoll-tooltip .pd-tt-quality { color: #1eff00; margin-top: 4px; }
-.wfrp-paperdoll-tooltip .pd-tt-flaw { color: #ff4f4f; margin-top: 2px; }
-.wfrp-paperdoll-tooltip .pd-tt-desc { color: #ffd100; margin-top: 6px; font-style: italic; }
-.wfrp-paperdoll-tooltip .pd-tt-footer { color: #a8987a; margin-top: 6px; font-size: 12px; }
-.wfrp-paperdoll-tooltip .pd-tt-avail { font-size: 12px; color: var(--rarity-none); }
-.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-scarce { color: var(--rarity-scarce); }
-.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-rare { color: var(--rarity-rare); }
-.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-exotic { color: var(--rarity-exotic); }
-.wfrp-paperdoll-tooltip .pd-tt-hint { margin-top: 6px; font-size: 11px; color: #6f6a80; }
-
-/* ==========================================================
-   Быстрая смена: стрелочка в слоте
-   ========================================================== */
-
-.wfrp-paperdoll .pd-slot-items { align-items: center; }
+/* ---------- Быстрая смена: стрелочка ---------- */
 
 .wfrp-paperdoll .pd-swap {
   flex: 0 0 18px;
   width: 18px;
   min-width: 18px;
-  height: 44px;
+  height: 40px;
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -430,8 +270,8 @@
   font-size: 11px;
   line-height: 1;
   color: var(--pd-gold);
-  background: linear-gradient(90deg, #2f261c, #3b3024);
-  border: 1px solid var(--pd-gold-dim);
+  background: linear-gradient(90deg, #2a221a, #3a2f22);
+  border: 1px solid var(--pd-frame-hi);
   border-radius: 3px;
   box-shadow: none;
   cursor: pointer;
@@ -450,30 +290,322 @@
 .wfrp-paperdoll .pd-swap.is-open {
   color: #1a140e;
   background: var(--pd-gold);
+  border-color: var(--pd-gold);
 }
 @media (hover: none) {
   .wfrp-paperdoll .pd-swap { opacity: 0.8; transform: none; }
 }
 
+/* ---------- Центр: «модель» и панели статов ---------- */
+
+.wfrp-paperdoll .pd-center {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.wfrp-paperdoll .pd-model {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #0b0907;
+  border: 1px solid var(--pd-frame);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+}
+.wfrp-paperdoll .pd-model img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border: none;
+  opacity: 0.92;
+}
+.wfrp-paperdoll .pd-model::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(0, 0, 0, 0.75) 100%);
+  pointer-events: none;
+}
+
+/* Нагрузка - тонкая полоска внизу модели */
+.wfrp-paperdoll .pd-enc {
+  position: absolute;
+  z-index: 1;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: 18px;
+  border: 1px solid var(--pd-frame);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+}
+.wfrp-paperdoll .pd-enc-fill {
+  height: 100%;
+  background: linear-gradient(180deg, #8a7040, #4f3f22);
+}
+.wfrp-paperdoll .pd-enc.is-over .pd-enc-fill { background: linear-gradient(180deg, #d08a1f, #7a4a0e); }
+.wfrp-paperdoll .pd-enc.is-max .pd-enc-fill { background: linear-gradient(180deg, #c0392b, #6e1810); }
+.wfrp-paperdoll .pd-enc span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+
+.wfrp-paperdoll .pd-statboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.wfrp-paperdoll .pd-statbox {
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--pd-frame);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Выпадашка как в WoW: тёмная плашка и жёлтая кнопка-стрелка */
+.wfrp-paperdoll .pd-select {
+  position: relative;
+  display: block;
+  margin: 4px;
+  border: 1px solid var(--pd-frame-hi);
+  border-radius: 3px;
+  background: linear-gradient(180deg, #2a2620, #141210);
+}
+.wfrp-paperdoll .pd-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  padding: 0 30px 0 8px;
+  font-size: 13px;
+  color: var(--pd-text);
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-select select option { background: #1a1612; color: var(--pd-text); }
+.wfrp-paperdoll .pd-select i {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: #3a2a00;
+  background: linear-gradient(180deg, #ffe066, #c99a00);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.wfrp-paperdoll .pd-statlist { padding: 2px 8px 6px; }
+.wfrp-paperdoll .pd-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 19px;
+}
+.wfrp-paperdoll .pd-stat-label {
+  color: var(--pd-gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wfrp-paperdoll .pd-stat-value { color: var(--pd-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+
+/* ---------- Правая панель: вкладки ---------- */
+
+.wfrp-paperdoll .pd-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--pd-frame);
+  background: rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.15s;
+}
+.wfrp-paperdoll .pd-side.is-valid { box-shadow: inset 0 0 18px rgba(255, 209, 0, 0.3); }
+
+.wfrp-paperdoll .pd-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 0;
+  border-bottom: 1px solid var(--pd-frame);
+}
+.wfrp-paperdoll .pd-tab {
+  flex: 1;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pd-text-dim);
+  background: linear-gradient(180deg, #221c16, #15110d);
+  border: 1px solid var(--pd-frame);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-tab:hover { color: var(--pd-text); }
+.wfrp-paperdoll .pd-tab.is-active {
+  color: #fff;
+  background: linear-gradient(180deg, #8b1a12, #4a0d08);
+  border-color: #b8322a;
+}
+
+.wfrp-paperdoll .pd-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+}
+.wfrp-paperdoll .pd-filter {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--pd-text-dim);
+  background: #1a1612;
+  border: 1px solid var(--pd-frame);
+  border-radius: 10px;
+  box-shadow: none;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-filter:hover { color: var(--pd-text); }
+.wfrp-paperdoll .pd-filter.is-active { color: #1a140e; background: var(--pd-gold); border-color: var(--pd-gold); }
+.wfrp-paperdoll .pd-filter-count { opacity: 0.7; }
+
+.wfrp-paperdoll .pd-bag-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 46px);
+  grid-auto-rows: 46px;
+  gap: 8px;
+  align-content: start;
+  padding: 6px 10px 10px;
+  overflow-y: auto;
+}
+.wfrp-paperdoll .pd-bag-empty {
+  grid-column: 1 / -1;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--pd-text-dim);
+  font-style: italic;
+}
+.wfrp-paperdoll .pd-bag-hint {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  color: var(--pd-text-dim);
+  border-top: 1px solid var(--pd-frame);
+}
+
+/* ---------- Вкладка «Характеристики» (как аддон ECS) ---------- */
+
+.wfrp-paperdoll .pd-ecs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+}
+.wfrp-paperdoll .pd-ecs-cat + .pd-ecs-cat { margin-top: 10px; }
+.wfrp-paperdoll .pd-ecs-head {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pd-gold);
+  text-shadow: 0 1px 2px #000;
+  margin-bottom: 2px;
+}
+.wfrp-paperdoll .pd-ecs-row {
+  padding-left: 12px;
+  font-size: 13px;
+  line-height: 19px;
+  color: #c8bca4;
+}
+.wfrp-paperdoll .pd-ecs-value { color: var(--pd-text); font-variant-numeric: tabular-nums; }
+
+/* Цвета значений (общие для панелей и вкладки статов) */
+.wfrp-paperdoll span.is-up { color: var(--pd-up); }
+.wfrp-paperdoll span.is-down { color: var(--pd-down); }
+.wfrp-paperdoll span.is-fate { color: var(--pd-fate); }
+.wfrp-paperdoll span.is-chaos { color: var(--pd-chaos); }
+.wfrp-paperdoll span.is-sin { color: var(--pd-down); }
+.wfrp-paperdoll span.is-melee { color: var(--pd-melee); }
+.wfrp-paperdoll span.is-armour { color: #ffffff; }
+
+/* Кнопка в шапке листа персонажа */
+.wfrp-paperdoll-open { color: inherit; }
+
 /* ==========================================================
-   Выпадающий список (висит в body)
+   Тултип (висит в body)
+   ========================================================== */
+
+.wfrp-paperdoll-tooltip {
+  position: fixed;
+  z-index: 10000;
+  display: none;
+  max-width: 300px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #f0e6d2;
+  background: rgba(8, 8, 18, 0.95);
+  border: 1px solid #a0a0b4;
+  border-radius: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.wfrp-paperdoll-tooltip.is-visible { display: block; }
+
+.wfrp-paperdoll-tooltip .pd-tt-name { font-size: 15px; font-weight: 700; color: var(--rarity-none); }
+.wfrp-paperdoll-tooltip .rarity-common { color: var(--rarity-common); }
+.wfrp-paperdoll-tooltip .rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-tooltip .rarity-rare { color: #3a8dff; }
+.wfrp-paperdoll-tooltip .rarity-exotic { color: #b45cff; }
+
+.wfrp-paperdoll-tooltip .pd-tt-sub { color: #a89c86; font-size: 12px; margin-bottom: 4px; }
+.wfrp-paperdoll-tooltip .pd-tt-row { display: flex; justify-content: space-between; gap: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-stat { color: #fff; }
+.wfrp-paperdoll-tooltip .pd-tt-quality { color: #1eff00; margin-top: 4px; }
+.wfrp-paperdoll-tooltip .pd-tt-flaw { color: #ff4f4f; margin-top: 2px; }
+.wfrp-paperdoll-tooltip .pd-tt-desc { color: #ffd100; margin-top: 6px; font-style: italic; }
+.wfrp-paperdoll-tooltip .pd-tt-footer { color: #a89c86; margin-top: 6px; font-size: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-avail { font-size: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-hint { margin-top: 6px; font-size: 11px; color: #6f6a80; }
+
+/* ==========================================================
+   Быстрая смена: выпадающий список (висит в body)
    ========================================================== */
 
 .wfrp-paperdoll-flyout {
-  --rarity-none: #6b5f52;
-  --rarity-common: #c8c8c8;
-  --rarity-scarce: #1eff00;
-  --rarity-rare: #3a8dff;
-  --rarity-exotic: #b45cff;
-
   position: fixed;
   z-index: 9999;
   width: 280px;
   max-height: 380px;
   overflow-y: auto;
   padding: 6px;
-  color: #e8dcc4;
-  background: rgba(20, 16, 12, 0.97);
+  color: #f0e6d2;
+  background: rgba(14, 12, 10, 0.97);
   border: 1px solid #c9a45c;
   border-radius: 5px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
@@ -484,15 +616,14 @@
   from { opacity: 0; transform: translateX(-6px); }
   to { opacity: 1; transform: none; }
 }
-
 .wfrp-paperdoll-flyout .pd-fly-title {
   padding: 2px 6px 6px;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #c9a45c;
-  border-bottom: 1px solid #5c4a32;
+  color: var(--pd-gold);
+  border-bottom: 1px solid #4a4339;
 }
 .wfrp-paperdoll-flyout .pd-fly-section {
   padding: 8px 6px 4px;
@@ -509,23 +640,24 @@
   border-radius: 4px;
   cursor: pointer;
 }
-.wfrp-paperdoll-flyout .pd-fly-row:hover { background: rgba(201, 164, 92, 0.15); }
-
+.wfrp-paperdoll-flyout .pd-fly-row:hover { background: rgba(255, 209, 0, 0.1); }
 .wfrp-paperdoll-flyout .pd-fly-icon {
+  --glow: var(--rarity-none);
   position: relative;
   flex: 0 0 34px;
   width: 34px;
   height: 34px;
-  border: 2px solid var(--rarity-none);
+  border: 1px solid var(--glow);
   border-radius: 3px;
-  background: #0d0b09;
+  background: #0b0907;
+  box-shadow: 0 0 6px -1px var(--glow), inset 0 0 6px -2px var(--glow);
 }
-.wfrp-paperdoll-flyout .pd-fly-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border: none;
-}
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-none { box-shadow: none; }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-common { --glow: var(--rarity-common); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-scarce { --glow: var(--rarity-scarce); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-rare { --glow: var(--rarity-rare); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-exotic { --glow: var(--rarity-exotic); }
+.wfrp-paperdoll-flyout .pd-fly-icon img { width: 100%; height: 100%; object-fit: cover; border: none; }
 .wfrp-paperdoll-flyout .pd-fly-icon .pd-qty {
   position: absolute;
   right: 1px;
@@ -535,38 +667,25 @@
   color: #fff;
   text-shadow: 0 0 2px #000, 0 0 2px #000;
 }
-.wfrp-paperdoll-flyout .pd-fly-icon.rarity-common { border-color: var(--rarity-common); }
-.wfrp-paperdoll-flyout .pd-fly-icon.rarity-scarce { border-color: var(--rarity-scarce); }
-.wfrp-paperdoll-flyout .pd-fly-icon.rarity-rare { border-color: var(--rarity-rare); }
-.wfrp-paperdoll-flyout .pd-fly-icon.rarity-exotic { border-color: var(--rarity-exotic); }
-
 .wfrp-paperdoll-flyout .pd-fly-text { flex: 1; min-width: 0; }
 .wfrp-paperdoll-flyout .pd-fly-name {
   font-weight: 700;
-  color: #e8dcc4;
+  color: var(--rarity-none);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.wfrp-paperdoll-flyout .pd-fly-name.rarity-common { color: #ffffff; }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-common { color: var(--rarity-common); }
 .wfrp-paperdoll-flyout .pd-fly-name.rarity-scarce { color: var(--rarity-scarce); }
-.wfrp-paperdoll-flyout .pd-fly-name.rarity-rare { color: var(--rarity-rare); }
-.wfrp-paperdoll-flyout .pd-fly-name.rarity-exotic { color: var(--rarity-exotic); }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-rare { color: #3a8dff; }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-exotic { color: #b45cff; }
 .wfrp-paperdoll-flyout .pd-fly-meta {
   font-size: 11px;
-  color: #a8987a;
+  color: #a89c86;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.wfrp-paperdoll-flyout .pd-fly-act {
-  color: #a8987a;
-  font-size: 13px;
-  padding: 4px;
-}
+.wfrp-paperdoll-flyout .pd-fly-act { color: #a89c86; font-size: 13px; padding: 4px; }
 .wfrp-paperdoll-flyout .pd-fly-row:hover .pd-fly-act { color: #ff6b5b; }
-.wfrp-paperdoll-flyout .pd-fly-empty {
-  padding: 8px 6px;
-  font-style: italic;
-  color: #8a7a5e;
-}
+.wfrp-paperdoll-flyout .pd-fly-empty { padding: 8px 6px; font-style: italic; color: #8a7a5e; }

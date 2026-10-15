@@ -6,7 +6,6 @@
     "BagEmpty": "Empty",
     "Wounds": "Wounds",
     "Encumbrance": "Encumbrance",
-    "EquipPoints": "Hands used",
     "Hint": "Drag an item onto a slot to equip it, back to the bag to unequip. Double-click to equip/unequip, right-click to open.",
     "Slot": {
       "Main": "Main hand",
@@ -55,6 +54,41 @@
       "Empty": "No matching items",
       "Unequip": "Unequip",
       "Now": "now: {slot}"
+    },
+    "StatsTab": "Stats",
+    "Level": "lvl",
+    "Stats": {
+      "Set": {
+        "physical": "Physical",
+        "mental": "Mental",
+        "combat": "Combat",
+        "defence": "Defence",
+        "fate": "Fate",
+        "general": "General",
+        "experience": "Experience"
+      },
+      "Bonus": "Bonus",
+      "Move": "Move",
+      "Walk": "Walk",
+      "Run": "Run",
+      "Crits": "Crit. wounds",
+      "Arms": "Arms R/L",
+      "Legs": "Legs R/L",
+      "MainDmg": "Main hand dmg",
+      "OffDmg": "Off hand dmg",
+      "RangedDmg": "Ranged dmg",
+      "SB": "Strength Bonus",
+      "TB": "Toughness Bonus",
+      "Advantage": "Advantage",
+      "Fate": "Fate",
+      "Fortune": "Fortune",
+      "Resilience": "Resilience",
+      "Resolve": "Resolve",
+      "Corruption": "Corruption",
+      "Sin": "Sin",
+      "ExpTotal": "Total",
+      "ExpSpent": "Spent",
+      "ExpCurrent": "Available"
     }
   }
 }
