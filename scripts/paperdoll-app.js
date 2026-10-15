@@ -899,10 +899,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Надеть сумку в конкретный слот; то, что там было, снимается */
   async _equipBag(item, slot) {
-    const { bySlot } = this._bagAssignment();
+    const { bySlot, slotOf } = this._bagAssignment();
     const occupant = bySlot[slot];
+    const from = slotOf.get(item.id);
     if (occupant && occupant.id !== item.id) {
-      await occupant.update({ "system.equipped.value": false, [`flags.${MODULE_ID}.bagSlot`]: null });
+      // Сумка уже надета в другом слоте - меняем их местами, иначе прежнюю снимаем
+      if (from) await occupant.update({ [`flags.${MODULE_ID}.bagSlot`]: from });
+      else await occupant.update({ "system.equipped.value": false, [`flags.${MODULE_ID}.bagSlot`]: null });
     }
     await item.update({ "system.equipped.value": true, [`flags.${MODULE_ID}.bagSlot`]: slot });
   }
@@ -925,8 +928,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     let available = fits.filter((i) => !this._isInSlot(i, slot));
     // Двуручное во вторую руку не предлагаем - оно всё равно уйдёт в основную
     if (slot === "off") available = available.filter((i) => !i.system.twohanded?.value);
+    // Сумки, надетые в других слотах, - отдельной группой: выбор такой сумки меняет слоты местами
+    let worn = [];
+    if (isBagSlot(slot)) {
+      worn = available.filter((i) => i.system.isEquipped);
+      available = available.filter((i) => !i.system.isEquipped);
+    }
     const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
-    return { current: current.sort(byName), available: available.sort(byName) };
+    return { current: current.sort(byName), available: available.sort(byName), worn: worn.sort(byName) };
   }
 
   /* -------------------------------------------- */
@@ -1268,6 +1277,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _currentSlotOf(item) {
     if (!item.system.isEquipped) return null;
     if (item.type === "weapon") return item.system.offhand?.value ? "off" : "main";
+    if (item.type === "container") return this._bagAssignment().slotOf.get(item.id) ?? null;
     return null;
   }
 
@@ -1792,11 +1802,11 @@ class PaperdollFlyout {
     this.slot = slot;
 
     const L = (k) => game.i18n.localize(k);
-    const { current, available } = app._swapCandidates(slot);
+    const { current, available, worn } = app._swapCandidates(slot);
 
-    // Сортировка по силе, BIS - лучший предмет среди всего подходящего
+    // Сортировка по силе, BIS - лучший предмет среди всего подходящего (надетые в других слотах не в счёт)
     const profile = app._profile();
-    const val = new Map([...current, ...available].map((i) => [i.id, app._slotValue(i, slot, profile)]));
+    const val = new Map([...current, ...available, ...worn].map((i) => [i.id, app._slotValue(i, slot, profile)]));
     // Запрещённое по правилам - всегда в конце списка
     const rank = (i) => (val.get(i.id).forbidden ? -1e6 : 0) + val.get(i.id).score;
     const byScore = (a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name, game.i18n.lang);
@@ -1823,18 +1833,24 @@ class PaperdollFlyout {
       const rarity = RARITY[sys.availability?.value] ?? "none";
       const qty = (sys.quantity?.value ?? 1) > 1 ? `<span class="pd-qty">${sys.quantity.value}</span>` : "";
       let meta = itemMeta(item, app);
-      const where = act === "equip" ? app._currentSlotOf(item) : null;
+      const where = act === "equip" || act === "swap" ? app._currentSlotOf(item) : null;
       if (where) meta += ` · ${game.i18n.format("WFRPPD.Fly.Now", { slot: app._slotLabel(where) })}`;
+      const isSwap = act === "swap";
+      if (isSwap) {
+        act = "equip";
+        // Для надетой в другом слоте сумки главное - где она сейчас
+        meta = game.i18n.format("WFRPPD.Fly.NowCap", { slot: app._slotLabel(where) });
+      }
       const icon = act === "unequip" ? `<img class="pd-fly-act" src="${ui("ui-close")}" alt="" title="${esc(L("WFRPPD.Fly.Unequip"))}">` : "";
       // BIS только если он один: при равенстве подсвечивать нечего
       const v = val.get(item.id);
-      const bis = !v.forbidden && bisCount === 1 && v.score === bestScore && all.length > 1;
+      const bis = !isSwap && !v.forbidden && bisCount === 1 && v.score === bestScore && all.length > 1;
       const chips = [
         ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}"><img src="${ui("ui-forbid")}" alt="">${esc(r.label)}</span>`),
         ...v.restr.warn.map((r) => `<span class="pd-chip ${r.good ? "is-good" : r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${!r.good && !r.info ? `<img src="${ui("ui-warn")}" alt="">` : ""}${esc(humanizeTerms(r.label))}</span>`)
       ].join("");
       const bisBadge = bis ? `<img class="pd-fly-bis" src="${ui("ui-bis")}" alt="BIS" title="${esc(L("WFRPPD.Fly.BisHint"))}">` : "";
-      const delta = act === "equip" ? deltaChip(item) : "";
+      const delta = isSwap ? `<span class="pd-fly-delta is-same">${esc(L("WFRPPD.Fly.Swap"))}</span>` : act === "equip" ? deltaChip(item) : "";
       return `
         <div class="pd-fly-row ${bis ? "is-bis" : ""} ${v.forbidden ? "is-forbidden" : ""}" data-item-id="${item.id}" data-act="${act}">
           <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(itemImg(item.img, item.name))}" alt="">${qty}</div>
@@ -1867,6 +1883,10 @@ class PaperdollFlyout {
     html += available.length
       ? available.map((i) => row(i, "equip")).join("")
       : `<div class="pd-fly-empty">${esc(L("WFRPPD.Fly.Empty"))}</div>`;
+    if (worn.length) {
+      html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.WornElsewhere"))}</div>`;
+      html += worn.map((i) => row(i, "swap")).join("");
+    }
     // Явная кнопка «оставить слот пустым» - удобно снять всё одним кликом
     if (current.length) {
       html += `

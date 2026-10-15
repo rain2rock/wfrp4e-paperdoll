@@ -74,7 +74,10 @@
         "cap": "capacity"
       },
       "Clear": "Unequip all",
-      "ClearHint": "Leave the slot empty ({n})"
+      "ClearHint": "Leave the slot empty ({n})",
+      "WornElsewhere": "Worn in other slots",
+      "Swap": "swap",
+      "NowCap": "Now: {slot}"
     },
     "StatsTab": "Stats",
     "Level": "lvl",
