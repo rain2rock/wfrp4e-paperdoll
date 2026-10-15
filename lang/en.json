@@ -55,7 +55,6 @@
       "Unequip": "Unequip",
       "Now": "now: {slot}",
       "BisHint": "Best item you own for this slot",
-      "UpgradeHint": "There's a better item for this slot in your bag",
       "Unit": {
         "AP": "AP",
         "dmg": "dmg",

@@ -691,27 +691,8 @@
 .wfrp-paperdoll-flyout .pd-fly-empty { padding: 8px 6px; font-style: italic; color: #8a7a5e; }
 
 /* ==========================================================
-   BIS и апгрейды
+   BIS: только в списке быстрой смены
    ========================================================== */
-
-/* Зелёная стрелка в слоте: в сумке есть вещь лучше */
-.wfrp-paperdoll .pd-upgrade {
-  position: absolute;
-  z-index: 2;
-  left: -6px;
-  top: -6px;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--pd-up);
-  background: #0b0907;
-  border-radius: 50%;
-  filter: drop-shadow(0 0 4px rgba(30, 255, 0, 0.6));
-  animation: pd-upgrade-bob 1.6s ease-in-out infinite;
-}
-@keyframes pd-upgrade-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
 
 /* Строка BIS в списке быстрой смены */
 .wfrp-paperdoll-flyout .pd-fly-row.is-bis {

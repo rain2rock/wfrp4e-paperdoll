@@ -164,7 +164,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!views.length && ghost) views.push(view(ghost, { ghost: true }));
       return {
         key,
-        upgrade: editable && this._slotBest(key).upgrade,
         label: this._slotLabel(key),
         icon: SLOT_ICONS[key],
         top: views[0] ?? null,
@@ -503,15 +502,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return { value: dmg, unit: "dmg", score: dmg * 100 + extras };
     }
     return { value: null, unit: null, score: extras };
-  }
-
-  /** Лучшая оценка среди того, что сейчас надето в слот */
-  _slotBest(slot) {
-    const { current, available } = this._swapCandidates(slot);
-    const score = (i) => this._slotValue(i, slot).score;
-    const cur = current.length ? Math.max(...current.map(score)) : -Infinity;
-    const alt = available.length ? Math.max(...available.map(score)) : -Infinity;
-    return { cur, alt, upgrade: alt > cur && available.length > 0 };
   }
 
   /** Где сейчас надет предмет (для подписи «сейчас: ...») */
