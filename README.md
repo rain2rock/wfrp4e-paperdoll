@@ -54,7 +54,15 @@
 npm install
 npm run mock                                   # демо-персонаж
 node tools/build-mock.mjs --snapshot tools/snapshot.json --out mock-hugo.html   # свой персонаж
+
+# с настоящими иконками: папка icons из wfrp4e-core и папка icons из Foundry
+node tools/build-mock.mjs --snapshot tools/snapshot.json \
+  --icons ~/Downloads/icons --icons-core ~/Downloads/icons_core --out mock-hugo.html
 ```
+
+Иконки подбираются так: сначала путь из самого предмета, потом правила по названию
+(`tools/icon-fallbacks.mjs`, сначала wfrp4e-core, потом Foundry). Заглушки wfrp4e-core
+(одна картинка на категорию) пропускаются. Мок с иконками не коммитим - это платный контент.
 
 Слепок персонажа снимается скриптом в консоли Foundry (F12). Файлы `tools/snapshot*.json` и `mock-*.html`
 в git не попадают, чтобы не светить инвентарь персонажа в публичном репо.
