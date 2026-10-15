@@ -234,6 +234,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     actions: {
       setFilter: PaperdollApp.onSetFilter,
       setTab: PaperdollApp.onSetTab,
+      autoPack: PaperdollApp.onAutoPack,
       openSheet: PaperdollApp.onOpenSheet
     }
   };
@@ -700,10 +701,88 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       img: null,
       slotLabel: "",
       hasCap: false,
+      looseWeight: Math.round(loose.reduce((n, i) => n + this._weightOf(i), 0) * 100) / 100,
+      // Кнопка только когда реально есть что и куда положить
+      canPack: this.editable && (() => {
+        const maxFree = Math.max(0, ...worn.map((c) => { const { used, cap } = this._bagLoad(c); return cap - used; }));
+        return loose.some((i) => this._packable(i) && this._weightOf(i) > 0 && this._weightOf(i) <= maxFree);
+      })(),
       items: loose.filter(filter).map((i) => view(i)),
       empty: !loose.filter(filter).length
     });
     return sections;
+  }
+
+  /** Вес предмета в пунктах нагрузки (с учётом количества) */
+  _weightOf(item) {
+    return Number(item.system.encumbrance?.total ?? (item.system.encumbrance?.value ?? 0) * (item.system.quantity?.value ?? 1)) || 0;
+  }
+
+  /**
+   * Можно ли убрать вещь в сумку при авто-раскладке.
+   * Здравый смысл из книги: двуручное и древковое оружие в рюкзак не лезет,
+   * сумки в сумки не кладём.
+   */
+  _packable(item) {
+    if (item.type === "container" || item.type === "money") return false;
+    if (item.system.isEquipped) return false;
+    if (item.type === "weapon") {
+      const group = item.system.weaponGroup?.value;
+      if (item.system.twohanded?.value || ["polearm", "cavalry"].includes(group)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * «Разложить по сумкам»: самые тяжёлые вещи «при себе» уходят в надетые сумки.
+   * Жадно по убыванию веса; каждую вещь кладём в сумку, где после неё останется меньше всего места
+   * (так в большие сумки влезает больше). Вещи с нулевым весом не трогаем - нагрузку они не дают.
+   */
+  async _autoPack() {
+    if (!this.editable) return;
+    const { bySlot } = this._bagAssignment();
+    const bags = BAG_SLOTS.map((k) => bySlot[k]).filter(Boolean);
+    if (!bags.length) return ui.notifications.warn(game.i18n.localize("WFRPPD.Bags.NoBags"));
+
+    const free = new Map(bags.map((b) => {
+      const { used, cap } = this._bagLoad(b);
+      return [b.id, cap > 0 ? cap - used : 0];
+    }));
+    const bagIds = new Set(this.actor.items.filter((i) => i.type === "container").map((i) => i.id));
+    const loose = this.actor.items
+      .filter((i) => i.system?.isPhysical && !i.system.isEquipped && !bagIds.has(i.system.location?.value))
+      .filter((i) => this._packable(i) && this._weightOf(i) > 0)
+      .sort((a, b) => this._weightOf(b) - this._weightOf(a) || a.name.localeCompare(b.name, game.i18n.lang));
+
+    const updates = [];
+    const skipped = [];
+    let moved = 0;
+    for (const item of loose) {
+      const w = this._weightOf(item);
+      const fits = bags.filter((b) => free.get(b.id) >= w);
+      if (!fits.length) {
+        skipped.push(item.name);
+        continue;
+      }
+      const target = fits.sort((a, b) => free.get(a.id) - free.get(b.id))[0];
+      free.set(target.id, free.get(target.id) - w);
+      updates.push({ _id: item.id, "system.location.value": target.id });
+      moved += w;
+    }
+
+    if (!updates.length) return ui.notifications.info(game.i18n.localize("WFRPPD.Bags.PackNothing"));
+    try {
+      await this.actor.updateEmbeddedDocuments("Item", updates);
+    } catch (err) {
+      console.warn(`${MODULE_ID} | auto-pack failed`, err);
+      return;
+    }
+    const msg = game.i18n.format("WFRPPD.Bags.Packed", { n: updates.length, w: Math.round(moved * 100) / 100 });
+    const names = skipped.length > 4
+      ? `${skipped.slice(0, 4).join(", ")} ${game.i18n.format("WFRPPD.Bags.AndMore", { n: skipped.length - 4 })}`
+      : skipped.join(", ");
+    const rest = skipped.length ? " " + game.i18n.format("WFRPPD.Bags.PackSkipped", { names }) : "";
+    ui.notifications.info(msg + rest);
   }
 
   /** Переложить предмет в контейнер (или достать, если containerId пустой) */
@@ -1193,6 +1272,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this._filter = target.dataset.filter ?? "all";
     this._saveUiState();
     this.render();
+  }
+
+  static onAutoPack(event) {
+    event?.stopPropagation?.();
+    this._autoPack();
   }
 
   static onSetTab(event, target) {

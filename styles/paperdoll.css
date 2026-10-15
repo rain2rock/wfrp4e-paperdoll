@@ -960,3 +960,24 @@
 .wfrp-paperdoll .pd-bagsec--loose { border-style: dashed; }
 .wfrp-paperdoll .pd-bagsec--stored .pd-bagsec-name { color: var(--pd-text-dim); }
 .wfrp-paperdoll .pd-bagsec .pd-bag-grid:has(> .pd-bag-empty) { display: block; padding-top: 0; }
+
+/* Кнопка «Разложить» в разделе «При себе» */
+.wfrp-paperdoll .pd-pack {
+  flex: 0 0 auto;
+  width: auto;
+  height: 22px;
+  margin: 0;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #1a140e;
+  background: linear-gradient(180deg, #ffe066, #c99a00);
+  border: 1px solid #c99a00;
+  border-radius: 3px;
+  box-shadow: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wfrp-paperdoll .pd-pack:hover { filter: brightness(1.1); }
+.wfrp-paperdoll .pd-pack i { margin-right: 3px; }

@@ -131,6 +131,12 @@
             {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
           </div>
           {{#if hasCap}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.CapHint"}}">{{used}} / {{cap}}</span>{{/if}}
+          {{#if looseWeight}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{looseWeight}}</span>{{/if}}
+          {{#if canPack}}
+          <button type="button" class="pd-pack" data-action="autoPack" title="{{localize "WFRPPD.Bags.PackHint"}}">
+            <i class="fa-solid fa-boxes-packing"></i> {{localize "WFRPPD.Bags.Pack"}}
+          </button>
+          {{/if}}
         </header>
         {{#if hasCap}}<div class="pd-bagsec-bar"><div style="width: {{pct}}%"></div></div>{{/if}}
         <div class="pd-bag-grid">

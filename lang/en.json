@@ -176,7 +176,15 @@
       "CapHint": "Used / capacity (encumbrance points)",
       "Full": "\"{bag}\" can't fit it: {used} of {cap} used, item weighs {weight}.",
       "NoFreeSlot": "All three bag slots are taken. Remove one or swap via the arrow.",
-      "Overflow": "More than three bags worn, not in slots: {names}"
+      "Overflow": "More than three bags worn, not in slots: {names}",
+      "Pack": "Pack",
+      "PackHint": "Move the heaviest carried items into worn bags while there is room. Two-handed and polearm weapons stay out",
+      "LooseHint": "Encumbrance from items outside bags",
+      "NoBags": "No bags worn",
+      "PackNothing": "Nothing to pack: heavy items are already in bags or don't fit",
+      "Packed": "Packed {n} items, encumbrance down by {w}.",
+      "PackSkipped": "Didn't fit: {names}.",
+      "AndMore": "and {n} more"
     }
   }
 }
