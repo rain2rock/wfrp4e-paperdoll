@@ -185,6 +185,20 @@
       "Packed": "Packed {n} items, encumbrance down by {w}.",
       "PackSkipped": "Didn't fit: {names}.",
       "AndMore": "and {n} more"
-    }
+    },
+    "Layers": "Armour layers",
+    "Settings": {
+      "Theme": {
+        "Name": "Paperdoll theme",
+        "Hint": "Dark WoW-like or light parchment.",
+        "dark": "Dark",
+        "parchment": "Parchment"
+      },
+      "ItemIcons": {
+        "Name": "Module item icons",
+        "Hint": "Replace wfrp4e-core placeholder icons (sack, sword, bow) with the module's drawn icons."
+      }
+    },
+    "ThemeToggle": "Toggle theme"
   }
 }

@@ -129,6 +129,39 @@ function resolveIcon(item) {
   return item.img;
 }
 
+// ---------- Своя графика модуля (assets) ----------
+// Картинки интерфейса и свои иконки предметов встраиваем как data URI:
+// модуль берёт их через asset(), в моке asset() смотрит в window.__PD_ASSETS__.
+const ASSETS = {};
+const assetUri = (rel) => (ASSETS[rel] ??= dataUri(path.join(root, "assets", rel)));
+for (const f of fs.readdirSync(path.join(root, "assets/ui"))) assetUri(`ui/${f}`);
+const OVERRIDES = new Set();
+(function walk(d, pre = "") {
+  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    if (e.isDirectory()) walk(path.join(d, e.name), `${pre}${e.name}/`);
+    else OVERRIDES.add(pre + e.name);
+  }
+})(path.join(root, "assets/icons"));
+const overrideFor = (rel) => {
+  if (!rel) return null;
+  if (OVERRIDES.has(rel)) return rel;
+  const base = rel.replace(/(-(fine|flaw)(-?\d+)?|\d+)(\.\w+)$/, "$4");
+  return base !== rel && OVERRIDES.has(base) ? base : null;
+};
+let ownIcons = 0;
+const withOwnIcon = (i) => {
+  const src = i._srcImg?.startsWith("modules/wfrp4e-core/icons/")
+    ? i._srcImg.slice("modules/wfrp4e-core/icons/".length)
+    : i._icon?.startsWith("icons:") ? i._icon.slice(6) : null;
+  const rel = overrideFor(src);
+  if (!rel) return i;
+  assetUri(`icons/${rel}`);
+  ownIcons++;
+  // Путь как в Foundry: модуль сам подменит его своей иконкой (itemImg)
+  return { ...i, img: `modules/wfrp4e-core/icons/${src}` };
+};
+actor = { ...actor, items: actor.items.map(withOwnIcon) };
+
 if (!(ROOTS.icons || ROOTS.core)) {
   const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"] };
   actor = {
@@ -141,8 +174,8 @@ if (!(ROOTS.icons || ROOTS.core)) {
 const require = createRequire(import.meta.url);
 const handlebars = fs.readFileSync(require.resolve("handlebars/dist/handlebars.min.js"), "utf8");
 const lang = JSON.parse(read("lang/ru.json"));
-const css = read("styles/paperdoll.css");
-const appSrc = read("scripts/paperdoll-app.js");
+const css = read("styles/paperdoll.css").replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
+const appSrc = read("scripts/icon-index.js") + "\n" + read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "");
 const template = read("templates/paperdoll.hbs");
 const runtime = read("tools/mock-runtime.js");
 const tplPath = "modules/wfrp4e-paperdoll/templates/paperdoll.hbs";
@@ -184,6 +217,7 @@ ${css}
 <p class="mock-note">Мок окна модуля: работает настоящий код модуля поверх заглушки Foundry. ${ROOTS.icons || ROOTS.core ? "Иконки из wfrp4e-core и стандартного набора Foundry." : "Иконки предметов пока эмодзи."}
 Наведи на слот - справа стрелочка быстрой смены. Перетаскивание, двойной клик, вкладка «Характеристики» и выпадашки статов тоже работают.</p>
 <label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
+<label class="mock-gm"><input type="checkbox" id="mock-theme"> Тема «Пергамент»</label>
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
 <script>${handlebars}</script>
@@ -192,6 +226,7 @@ window.__PD_LANG__ = ${json(lang)};
 window.__PD_SYSTEM_STRINGS__ = ${json(systemStrings)};
 window.__PD_CONFIG__ = ${json(config)};
 window.__PD_TEMPLATES__ = ${json({ [tplPath]: template })};
+window.__PD_ASSETS__ = ${json(ASSETS)};
 </script>
 <script>${runtime}</script>
 <script>
@@ -206,6 +241,7 @@ const actor = window.__PD_makeActor__(${json(actor)});
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
 document.getElementById("mock-reopen").addEventListener("click", open);
 document.getElementById("mock-gm").addEventListener("change", (ev) => { game.user.isGM = ev.target.checked; });
+document.getElementById("mock-theme").addEventListener("change", (ev) => game.settings.set("wfrp4e-paperdoll", "theme", ev.target.checked ? "parchment" : "dark"));
 open();
 </script>
 </body>
@@ -214,7 +250,7 @@ open();
 
 const out = path.resolve(args.out ?? path.join(root, "docs/paperdoll-mock.html"));
 fs.writeFileSync(out, html);
-console.log(`Мок собран: ${out} (${(html.length / 1024).toFixed(0)} КБ), персонаж: ${actor.name}`);
+console.log(`Мок собран: ${out} (${(html.length / 1024).toFixed(0)} КБ), персонаж: ${actor.name}, своих иконок: ${ownIcons}`);
 if (ROOTS.icons || ROOTS.core)
   console.log(`Иконки: по пути предмета ${iconStats.path}, по названию ${iconStats.rule}, заглушки ${iconStats.placeholder}, эмодзи ${iconStats.emoji}`);
 

@@ -407,7 +407,19 @@
   window.game = {
     i18n,
     user: { isGM: false },
-    wfrp4e: { config: window.__PD_CONFIG__ }
+    wfrp4e: { config: window.__PD_CONFIG__ },
+    // Настройки модуля: тема и свои иконки
+    settings: {
+      _values: { "wfrp4e-paperdoll.theme": "dark", "wfrp4e-paperdoll.itemIcons": true },
+      get(ns, key) {
+        return this._values[`${ns}.${key}`];
+      },
+      async set(ns, key, value) {
+        this._values[`${ns}.${key}`] = value;
+        window.PaperdollApp?.renderAll?.();
+        return value;
+      }
+    }
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
 })();

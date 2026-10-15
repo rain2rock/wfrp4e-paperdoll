@@ -1,3 +1,5 @@
+import { ICON_OVERRIDES } from "./icon-index.js";
+
 export const MODULE_ID = "wfrp4e-paperdoll";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -5,22 +7,61 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 /** Локации брони в WFRP4e (ключи как в system.AP и actor.system.status.armour) */
 const LOCATIONS = ["head", "body", "rArm", "lArm", "rLeg", "lLeg"];
 
-/** Иконки пустых слотов (Font Awesome 6 free) */
-const SLOT_ICONS = {
-  head: "fa-solid fa-user",
-  body: "fa-solid fa-shirt",
-  rArm: "fa-solid fa-hand",
-  lArm: "fa-solid fa-hand",
-  rLeg: "fa-solid fa-socks",
-  lLeg: "fa-solid fa-socks",
-  accessory: "fa-solid fa-ring",
-  container: "fa-solid fa-sack-xmark",
-  bag1: "fa-solid fa-sack-xmark",
-  bag2: "fa-solid fa-sack-xmark",
-  bag3: "fa-solid fa-sack-xmark",
-  main: "fa-solid fa-hand-fist",
-  off: "fa-solid fa-shield-halved"
+/* -------------------------------------------- */
+/*  Своя графика: assets/ui и assets/icons      */
+/* -------------------------------------------- */
+
+/** Путь к файлу модуля. В моке вместо пути подставляется data URI */
+export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODULE_ID}/assets/${rel}`;
+/** Картинка интерфейса из assets/ui */
+export const ui = (name) => asset(`ui/${name}.png`);
+
+const setting = (key, fallback) => {
+  try {
+    return game.settings.get(MODULE_ID, key);
+  } catch {
+    return fallback;
+  }
 };
+/** Тема окна: dark (тёмная) или parchment (пергамент) */
+export const currentTheme = () => (setting("theme", "dark") === "parchment" ? "parchment" : "dark");
+const themeClass = () => `pd-theme-${currentTheme()}`;
+
+const CORE_ICONS = "modules/wfrp4e-core/icons/";
+/**
+ * Иконка предмета: заглушки wfrp4e-core подменяем своими из assets/icons.
+ * Варианты (-fine, -flaw, dagger2) без своей картинки берут картинку базового предмета.
+ */
+export function itemImg(img) {
+  if (!img?.startsWith(CORE_ICONS) || !setting("itemIcons", true)) return img;
+  let rel = img.slice(CORE_ICONS.length);
+  if (!ICON_OVERRIDES.has(rel)) {
+    const base = rel.replace(/(-(fine|flaw)(-?\d+)?|\d+)(\.\w+)$/, "$4");
+    if (base === rel || !ICON_OVERRIDES.has(base)) return img;
+    rel = base;
+  }
+  return asset(`icons/${rel}`);
+}
+
+/** Силуэты пустых слотов */
+const SLOT_ART = {
+  head: "slot-head",
+  body: "slot-body",
+  rArm: "slot-arm-r",
+  lArm: "slot-arm-l",
+  rLeg: "slot-leg-r",
+  lLeg: "slot-leg-l",
+  accessory: "slot-accessory",
+  container: "slot-bag",
+  bag1: "slot-bag",
+  bag2: "slot-bag",
+  bag3: "slot-bag",
+  main: "slot-main",
+  off: "slot-off"
+};
+
+/** Иконки категорий во вкладке «Характеристики» */
+const STAT_ART = { physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /** Доступность предмета -> «редкость» рамки в стиле WoW */
 const RARITY = {
@@ -223,19 +264,30 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return app;
   }
 
+  /** Перерисовать все открытые куколки (смена темы или иконок в настройках) */
+  static renderAll() {
+    for (const app of this.instances.values()) if (app.rendered) app.render();
+  }
+
+  static async onToggleTheme() {
+    await game.settings.set(MODULE_ID, "theme", currentTheme() === "dark" ? "parchment" : "dark");
+  }
+
   static DEFAULT_OPTIONS = {
     classes: ["wfrp-paperdoll"],
     tag: "div",
     window: {
       icon: "fa-solid fa-user-shield",
-      resizable: true
+      resizable: true,
+      controls: [{ icon: "fa-solid fa-palette", label: "WFRPPD.ThemeToggle", action: "toggleTheme" }]
     },
     position: { width: 960, height: 720 },
     actions: {
       setFilter: PaperdollApp.onSetFilter,
       setTab: PaperdollApp.onSetTab,
       autoPack: PaperdollApp.onAutoPack,
-      openSheet: PaperdollApp.onOpenSheet
+      openSheet: PaperdollApp.onOpenSheet,
+      toggleTheme: PaperdollApp.onToggleTheme
     }
   };
 
@@ -299,7 +351,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return {
         key,
         label: this._slotLabel(key),
-        icon: SLOT_ICONS[key],
+        art: ui(SLOT_ART[key]),
         top: views[0] ?? null,
         layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
         showAP,
@@ -399,6 +451,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       name: actor.name,
       subtitle,
       careerIcon,
+      theme: currentTheme(),
+      art: {
+        swap: ui("ui-swap-arrow"),
+        caret: ui("ui-caret-down"),
+        tabBag: ui("ui-tab-bag"),
+        tabStats: ui("ui-tab-stats"),
+        carried: ui("ui-carried"),
+        pack: ui("ui-pack")
+      },
       effects: this._effectsCache = this._effectsView(),
       groups,
       bag,
@@ -544,7 +605,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Stats.ExpCurrent", exp.current, "is-up")
         ]
       });
-    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`) }));
+    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`), art: STAT_ART[c.key] ? ui(STAT_ART[c.key]) : null }));
   }
 
   _itemView(item, editable, extra = {}) {
@@ -553,7 +614,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       id: item.id,
       name: item.name,
-      img: item.img,
+      img: itemImg(item.img),
       rarity: RARITY[sys.availability?.value] ?? "none",
       qty: qty > 1 ? qty : null,
       draggable: editable && !extra.ghost,
@@ -672,7 +733,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         id: c.id,
         kind,
         name: c.name,
-        img: c.img,
+        img: itemImg(c.img),
         slotLabel: kind === "worn" ? this._slotLabel(assign.slotOf.get(c.id) ?? "") : L("WFRPPD.Bags.NotWorn"),
         used,
         cap,
@@ -904,7 +965,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "injury",
         id: injury.id,
         name: injury.name,
-        img: injury.img,
+        img: itemImg(injury.img),
         value: dur.active && Number(dur.value) ? Number(dur.value) : null,
         debuff: true,
         lines: [
@@ -921,7 +982,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "critical",
         id: crit.id,
         name: crit.name,
-        img: crit.img,
+        img: itemImg(crit.img),
         debuff: true,
         lines: [
           sys.location?.value ? `${L("WFRPPD.Effects.Location")}: ${locName(sys.location.key ?? sys.location.value)}` : "",
@@ -944,7 +1005,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "disease",
         id: disease.id,
         name: disease.name,
-        img: disease.img,
+        img: itemImg(disease.img),
         debuff: true,
         lines: [state, sys.symptoms?.value ? `${L("WFRPPD.Effects.Symptoms")}: ${sys.symptoms.value}` : ""],
         hint: L("WFRPPD.Effects.HintOpen")
@@ -1293,6 +1354,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     await super._onRender(context, options);
     PaperdollTooltip.hide();
     const root = this.element;
+    root.classList.remove("pd-theme-dark", "pd-theme-parchment");
+    root.classList.add(themeClass());
 
     for (const el of root.querySelectorAll(".pd-item")) {
       const item = this.actor.items.get(el.dataset.itemId);
@@ -1520,6 +1583,7 @@ class PaperdollTooltip {
 
   static showHtml(html, event) {
     const el = this.ensure();
+    el.className = `wfrp-paperdoll-tooltip ${themeClass()}`;
     el.innerHTML = html;
     el.classList.add("is-visible");
     this.move(event);
@@ -1527,6 +1591,7 @@ class PaperdollTooltip {
 
   static show(item, event, app = null) {
     const el = this.ensure();
+    el.className = `wfrp-paperdoll-tooltip ${themeClass()}`;
     el.innerHTML = this.build(item, app);
     el.classList.add("is-visible");
     this.move(event);
@@ -1720,7 +1785,7 @@ class PaperdollFlyout {
       if (!current.length && !d) return "";
       if (!d) return `<span class="pd-fly-delta is-same">=</span>`;
       const unit = L(`WFRPPD.Fly.Unit.${v.unit}`);
-      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}">${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
+      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}"><img src="${ui(d > 0 ? "ui-delta-up" : "ui-delta-down")}" alt="">${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
     };
 
     const row = (item, act) => {
@@ -1730,19 +1795,19 @@ class PaperdollFlyout {
       let meta = itemMeta(item, app);
       const where = act === "equip" ? app._currentSlotOf(item) : null;
       if (where) meta += ` · ${game.i18n.format("WFRPPD.Fly.Now", { slot: app._slotLabel(where) })}`;
-      const icon = act === "unequip" ? `<i class="fa-solid fa-xmark pd-fly-act" title="${esc(L("WFRPPD.Fly.Unequip"))}"></i>` : "";
+      const icon = act === "unequip" ? `<img class="pd-fly-act" src="${ui("ui-close")}" alt="" title="${esc(L("WFRPPD.Fly.Unequip"))}">` : "";
       // BIS только если он один: при равенстве подсвечивать нечего
       const v = val.get(item.id);
       const bis = !v.forbidden && bisCount === 1 && v.score === bestScore && all.length > 1;
       const chips = [
-        ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}">${esc(r.label)}</span>`),
-        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.good ? "is-good" : r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${esc(humanizeTerms(r.label))}</span>`)
+        ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}"><img src="${ui("ui-forbid")}" alt="">${esc(r.label)}</span>`),
+        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.good ? "is-good" : r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${!r.good && !r.info ? `<img src="${ui("ui-warn")}" alt="">` : ""}${esc(humanizeTerms(r.label))}</span>`)
       ].join("");
-      const bisBadge = bis ? `<span class="pd-fly-bis" title="${esc(L("WFRPPD.Fly.BisHint"))}">BIS</span>` : "";
+      const bisBadge = bis ? `<img class="pd-fly-bis" src="${ui("ui-bis")}" alt="BIS" title="${esc(L("WFRPPD.Fly.BisHint"))}">` : "";
       const delta = act === "equip" ? deltaChip(item) : "";
       return `
         <div class="pd-fly-row ${bis ? "is-bis" : ""} ${v.forbidden ? "is-forbidden" : ""}" data-item-id="${item.id}" data-act="${act}">
-          <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(item.img)}" alt="">${qty}</div>
+          <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(itemImg(item.img))}" alt="">${qty}</div>
           <div class="pd-fly-text">
             <div class="pd-fly-name rarity-${rarity}">${esc(item.name)}</div>
             <div class="pd-fly-meta">${esc(meta)}</div>
@@ -1776,7 +1841,7 @@ class PaperdollFlyout {
     if (current.length) {
       html += `
         <div class="pd-fly-row pd-fly-clear" data-act="clear">
-          <div class="pd-fly-icon"><i class="fa-solid fa-ban"></i></div>
+          <div class="pd-fly-icon"><img src="${ui("ui-unequip-all")}" alt=""></div>
           <div class="pd-fly-text">
             <div class="pd-fly-name">${esc(L("WFRPPD.Fly.Clear"))}</div>
             <div class="pd-fly-meta">${esc(game.i18n.format("WFRPPD.Fly.ClearHint", { n: current.length }))}</div>
@@ -1785,7 +1850,7 @@ class PaperdollFlyout {
     }
 
     const el = document.createElement("div");
-    el.className = "wfrp-paperdoll-flyout";
+    el.className = `wfrp-paperdoll-flyout ${themeClass()}`;
     el.innerHTML = html;
     document.body.append(el);
     this.el = el;

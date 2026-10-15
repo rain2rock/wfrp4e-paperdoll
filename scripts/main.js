@@ -1,8 +1,29 @@
-import { PaperdollApp, MODULE_ID } from "./paperdoll-app.js";
+import { PaperdollApp, MODULE_ID, ui } from "./paperdoll-app.js";
 
 const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
 Hooks.once("init", () => {
+  const rerender = () => PaperdollApp.renderAll();
+  game.settings.register(MODULE_ID, "theme", {
+    name: "WFRPPD.Settings.Theme.Name",
+    hint: "WFRPPD.Settings.Theme.Hint",
+    scope: "client",
+    config: true,
+    type: String,
+    choices: { dark: "WFRPPD.Settings.Theme.dark", parchment: "WFRPPD.Settings.Theme.parchment" },
+    default: "dark",
+    onChange: rerender
+  });
+  game.settings.register(MODULE_ID, "itemIcons", {
+    name: "WFRPPD.Settings.ItemIcons.Name",
+    hint: "WFRPPD.Settings.ItemIcons.Hint",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: rerender
+  });
+
   // Доступ из макросов: game.modules.get("wfrp4e-paperdoll").api.open(actor)
   game.modules.get(MODULE_ID).api = {
     open: (actor) => PaperdollApp.openFor(actor)
@@ -24,7 +45,8 @@ Hooks.on("renderActorSheetV2", (app, element) => {
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "header-control icon fa-solid fa-user-shield wfrp-paperdoll-open";
+  btn.className = "header-control icon wfrp-paperdoll-open";
+  btn.innerHTML = `<img src="${ui("ui-sheet-button")}" alt="">`;
   const label = game.i18n.localize("WFRPPD.Open");
   btn.dataset.tooltip = label;
   btn.setAttribute("aria-label", label);
