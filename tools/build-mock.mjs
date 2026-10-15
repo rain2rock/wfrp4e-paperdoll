@@ -6,6 +6,8 @@
  *   node tools/build-mock.mjs --snapshot tools/snapshot.json --out mock-hugo.html
  *                          персонаж из слепка, снятого скриптом из консоли Foundry
  *
+ * Код модуля встраивается обычным скриптом (без blob/import), чтобы мок
+ * открывался и в превью, где динамические импорты запрещены.
  * Мок запускает НАСТОЯЩИЙ код модуля (scripts/paperdoll-app.js) поверх
  * мини-«Foundry» из tools/mock-runtime.js, так что он всегда совпадает с модулем.
  */
@@ -80,15 +82,18 @@ window.__PD_CONFIG__ = ${json(config)};
 window.__PD_TEMPLATES__ = ${json({ [tplPath]: template })};
 </script>
 <script>${runtime}</script>
-<script type="module">
-const src = ${json(appSrc)};
-const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
-const { PaperdollApp } = await import(url);
+<script>
+(() => {
+${appSrc.replace(/^export /gm, "").replace(/<\/script/gi, "<\\/script")}
+window.PaperdollApp = PaperdollApp;
+})();
+</script>
+<script>
+const PaperdollApp = window.PaperdollApp;
 const actor = window.__PD_makeActor__(${json(actor)});
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
 document.getElementById("mock-reopen").addEventListener("click", open);
 open();
-window.__PD_APP__ = PaperdollApp;
 </script>
 </body>
 </html>

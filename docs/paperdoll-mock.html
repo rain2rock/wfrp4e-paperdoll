@@ -1097,15 +1097,974 @@ window.__PD_TEMPLATES__ = {"modules/wfrp4e-paperdoll/templates/paperdoll.hbs":"\
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
 })();
 </script>
-<script type="module">
-const src = "export const MODULE_ID = \"wfrp4e-paperdoll\";\n\nconst { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;\n\n/** Локации брони в WFRP4e (ключи как в system.AP и actor.system.status.armour) */\nconst LOCATIONS = [\"head\", \"body\", \"rArm\", \"lArm\", \"rLeg\", \"lLeg\"];\n\n/** Иконки пустых слотов (Font Awesome 6 free) */\nconst SLOT_ICONS = {\n  head: \"fa-solid fa-user\",\n  body: \"fa-solid fa-shirt\",\n  rArm: \"fa-solid fa-hand\",\n  lArm: \"fa-solid fa-hand\",\n  rLeg: \"fa-solid fa-socks\",\n  lLeg: \"fa-solid fa-socks\",\n  accessory: \"fa-solid fa-ring\",\n  container: \"fa-solid fa-sack-xmark\",\n  main: \"fa-solid fa-hand-fist\",\n  off: \"fa-solid fa-shield-halved\"\n};\n\n/** Доступность предмета -> «редкость» рамки в стиле WoW */\nconst RARITY = {\n  common: \"common\",\n  scarce: \"scarce\",\n  rare: \"rare\",\n  exotic: \"exotic\",\n  special: \"exotic\"\n};\n\nconst BAG_FILTERS = [\"all\", \"weapon\", \"armour\", \"clothing\", \"other\"];\n\n/** Наборы статов для выпадашек под портретом */\nconst STAT_SETS = [\"physical\", \"mental\", \"combat\", \"defence\", \"fate\"];\n\nfunction esc(value) {\n  return String(value ?? \"\")\n    .replaceAll(\"&\", \"&amp;\")\n    .replaceAll(\"\u003c\", \"&lt;\")\n    .replaceAll(\">\", \"&gt;\")\n    .replaceAll('\"', \"&quot;\");\n}\n\nfunction stripHTML(html) {\n  const div = document.createElement(\"div\");\n  div.innerHTML = html ?? \"\";\n  return (div.textContent ?? \"\").replace(/\\s+/g, \" \").trim();\n}\n\nfunction safe(fn, fallback = null) {\n  try {\n    return fn();\n  } catch (e) {\n    return fallback;\n  }\n}\n\nexport class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {\n  /** Одно окно на актёра */\n  static instances = new Map();\n\n  static uiState = { filter: \"all\", tab: \"bag\", statPanels: [\"physical\", \"combat\"] };\n\n  _saveUiState() {\n    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels] };\n  }\n\n  static openFor(actor) {\n    if (!actor) return null;\n    let app = this.instances.get(actor.uuid);\n    if (!app) {\n      app = new this({ actor });\n      this.instances.set(actor.uuid, app);\n    }\n    app.render({ force: true });\n    if (app.rendered) app.bringToFront?.();\n    return app;\n  }\n\n  static DEFAULT_OPTIONS = {\n    classes: [\"wfrp-paperdoll\"],\n    tag: \"div\",\n    window: {\n      icon: \"fa-solid fa-user-shield\",\n      resizable: true\n    },\n    position: { width: 960, height: 720 },\n    actions: {\n      setFilter: PaperdollApp.onSetFilter,\n      setTab: PaperdollApp.onSetTab,\n      openSheet: PaperdollApp.onOpenSheet\n    }\n  };\n\n  static PARTS = {\n    main: {\n      template: `modules/${MODULE_ID}/templates/paperdoll.hbs`,\n      scrollable: [\".pd-bag-grid\"]\n    }\n  };\n\n  constructor({ actor, ...options } = {}) {\n    const safeId = actor.uuid.replace(/[^a-zA-Z0-9_-]/g, \"-\");\n    super({ ...options, id: `wfrp-paperdoll-${safeId}` });\n    this.actor = actor;\n    // Выбор вкладки и выпадашек запоминаем между открытиями окна\n    this._filter = PaperdollApp.uiState.filter;\n    this._tab = PaperdollApp.uiState.tab;\n    this._statPanels = [...PaperdollApp.uiState.statPanels];\n    this._dragging = null;\n\n    this._debouncedRender = foundry.utils.debounce(() => {\n      if (this.rendered) this.render();\n    }, 50);\n\n    const isMine = (doc) => doc?.parent?.uuid === this.actor.uuid;\n    this._hooks = [\n      [\"createItem\", Hooks.on(\"createItem\", (item) => isMine(item) && this._debouncedRender())],\n      [\"updateItem\", Hooks.on(\"updateItem\", (item) => isMine(item) && this._debouncedRender())],\n      [\"deleteItem\", Hooks.on(\"deleteItem\", (item) => isMine(item) && this._debouncedRender())],\n      [\"updateActor\", Hooks.on(\"updateActor\", (a) => a.uuid === this.actor.uuid && this._debouncedRender())],\n      [\"deleteActor\", Hooks.on(\"deleteActor\", (a) => a.uuid === this.actor.uuid && this.close())]\n    ];\n  }\n\n  get title() {\n    return `${game.i18n.localize(\"WFRPPD.Title\")}: ${this.actor.name}`;\n  }\n\n  get editable() {\n    return this.actor.isOwner;\n  }\n\n  /* -------------------------------------------- */\n  /*  Данные                                      */\n  /* -------------------------------------------- */\n\n  async _prepareContext(options) {\n    const actor = this.actor;\n    const sys = actor.system;\n    const cfg = game.wfrp4e.config;\n    const L = (key) => game.i18n.localize(key);\n    const editable = this.editable;\n\n    const view = (item, extra = {}) => this._itemView(item, editable, extra);\n    const equipped = (type) => (actor.itemTypes[type] ?? []).filter((i) => i.system.isEquipped);\n\n    /** Слот в стиле WoW: одна иконка сверху, остальные слои считаем */\n    const makeSlot = (key, items, { showAP = false, ghost = null } = {}) => {\n      const views = items.map((i) => view(i));\n      if (!views.length && ghost) views.push(view(ghost, { ghost: true }));\n      return {\n        key,\n        label: this._slotLabel(key),\n        icon: SLOT_ICONS[key],\n        top: views[0] ?? null,\n        layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),\n        showAP,\n        ap: showAP ? (sys.status?.armour?.[key]?.value ?? 0) : null\n      };\n    };\n\n    // --- Броня: сверху слой с наибольшим AP на этой локации ---\n    const armour = equipped(\"armour\");\n    const armourSlot = (key) => {\n      const items = armour\n        .filter((a) => a.system.protects?.[key])\n        .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0));\n      return makeSlot(key, items, { showAP: true });\n    };\n\n    // --- Оружие ---\n    const weapons = equipped(\"weapon\");\n    const mainItems = weapons.filter((w) => !w.system.offhand?.value);\n    const offItems = weapons.filter((w) => w.system.offhand?.value);\n    const twoHander = mainItems.find((w) => w.system.twohanded?.value);\n\n    const clothing = equipped(\"trapping\").filter((t) => t.system.trappingType?.value === \"clothingAccessories\");\n\n    const groups = [\n      { area: \"left\", slots: [\"head\", \"body\", \"rArm\", \"lArm\"].map(armourSlot) },\n      {\n        area: \"right\",\n        slots: [armourSlot(\"rLeg\"), armourSlot(\"lLeg\"), makeSlot(\"accessory\", clothing), makeSlot(\"container\", equipped(\"container\"))]\n      },\n      {\n        area: \"weapons\",\n        slots: [makeSlot(\"main\", mainItems), makeSlot(\"off\", offItems, { ghost: twoHander })]\n      }\n    ];\n\n    // --- Сумка ---\n    const bagAll = actor.items\n      .filter((i) => i.system?.isPhysical && i.type !== \"money\" && !i.system.isEquipped)\n      .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name, game.i18n.lang));\n    const bag = bagAll.filter((i) => this._matchesFilter(i, this._filter)).map((i) => view(i));\n    const filters = BAG_FILTERS.map((key) => ({\n      key,\n      label: L(`WFRPPD.Filter.${key}`),\n      active: key === this._filter,\n      count: bagAll.filter((i) => this._matchesFilter(i, key)).length\n    }));\n\n    // --- Статы ---\n    const sets = this._statSets(mainItems, offItems, weapons);\n    const statPanels = this._statPanels.map((selected) => ({\n      options: STAT_SETS.map((key) => ({ key, label: L(`WFRPPD.Stats.Set.${key}`), selected: key === selected })),\n      rows: sets[selected] ?? []\n    }));\n    const statCategories = this._statCategories(sets);\n\n    // --- Шапка: имя, карьера, вид ---\n    const career = safe(() => sys.currentCareer ?? actor.currentCareer);\n    const level = career?.system?.level?.value;\n    const speciesKey = sys.details?.species?.value;\n    const species = speciesKey ? L(cfg.species?.[speciesKey] ?? speciesKey) : \"\";\n    const subtitle = [\n      career ? `${career.name}${level ? ` (${L(\"WFRPPD.Level\")} ${level})` : \"\"}` : \"\",\n      species,\n      sys.details?.status?.value ?? \"\"\n    ]\n      .filter(Boolean)\n      .join(\" · \");\n\n    const enc = sys.status?.encumbrance ?? {};\n    const encCurrent = Number(enc.current) || 0;\n    const encMax = Number(enc.max) || 0;\n    const encRatio = encMax ? encCurrent / encMax : 0;\n    let encState = \"ok\";\n    if (encRatio > 2) encState = \"max\";\n    else if (encRatio > 1) encState = \"over\";\n\n    return {\n      actor,\n      editable,\n      img: actor.img,\n      name: actor.name,\n      subtitle,\n      groups,\n      bag,\n      bagEmpty: !bag.length,\n      filters,\n      statPanels,\n      statCategories,\n      tabBag: this._tab === \"bag\",\n      tabStats: this._tab === \"stats\",\n      encumbrance: {\n        current: encCurrent,\n        max: encMax,\n        pct: Math.clamp(encRatio * 100, 0, 100),\n        state: encState,\n        stateLabel: L(`WFRPPD.Enc.${encState}`)\n      }\n    };\n  }\n\n  /* -------------------------------------------- */\n  /*  Статы в стиле WoW / ECS                     */\n  /* -------------------------------------------- */\n\n  /** Все наборы строк для выпадашек под портретом */\n  _statSets(mainItems, offItems, weapons) {\n    const sys = this.actor.system;\n    const cfg = game.wfrp4e.config;\n    const L = (key) => game.i18n.localize(key);\n    const chars = sys.characteristics ?? {};\n    const st = sys.status ?? {};\n    const det = sys.details ?? {};\n\n    const charRow = (key) => {\n      const c = chars[key] ?? {};\n      const mod = Number(c.modifier) || 0;\n      const full = cfg.characteristics?.[key];\n      return {\n        label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),\n        value: c.value ?? \"-\",\n        cls: mod > 0 ? \"is-up\" : mod \u003c 0 ? \"is-down\" : \"\",\n        hint: c.bonus !== undefined ? `${L(\"WFRPPD.Stats.Bonus\")} ${c.bonus}` : \"\"\n      };\n    };\n    const row = (labelKey, value, cls = \"\") => ({\n      label: L(labelKey),\n      value: value === undefined || value === null || value === \"\" ? \"-\" : value,\n      cls\n    });\n    const pair = (a, b) => (a === undefined || a === null ? \"-\" : `${a} / ${b ?? \"-\"}`);\n    const dmg = (items) => {\n      const w = items[0];\n      if (!w) return \"-\";\n      const d = safe(() => w.system.Damage);\n      return d === null || d === undefined || d === \"\" ? \"-\" : `+${d}`;\n    };\n    const ap = (loc) => st.armour?.[loc]?.value ?? 0;\n    const ranged = weapons.find((w) => safe(() => w.system.isRanged));\n\n    const wounds = st.wounds ?? {};\n    const woundsCls = wounds.max && wounds.value \u003c wounds.max ? \"is-down\" : \"\";\n\n    return {\n      physical: [\"ws\", \"bs\", \"s\", \"t\", \"i\", \"ag\"].map(charRow),\n      mental: [\n        ...[\"dex\", \"int\", \"wp\", \"fel\"].map(charRow),\n        row(\"WFRPPD.Stats.Move\", det.move?.value),\n        row(\"WFRPPD.Stats.Run\", det.move?.run)\n      ],\n      defence: [\n        row(\"WFRPPD.Wounds\", pair(wounds.value, wounds.max), woundsCls),\n        row(\"WFRPPD.Stats.Crits\", pair(st.criticalWounds?.value ?? 0, st.criticalWounds?.max), (st.criticalWounds?.value ?? 0) > 0 ? \"is-down\" : \"\"),\n        row(cfg.locations?.head ?? \"head\", ap(\"head\"), \"is-armour\"),\n        row(cfg.locations?.body ?? \"body\", ap(\"body\"), \"is-armour\"),\n        row(\"WFRPPD.Stats.Arms\", `${ap(\"rArm\")} / ${ap(\"lArm\")}`, \"is-armour\"),\n        row(\"WFRPPD.Stats.Legs\", `${ap(\"rLeg\")} / ${ap(\"lLeg\")}`, \"is-armour\")\n      ],\n      combat: [\n        row(\"WFRPPD.Stats.MainDmg\", dmg(mainItems), \"is-melee\"),\n        row(\"WFRPPD.Stats.OffDmg\", dmg(offItems), \"is-melee\"),\n        row(\"WFRPPD.Stats.RangedDmg\", ranged ? dmg([ranged]) : \"-\", \"is-melee\"),\n        row(\"WFRPPD.Stats.SB\", chars.s?.bonus),\n        row(\"WFRPPD.Stats.TB\", chars.t?.bonus),\n        row(\"WFRPPD.Stats.Advantage\", st.advantage?.value ?? 0)\n      ],\n      fate: [\n        row(\"WFRPPD.Stats.Fate\", st.fate?.value, \"is-fate\"),\n        row(\"WFRPPD.Stats.Fortune\", st.fortune?.value, \"is-fate\"),\n        row(\"WFRPPD.Stats.Resilience\", st.resilience?.value, \"is-fate\"),\n        row(\"WFRPPD.Stats.Resolve\", st.resolve?.value, \"is-fate\"),\n        row(\"WFRPPD.Stats.Corruption\", pair(st.corruption?.value ?? 0, st.corruption?.max), \"is-chaos\"),\n        row(\"WFRPPD.Stats.Sin\", st.sin?.value ?? 0, (st.sin?.value ?? 0) > 0 ? \"is-sin\" : \"\")\n      ]\n    };\n  }\n\n  /** Категории для вкладки «Характеристики» справа (как аддон ECS) */\n  _statCategories(sets) {\n    const sys = this.actor.system;\n    const L = (key) => game.i18n.localize(key);\n    const det = sys.details ?? {};\n    const exp = det.experience;\n    const enc = sys.status?.encumbrance ?? {};\n    const row = (labelKey, value, cls = \"\") => ({\n      label: L(labelKey),\n      value: value === undefined || value === null || value === \"\" ? \"-\" : value,\n      cls\n    });\n\n    const cats = [\n      {\n        key: \"general\",\n        rows: [\n          row(\"WFRPPD.Stats.Move\", det.move?.value),\n          row(\"WFRPPD.Stats.Walk\", det.move?.walk),\n          row(\"WFRPPD.Stats.Run\", det.move?.run),\n          row(\"WFRPPD.Encumbrance\", `${Number(enc.current) || 0} / ${Number(enc.max) || 0}`)\n        ]\n      },\n      { key: \"physical\", rows: sets.physical },\n      { key: \"mental\", rows: sets.mental.slice(0, 4) },\n      { key: \"combat\", rows: sets.combat },\n      { key: \"defence\", rows: sets.defence },\n      { key: \"fate\", rows: sets.fate }\n    ];\n    if (exp)\n      cats.push({\n        key: \"experience\",\n        rows: [\n          row(\"WFRPPD.Stats.ExpTotal\", exp.total),\n          row(\"WFRPPD.Stats.ExpSpent\", exp.spent),\n          row(\"WFRPPD.Stats.ExpCurrent\", exp.current, \"is-up\")\n        ]\n      });\n    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`) }));\n  }\n\n  _itemView(item, editable, extra = {}) {\n    const sys = item.system;\n    const qty = sys.quantity?.value ?? 1;\n    return {\n      id: item.id,\n      name: item.name,\n      img: item.img,\n      rarity: RARITY[sys.availability?.value] ?? \"none\",\n      qty: qty > 1 ? qty : null,\n      draggable: editable && !extra.ghost,\n      equippable: !!sys.isEquippable && this._defaultSlot(item) !== null,\n      ghost: !!extra.ghost\n    };\n  }\n\n  _matchesFilter(item, filter) {\n    switch (filter) {\n      case \"weapon\":\n        return item.type === \"weapon\" || item.type === \"ammunition\";\n      case \"armour\":\n        return item.type === \"armour\";\n      case \"clothing\":\n        return (\n          item.type === \"container\" ||\n          (item.type === \"trapping\" && item.system.trappingType?.value === \"clothingAccessories\")\n        );\n      case \"other\":\n        return ![\"weapon\", \"ammunition\", \"armour\", \"container\"].includes(item.type) &&\n          !(item.type === \"trapping\" && item.system.trappingType?.value === \"clothingAccessories\");\n      default:\n        return true;\n    }\n  }\n\n  /* -------------------------------------------- */\n  /*  Правила слотов                              */\n  /* -------------------------------------------- */\n\n  /** Можно ли положить предмет в этот слот */\n  _canDrop(item, slot) {\n    if (!item) return false;\n    const sys = item.system;\n    if (LOCATIONS.includes(slot)) return item.type === \"armour\" && !!sys.protects?.[slot];\n    if (slot === \"main\" || slot === \"off\") return item.type === \"weapon\";\n    if (slot === \"accessory\")\n      return item.type === \"trapping\" && sys.trappingType?.value === \"clothingAccessories\";\n    if (slot === \"container\") return item.type === \"container\";\n    return false;\n  }\n\n  /** Слот по умолчанию для двойного клика */\n  _defaultSlot(item) {\n    const sys = item.system;\n    if (item.type === \"armour\") return LOCATIONS.find((l) => sys.protects?.[l]) ?? null;\n    if (item.type === \"container\") return \"container\";\n    if (item.type === \"trapping\")\n      return sys.trappingType?.value === \"clothingAccessories\" ? \"accessory\" : null;\n    if (item.type === \"weapon\") {\n      if (sys.twohanded?.value) return \"main\";\n      const equippedWeapons = this.actor.itemTypes.weapon.filter((w) => w.system.isEquipped);\n      const mainBusy = equippedWeapons.some((w) => !w.system.offhand?.value);\n      const offBusy = equippedWeapons.some((w) => w.system.offhand?.value || w.system.twohanded?.value);\n      const isShield = !!safe(() => sys.properties?.qualities?.shield, false);\n      if (isShield && !offBusy) return \"off\";\n      if (mainBusy && !offBusy) return \"off\";\n      return \"main\";\n    }\n    return null;\n  }\n\n  /** Предмет сейчас лежит именно в этом слоте */\n  _isInSlot(item, slot) {\n    if (!item.system.isEquipped || !this._canDrop(item, slot)) return false;\n    if (item.type === \"weapon\") {\n      const off = !!item.system.offhand?.value;\n      return slot === \"off\" ? off : !off;\n    }\n    return true;\n  }\n\n  /** Что сейчас в слоте и чем его можно заменить (для быстрой смены) */\n  _swapCandidates(slot) {\n    const fits = this.actor.items.filter((i) => this._canDrop(i, slot));\n    const current = fits.filter((i) => this._isInSlot(i, slot));\n    let available = fits.filter((i) => !this._isInSlot(i, slot));\n    // Двуручное во вторую руку не предлагаем - оно всё равно уйдёт в основную\n    if (slot === \"off\") available = available.filter((i) => !i.system.twohanded?.value);\n    const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);\n    return { current: current.sort(byName), available: available.sort(byName) };\n  }\n\n  /** Где сейчас надет предмет (для подписи «сейчас: ...») */\n  _currentSlotOf(item) {\n    if (!item.system.isEquipped) return null;\n    if (item.type === \"weapon\") return item.system.offhand?.value ? \"off\" : \"main\";\n    return null;\n  }\n\n  async _equipTo(item, slot) {\n    if (!this.editable) return;\n    if (!this._canDrop(item, slot)) {\n      ui.notifications.warn(\n        game.i18n.format(\"WFRPPD.Warn.WrongSlot\", {\n          item: item.name,\n          slot: this._slotLabel(slot)\n        })\n      );\n      return;\n    }\n\n    try {\n      if (item.type === \"weapon\") await this._equipWeapon(item, slot);\n      else if (!item.system.isEquipped) await item.update({ \"system.equipped.value\": true });\n    } catch (err) {\n      // Система сама показывает уведомление (например, лимит экипированного оружия)\n      console.warn(`${MODULE_ID} | equip failed`, err);\n    }\n  }\n\n  async _equipWeapon(item, slot) {\n    const sys = item.system;\n    const twoHanded = !!sys.twohanded?.value;\n    const wantOff = slot === \"off\" && !twoHanded;\n\n    // Как в WoW: то, что мешает, снимается автоматически\n    const conflicts = this.actor.itemTypes.weapon.filter((w) => {\n      if (w.id === item.id || !w.system.isEquipped) return false;\n      if (twoHanded || w.system.twohanded?.value) return true;\n      return !!w.system.offhand?.value === wantOff;\n    });\n    if (conflicts.length) {\n      await this.actor.updateEmbeddedDocuments(\n        \"Item\",\n        conflicts.map((w) => ({ _id: w.id, \"system.equipped.value\": false }))\n      );\n    }\n\n    // Порядок важен: при смене equipped система сбрасывает offhand,\n    // поэтому сначала надеваем, потом выставляем руку отдельным апдейтом\n    if (!sys.isEquipped) await item.update({ \"system.equipped.value\": true });\n    if (!!item.system.offhand?.value !== wantOff) await item.update({ \"system.offhand.value\": wantOff });\n  }\n\n  async _unequip(item) {\n    if (!this.editable || !item?.system?.isEquipped) return;\n    try {\n      await item.update({ \"system.equipped.value\": false });\n    } catch (err) {\n      console.warn(`${MODULE_ID} | unequip failed`, err);\n    }\n  }\n\n  _slotLabel(slot) {\n    if (LOCATIONS.includes(slot)) return game.i18n.localize(game.wfrp4e.config.locations[slot]);\n    const map = { main: \"Main\", off: \"Off\", accessory: \"Accessory\", container: \"Container\" };\n    return game.i18n.localize(`WFRPPD.Slot.${map[slot] ?? slot}`);\n  }\n\n  /* -------------------------------------------- */\n  /*  События                                     */\n  /* -------------------------------------------- */\n\n  static onSetFilter(event, target) {\n    this._filter = target.dataset.filter ?? \"all\";\n    this._saveUiState();\n    this.render();\n  }\n\n  static onSetTab(event, target) {\n    this._tab = target.dataset.tab === \"stats\" ? \"stats\" : \"bag\";\n    this._saveUiState();\n    this.render();\n  }\n\n  static onOpenSheet() {\n    this.actor.sheet?.render(true);\n  }\n\n  async _onRender(context, options) {\n    await super._onRender(context, options);\n    PaperdollTooltip.hide();\n    const root = this.element;\n\n    for (const el of root.querySelectorAll(\".pd-item\")) {\n      const item = this.actor.items.get(el.dataset.itemId);\n      if (!item) continue;\n\n      el.addEventListener(\"pointerenter\", (ev) => PaperdollTooltip.show(item, ev));\n      el.addEventListener(\"pointermove\", (ev) => PaperdollTooltip.move(ev));\n      el.addEventListener(\"pointerleave\", () => PaperdollTooltip.hide());\n\n      el.addEventListener(\"contextmenu\", (ev) => {\n        ev.preventDefault();\n        PaperdollTooltip.hide();\n        item.sheet?.render(true);\n      });\n\n      if (el.classList.contains(\"is-ghost\")) continue;\n\n      el.addEventListener(\"dblclick\", (ev) => {\n        ev.preventDefault();\n        PaperdollTooltip.hide();\n        if (item.system.isEquipped) this._unequip(item);\n        else {\n          const slot = this._defaultSlot(item);\n          if (slot) this._equipTo(item, slot);\n        }\n      });\n\n      if (!this.editable) continue;\n      el.addEventListener(\"dragstart\", (ev) => this._onDragStart(ev, item, el));\n      el.addEventListener(\"dragend\", () => this._onDragEnd());\n    }\n\n    // Выпадашки статов под портретом\n    for (const select of root.querySelectorAll(\".pd-statbox select\")) {\n      select.addEventListener(\"change\", () => {\n        this._statPanels[Number(select.dataset.panel)] = select.value;\n        this._saveUiState();\n        this.render();\n      });\n    }\n\n    // Кнопки быстрой смены (стрелочка справа от иконки)\n    PaperdollFlyout.close();\n    for (const btn of root.querySelectorAll(\".pd-swap\")) {\n      btn.addEventListener(\"click\", (ev) => {\n        ev.preventDefault();\n        ev.stopPropagation();\n        PaperdollTooltip.hide();\n        if (PaperdollFlyout.isOpenFor(this, btn.dataset.slot)) PaperdollFlyout.close();\n        else PaperdollFlyout.open(this, btn.dataset.slot, btn);\n      });\n    }\n\n    // Слоты куколки\n    for (const slotEl of root.querySelectorAll(\".pd-slot\")) {\n      const slot = slotEl.dataset.slot;\n      slotEl.addEventListener(\"dragover\", (ev) => {\n        if (!this.editable) return;\n        ev.preventDefault();\n        if (this._dragging)\n          ev.dataTransfer.dropEffect = this._canDrop(this._dragging.item, slot) ? \"move\" : \"none\";\n      });\n      slotEl.addEventListener(\"drop\", async (ev) => {\n        ev.preventDefault();\n        ev.stopPropagation();\n        const item = await this._resolveDropItem(ev);\n        this._onDragEnd();\n        if (item) this._equipTo(item, slot);\n      });\n    }\n\n    // Сумка\n    const bag = root.querySelector(\".pd-bag\");\n    if (bag) {\n      bag.addEventListener(\"dragover\", (ev) => {\n        if (!this.editable) return;\n        ev.preventDefault();\n        ev.dataTransfer.dropEffect = \"move\";\n      });\n      bag.addEventListener(\"drop\", async (ev) => {\n        ev.preventDefault();\n        ev.stopPropagation();\n        const item = await this._resolveDropItem(ev);\n        this._onDragEnd();\n        if (item?.system.isEquipped) this._unequip(item);\n      });\n    }\n  }\n\n  /**\n   * Предмет, который бросили: из нашего окна или из листа персонажа.\n   * Чужие предметы (другой актёр, компендий) не принимаем.\n   */\n  async _resolveDropItem(event) {\n    if (this._dragging?.item) return this._dragging.item;\n    const TE = foundry.applications.ux.TextEditor.implementation;\n    const data = safe(() => TE.getDragEventData(event), {});\n    if (data?.type !== \"Item\" || !data.uuid) return null;\n    const item = await fromUuid(data.uuid);\n    if (!item) return null;\n    if (item.parent?.uuid !== this.actor.uuid) {\n      ui.notifications.warn(game.i18n.localize(\"WFRPPD.Warn.NotOwned\"));\n      return null;\n    }\n    return item;\n  }\n\n  _onDragStart(event, item, el) {\n    PaperdollTooltip.hide();\n    this._dragging = { item };\n    // Формат Foundry: предмет можно бросить и в другие окна (лист, другой актёр)\n    event.dataTransfer.setData(\"text/plain\", JSON.stringify(item.toDragData()));\n    event.dataTransfer.effectAllowed = \"move\";\n    el.classList.add(\"is-dragging\");\n\n    // Подсветка подходящих слотов\n    for (const slotEl of this.element.querySelectorAll(\".pd-slot\")) {\n      const ok = this._canDrop(item, slotEl.dataset.slot);\n      slotEl.classList.toggle(\"is-valid\", ok);\n      slotEl.classList.toggle(\"is-invalid\", !ok);\n    }\n    if (item.system.isEquipped) this.element.querySelector(\".pd-bag\")?.classList.add(\"is-valid\");\n  }\n\n  _onDragEnd() {\n    this._dragging = null;\n    if (!this.element) return;\n    for (const el of this.element.querySelectorAll(\".is-valid, .is-invalid, .is-dragging\")) {\n      el.classList.remove(\"is-valid\", \"is-invalid\", \"is-dragging\");\n    }\n  }\n\n  async _onClose(options) {\n    await super._onClose(options);\n    PaperdollTooltip.hide();\n    if (PaperdollFlyout.app === this) PaperdollFlyout.close();\n    for (const [name, id] of this._hooks) Hooks.off(name, id);\n    PaperdollApp.instances.delete(this.actor.uuid);\n  }\n}\n\n/* ============================================ */\n/*  Тултип в стиле WoW                          */\n/* ============================================ */\n\nclass PaperdollTooltip {\n  static el = null;\n\n  static ensure() {\n    if (this.el?.isConnected) return this.el;\n    this.el = document.createElement(\"div\");\n    this.el.className = \"wfrp-paperdoll-tooltip\";\n    document.body.append(this.el);\n    return this.el;\n  }\n\n  static show(item, event) {\n    const el = this.ensure();\n    el.innerHTML = this.build(item);\n    el.classList.add(\"is-visible\");\n    this.move(event);\n  }\n\n  static move(event) {\n    const el = this.el;\n    if (!el?.classList.contains(\"is-visible\")) return;\n    const pad = 16;\n    const { innerWidth: vw, innerHeight: vh } = window;\n    const rect = el.getBoundingClientRect();\n    let x = event.clientX + pad;\n    let y = event.clientY + pad;\n    if (x + rect.width > vw - 8) x = event.clientX - rect.width - pad;\n    if (y + rect.height > vh - 8) y = Math.max(8, vh - rect.height - 8);\n    el.style.left = `${x}px`;\n    el.style.top = `${y}px`;\n  }\n\n  static hide() {\n    this.el?.classList.remove(\"is-visible\");\n  }\n\n  static build(item) {\n    const sys = item.system;\n    const cfg = game.wfrp4e.config;\n    const L = (k) => game.i18n.localize(k);\n    const rarity = RARITY[sys.availability?.value] ?? \"none\";\n    const lines = [];\n\n    lines.push(`\u003cdiv class=\"pd-tt-name rarity-${rarity}\">${esc(item.name)}\u003c/div>`);\n\n    // Подзаголовок: тип и состояние\n    const typeKey = `TYPES.Item.${item.type}`;\n    const typeLabel = game.i18n.has(typeKey) ? L(typeKey) : item.type;\n    const sub = [typeLabel];\n    if (sys.isEquipped) sub.push(L(\"WFRPPD.Tooltip.Equipped\"));\n    lines.push(`\u003cdiv class=\"pd-tt-sub\">${esc(sub.join(\" · \"))}\u003c/div>`);\n\n    if (item.type === \"weapon\") {\n      const group = safe(() => sys.WeaponGroup);\n      const twoH = sys.twohanded?.value ? L(\"WFRPPD.Tooltip.TwoHanded\") : L(\"WFRPPD.Tooltip.OneHanded\");\n      lines.push(`\u003cdiv class=\"pd-tt-row\">\u003cspan>${esc(group ? L(group) : \"\")}\u003c/span>\u003cspan>${esc(twoH)}\u003c/span>\u003c/div>`);\n      const dmg = safe(() => sys.Damage);\n      if (dmg !== null && dmg !== undefined && dmg !== \"\")\n        lines.push(`\u003cdiv class=\"pd-tt-stat\">${esc(L(\"WFRPPD.Tooltip.Damage\"))}: \u003cb>+${esc(dmg)}\u003c/b>\u003c/div>`);\n      if (safe(() => sys.isMelee)) {\n        const reach = safe(() => sys.Reach);\n        if (reach) lines.push(`\u003cdiv class=\"pd-tt-stat\">${esc(L(\"WFRPPD.Tooltip.Reach\"))}: ${esc(L(reach))}\u003c/div>`);\n      } else {\n        const range = safe(() => sys.Range);\n        if (range) lines.push(`\u003cdiv class=\"pd-tt-stat\">${esc(L(\"WFRPPD.Tooltip.Range\"))}: ${esc(range)}\u003c/div>`);\n      }\n    }\n\n    if (item.type === \"armour\") {\n      const type = cfg.armorTypes?.[sys.armorType?.value];\n      if (type) lines.push(`\u003cdiv class=\"pd-tt-row\">\u003cspan>${esc(L(type))}\u003c/span>\u003c/div>`);\n      const current = safe(() => sys.currentAP, sys.AP) ?? {};\n      const parts = LOCATIONS.filter((l) => (sys.AP?.[l] ?? 0) > 0).map((l) => {\n        const max = sys.AP[l];\n        const cur = current[l] ?? max;\n        const val = cur \u003c max ? `${cur}/${max}` : `${max}`;\n        return `${esc(L(cfg.locations[l]))}: \u003cb>${esc(val)}\u003c/b>`;\n      });\n      if (parts.length)\n        lines.push(`\u003cdiv class=\"pd-tt-stat\">${esc(L(\"WFRPPD.Tooltip.AP\"))}\u003cbr>${parts.join(\"\u003cbr>\")}\u003c/div>`);\n      if (sys.penalty?.value)\n        lines.push(`\u003cdiv class=\"pd-tt-flaw\">${esc(L(\"WFRPPD.Tooltip.Penalty\"))}: ${esc(sys.penalty.value)}\u003c/div>`);\n    }\n\n    const qualities = safe(() => sys.Qualities, []) ?? [];\n    const flaws = safe(() => sys.Flaws, []) ?? [];\n    if (qualities.length) lines.push(`\u003cdiv class=\"pd-tt-quality\">${qualities.map(esc).join(\", \")}\u003c/div>`);\n    if (flaws.length) lines.push(`\u003cdiv class=\"pd-tt-flaw\">${flaws.map(esc).join(\", \")}\u003c/div>`);\n\n    const desc = stripHTML(sys.description?.value);\n    if (desc) {\n      const short = desc.length > 220 ? `${desc.slice(0, 220)}…` : desc;\n      lines.push(`\u003cdiv class=\"pd-tt-desc\">«${esc(short)}»\u003c/div>`);\n    }\n\n    // Низ: нагрузка, цена, доступность\n    const footer = [];\n    const enc = sys.encumbrance?.total ?? sys.encumbrance?.value;\n    if (enc !== undefined && enc !== null) footer.push(`${L(\"WFRPPD.Tooltip.Enc\")}: ${enc}`);\n    const price = this.formatPrice(sys.price);\n    if (price) footer.push(price);\n    if (footer.length) lines.push(`\u003cdiv class=\"pd-tt-footer\">${esc(footer.join(\" · \"))}\u003c/div>`);\n\n    const avail = cfg.availability?.[sys.availability?.value];\n    if (avail && sys.availability?.value !== \"None\")\n      lines.push(`\u003cdiv class=\"pd-tt-avail rarity-${rarity}\">${esc(L(avail))}\u003c/div>`);\n\n    lines.push(`\u003cdiv class=\"pd-tt-hint\">${esc(L(\"WFRPPD.Tooltip.Hint\"))}\u003c/div>`);\n    return lines.join(\"\");\n  }\n\n  static formatPrice(price) {\n    if (!price) return \"\";\n    const L = (k) => game.i18n.localize(k);\n    const parts = [];\n    if (price.gc) parts.push(`${price.gc} ${L(\"WFRPPD.Money.gc\")}`);\n    if (price.ss) parts.push(`${price.ss} ${L(\"WFRPPD.Money.ss\")}`);\n    if (price.bp) parts.push(`${price.bp} ${L(\"WFRPPD.Money.bp\")}`);\n    return parts.join(\" \");\n  }\n}\n\n\n/* ============================================ */\n/*  Быстрая смена: выпадающий список слота      */\n/* ============================================ */\n\nfunction itemMeta(item) {\n  const sys = item.system;\n  const cfg = game.wfrp4e.config;\n  const L = (k) => game.i18n.localize(k);\n  if (item.type === \"weapon\") {\n    const parts = [];\n    const dmg = safe(() => sys.Damage);\n    if (dmg !== null && dmg !== undefined && dmg !== \"\") parts.push(`${L(\"WFRPPD.Tooltip.Damage\")} +${dmg}`);\n    parts.push(sys.twohanded?.value ? L(\"WFRPPD.Tooltip.TwoHanded\") : L(\"WFRPPD.Tooltip.OneHanded\"));\n    return parts.join(\" · \");\n  }\n  if (item.type === \"armour\") {\n    const parts = LOCATIONS.filter((l) => (sys.AP?.[l] ?? 0) > 0).map((l) => `${L(cfg.locations[l])} ${sys.AP[l]}`);\n    return parts.length ? `${L(\"WFRPPD.Tooltip.APShort\")}: ${parts.join(\", \")}` : \"\";\n  }\n  const typeKey = `TYPES.Item.${item.type}`;\n  return game.i18n.has(typeKey) ? L(typeKey) : item.type;\n}\n\nclass PaperdollFlyout {\n  static el = null;\n  static app = null;\n  static slot = null;\n  static _onDocPointer = null;\n  static _onKey = null;\n\n  static isOpenFor(app, slot) {\n    return this.el?.isConnected && this.app === app && this.slot === slot;\n  }\n\n  static open(app, slot, anchor) {\n    this.close();\n    this.app = app;\n    this.slot = slot;\n\n    const L = (k) => game.i18n.localize(k);\n    const { current, available } = app._swapCandidates(slot);\n\n    const row = (item, act) => {\n      const sys = item.system;\n      const rarity = RARITY[sys.availability?.value] ?? \"none\";\n      const qty = (sys.quantity?.value ?? 1) > 1 ? `\u003cspan class=\"pd-qty\">${sys.quantity.value}\u003c/span>` : \"\";\n      let meta = itemMeta(item);\n      const where = act === \"equip\" ? app._currentSlotOf(item) : null;\n      if (where) meta += ` · ${game.i18n.format(\"WFRPPD.Fly.Now\", { slot: app._slotLabel(where) })}`;\n      const icon = act === \"unequip\" ? `\u003ci class=\"fa-solid fa-xmark pd-fly-act\" title=\"${esc(L(\"WFRPPD.Fly.Unequip\"))}\">\u003c/i>` : \"\";\n      return `\n        \u003cdiv class=\"pd-fly-row\" data-item-id=\"${item.id}\" data-act=\"${act}\">\n          \u003cdiv class=\"pd-fly-icon rarity-${rarity}\">\u003cimg src=\"${esc(item.img)}\" alt=\"\">${qty}\u003c/div>\n          \u003cdiv class=\"pd-fly-text\">\n            \u003cdiv class=\"pd-fly-name rarity-${rarity}\">${esc(item.name)}\u003c/div>\n            \u003cdiv class=\"pd-fly-meta\">${esc(meta)}\u003c/div>\n          \u003c/div>\n          ${icon}\n        \u003c/div>`;\n    };\n\n    let html = `\u003cdiv class=\"pd-fly-title\">${esc(app._slotLabel(slot))}\u003c/div>`;\n    if (current.length) {\n      html += `\u003cdiv class=\"pd-fly-section\">${esc(L(\"WFRPPD.Fly.Current\"))}\u003c/div>`;\n      html += current.map((i) => row(i, \"unequip\")).join(\"\");\n    }\n    html += `\u003cdiv class=\"pd-fly-section\">${esc(L(\"WFRPPD.Fly.Available\"))}\u003c/div>`;\n    html += available.length\n      ? available.map((i) => row(i, \"equip\")).join(\"\")\n      : `\u003cdiv class=\"pd-fly-empty\">${esc(L(\"WFRPPD.Fly.Empty\"))}\u003c/div>`;\n\n    const el = document.createElement(\"div\");\n    el.className = \"wfrp-paperdoll-flyout\";\n    el.innerHTML = html;\n    document.body.append(el);\n    this.el = el;\n    anchor.classList.add(\"is-open\");\n    this.anchor = anchor;\n\n    // Позиция: справа от стрелочки, с переворотом у края экрана\n    const r = anchor.getBoundingClientRect();\n    const fr = el.getBoundingClientRect();\n    let x = r.right + 6;\n    if (x + fr.width > window.innerWidth - 8) x = r.left - fr.width - 6;\n    let y = r.top - 8;\n    if (y + fr.height > window.innerHeight - 8) y = Math.max(8, window.innerHeight - fr.height - 8);\n    el.style.left = `${Math.max(8, x)}px`;\n    el.style.top = `${y}px`;\n\n    for (const rowEl of el.querySelectorAll(\".pd-fly-row\")) {\n      const item = app.actor.items.get(rowEl.dataset.itemId);\n      if (!item) continue;\n      rowEl.addEventListener(\"pointerenter\", (ev) => PaperdollTooltip.show(item, ev));\n      rowEl.addEventListener(\"pointermove\", (ev) => PaperdollTooltip.move(ev));\n      rowEl.addEventListener(\"pointerleave\", () => PaperdollTooltip.hide());\n      rowEl.addEventListener(\"click\", (ev) => {\n        ev.preventDefault();\n        PaperdollTooltip.hide();\n        const act = rowEl.dataset.act;\n        this.close();\n        if (act === \"unequip\") app._unequip(item);\n        else app._equipTo(item, slot);\n      });\n      rowEl.addEventListener(\"contextmenu\", (ev) => {\n        ev.preventDefault();\n        PaperdollTooltip.hide();\n        item.sheet?.render(true);\n      });\n    }\n\n    this._onDocPointer = (ev) => {\n      if (el.contains(ev.target) || ev.target.closest?.(\".pd-swap\")) return;\n      this.close();\n    };\n    this._onKey = (ev) => {\n      if (ev.key === \"Escape\") this.close();\n    };\n    document.addEventListener(\"pointerdown\", this._onDocPointer, true);\n    document.addEventListener(\"keydown\", this._onKey, true);\n  }\n\n  static close() {\n    if (this._onDocPointer) document.removeEventListener(\"pointerdown\", this._onDocPointer, true);\n    if (this._onKey) document.removeEventListener(\"keydown\", this._onKey, true);\n    this._onDocPointer = this._onKey = null;\n    this.anchor?.classList.remove(\"is-open\");\n    this.anchor = null;\n    this.el?.remove();\n    this.el = null;\n    this.app = null;\n    this.slot = null;\n  }\n}\n";
-const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
-const { PaperdollApp } = await import(url);
+<script>
+(() => {
+const MODULE_ID = "wfrp4e-paperdoll";
+
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/** Локации брони в WFRP4e (ключи как в system.AP и actor.system.status.armour) */
+const LOCATIONS = ["head", "body", "rArm", "lArm", "rLeg", "lLeg"];
+
+/** Иконки пустых слотов (Font Awesome 6 free) */
+const SLOT_ICONS = {
+  head: "fa-solid fa-user",
+  body: "fa-solid fa-shirt",
+  rArm: "fa-solid fa-hand",
+  lArm: "fa-solid fa-hand",
+  rLeg: "fa-solid fa-socks",
+  lLeg: "fa-solid fa-socks",
+  accessory: "fa-solid fa-ring",
+  container: "fa-solid fa-sack-xmark",
+  main: "fa-solid fa-hand-fist",
+  off: "fa-solid fa-shield-halved"
+};
+
+/** Доступность предмета -> «редкость» рамки в стиле WoW */
+const RARITY = {
+  common: "common",
+  scarce: "scarce",
+  rare: "rare",
+  exotic: "exotic",
+  special: "exotic"
+};
+
+const BAG_FILTERS = ["all", "weapon", "armour", "clothing", "other"];
+
+/** Наборы статов для выпадашек под портретом */
+const STAT_SETS = ["physical", "mental", "combat", "defence", "fate"];
+
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function stripHTML(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html ?? "";
+  return (div.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
+function safe(fn, fallback = null) {
+  try {
+    return fn();
+  } catch (e) {
+    return fallback;
+  }
+}
+
+class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
+  /** Одно окно на актёра */
+  static instances = new Map();
+
+  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "combat"] };
+
+  _saveUiState() {
+    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels] };
+  }
+
+  static openFor(actor) {
+    if (!actor) return null;
+    let app = this.instances.get(actor.uuid);
+    if (!app) {
+      app = new this({ actor });
+      this.instances.set(actor.uuid, app);
+    }
+    app.render({ force: true });
+    if (app.rendered) app.bringToFront?.();
+    return app;
+  }
+
+  static DEFAULT_OPTIONS = {
+    classes: ["wfrp-paperdoll"],
+    tag: "div",
+    window: {
+      icon: "fa-solid fa-user-shield",
+      resizable: true
+    },
+    position: { width: 960, height: 720 },
+    actions: {
+      setFilter: PaperdollApp.onSetFilter,
+      setTab: PaperdollApp.onSetTab,
+      openSheet: PaperdollApp.onOpenSheet
+    }
+  };
+
+  static PARTS = {
+    main: {
+      template: `modules/${MODULE_ID}/templates/paperdoll.hbs`,
+      scrollable: [".pd-bag-grid"]
+    }
+  };
+
+  constructor({ actor, ...options } = {}) {
+    const safeId = actor.uuid.replace(/[^a-zA-Z0-9_-]/g, "-");
+    super({ ...options, id: `wfrp-paperdoll-${safeId}` });
+    this.actor = actor;
+    // Выбор вкладки и выпадашек запоминаем между открытиями окна
+    this._filter = PaperdollApp.uiState.filter;
+    this._tab = PaperdollApp.uiState.tab;
+    this._statPanels = [...PaperdollApp.uiState.statPanels];
+    this._dragging = null;
+
+    this._debouncedRender = foundry.utils.debounce(() => {
+      if (this.rendered) this.render();
+    }, 50);
+
+    const isMine = (doc) => doc?.parent?.uuid === this.actor.uuid;
+    this._hooks = [
+      ["createItem", Hooks.on("createItem", (item) => isMine(item) && this._debouncedRender())],
+      ["updateItem", Hooks.on("updateItem", (item) => isMine(item) && this._debouncedRender())],
+      ["deleteItem", Hooks.on("deleteItem", (item) => isMine(item) && this._debouncedRender())],
+      ["updateActor", Hooks.on("updateActor", (a) => a.uuid === this.actor.uuid && this._debouncedRender())],
+      ["deleteActor", Hooks.on("deleteActor", (a) => a.uuid === this.actor.uuid && this.close())]
+    ];
+  }
+
+  get title() {
+    return `${game.i18n.localize("WFRPPD.Title")}: ${this.actor.name}`;
+  }
+
+  get editable() {
+    return this.actor.isOwner;
+  }
+
+  /* -------------------------------------------- */
+  /*  Данные                                      */
+  /* -------------------------------------------- */
+
+  async _prepareContext(options) {
+    const actor = this.actor;
+    const sys = actor.system;
+    const cfg = game.wfrp4e.config;
+    const L = (key) => game.i18n.localize(key);
+    const editable = this.editable;
+
+    const view = (item, extra = {}) => this._itemView(item, editable, extra);
+    const equipped = (type) => (actor.itemTypes[type] ?? []).filter((i) => i.system.isEquipped);
+
+    /** Слот в стиле WoW: одна иконка сверху, остальные слои считаем */
+    const makeSlot = (key, items, { showAP = false, ghost = null } = {}) => {
+      const views = items.map((i) => view(i));
+      if (!views.length && ghost) views.push(view(ghost, { ghost: true }));
+      return {
+        key,
+        label: this._slotLabel(key),
+        icon: SLOT_ICONS[key],
+        top: views[0] ?? null,
+        layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
+        showAP,
+        ap: showAP ? (sys.status?.armour?.[key]?.value ?? 0) : null
+      };
+    };
+
+    // --- Броня: сверху слой с наибольшим AP на этой локации ---
+    const armour = equipped("armour");
+    const armourSlot = (key) => {
+      const items = armour
+        .filter((a) => a.system.protects?.[key])
+        .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0));
+      return makeSlot(key, items, { showAP: true });
+    };
+
+    // --- Оружие ---
+    const weapons = equipped("weapon");
+    const mainItems = weapons.filter((w) => !w.system.offhand?.value);
+    const offItems = weapons.filter((w) => w.system.offhand?.value);
+    const twoHander = mainItems.find((w) => w.system.twohanded?.value);
+
+    const clothing = equipped("trapping").filter((t) => t.system.trappingType?.value === "clothingAccessories");
+
+    const groups = [
+      { area: "left", slots: ["head", "body", "rArm", "lArm"].map(armourSlot) },
+      {
+        area: "right",
+        slots: [armourSlot("rLeg"), armourSlot("lLeg"), makeSlot("accessory", clothing), makeSlot("container", equipped("container"))]
+      },
+      {
+        area: "weapons",
+        slots: [makeSlot("main", mainItems), makeSlot("off", offItems, { ghost: twoHander })]
+      }
+    ];
+
+    // --- Сумка ---
+    const bagAll = actor.items
+      .filter((i) => i.system?.isPhysical && i.type !== "money" && !i.system.isEquipped)
+      .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name, game.i18n.lang));
+    const bag = bagAll.filter((i) => this._matchesFilter(i, this._filter)).map((i) => view(i));
+    const filters = BAG_FILTERS.map((key) => ({
+      key,
+      label: L(`WFRPPD.Filter.${key}`),
+      active: key === this._filter,
+      count: bagAll.filter((i) => this._matchesFilter(i, key)).length
+    }));
+
+    // --- Статы ---
+    const sets = this._statSets(mainItems, offItems, weapons);
+    const statPanels = this._statPanels.map((selected) => ({
+      options: STAT_SETS.map((key) => ({ key, label: L(`WFRPPD.Stats.Set.${key}`), selected: key === selected })),
+      rows: sets[selected] ?? []
+    }));
+    const statCategories = this._statCategories(sets);
+
+    // --- Шапка: имя, карьера, вид ---
+    const career = safe(() => sys.currentCareer ?? actor.currentCareer);
+    const level = career?.system?.level?.value;
+    const speciesKey = sys.details?.species?.value;
+    const species = speciesKey ? L(cfg.species?.[speciesKey] ?? speciesKey) : "";
+    const subtitle = [
+      career ? `${career.name}${level ? ` (${L("WFRPPD.Level")} ${level})` : ""}` : "",
+      species,
+      sys.details?.status?.value ?? ""
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const enc = sys.status?.encumbrance ?? {};
+    const encCurrent = Number(enc.current) || 0;
+    const encMax = Number(enc.max) || 0;
+    const encRatio = encMax ? encCurrent / encMax : 0;
+    let encState = "ok";
+    if (encRatio > 2) encState = "max";
+    else if (encRatio > 1) encState = "over";
+
+    return {
+      actor,
+      editable,
+      img: actor.img,
+      name: actor.name,
+      subtitle,
+      groups,
+      bag,
+      bagEmpty: !bag.length,
+      filters,
+      statPanels,
+      statCategories,
+      tabBag: this._tab === "bag",
+      tabStats: this._tab === "stats",
+      encumbrance: {
+        current: encCurrent,
+        max: encMax,
+        pct: Math.clamp(encRatio * 100, 0, 100),
+        state: encState,
+        stateLabel: L(`WFRPPD.Enc.${encState}`)
+      }
+    };
+  }
+
+  /* -------------------------------------------- */
+  /*  Статы в стиле WoW / ECS                     */
+  /* -------------------------------------------- */
+
+  /** Все наборы строк для выпадашек под портретом */
+  _statSets(mainItems, offItems, weapons) {
+    const sys = this.actor.system;
+    const cfg = game.wfrp4e.config;
+    const L = (key) => game.i18n.localize(key);
+    const chars = sys.characteristics ?? {};
+    const st = sys.status ?? {};
+    const det = sys.details ?? {};
+
+    const charRow = (key) => {
+      const c = chars[key] ?? {};
+      const mod = Number(c.modifier) || 0;
+      const full = cfg.characteristics?.[key];
+      return {
+        label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
+        value: c.value ?? "-",
+        cls: mod > 0 ? "is-up" : mod < 0 ? "is-down" : "",
+        hint: c.bonus !== undefined ? `${L("WFRPPD.Stats.Bonus")} ${c.bonus}` : ""
+      };
+    };
+    const row = (labelKey, value, cls = "") => ({
+      label: L(labelKey),
+      value: value === undefined || value === null || value === "" ? "-" : value,
+      cls
+    });
+    const pair = (a, b) => (a === undefined || a === null ? "-" : `${a} / ${b ?? "-"}`);
+    const dmg = (items) => {
+      const w = items[0];
+      if (!w) return "-";
+      const d = safe(() => w.system.Damage);
+      return d === null || d === undefined || d === "" ? "-" : `+${d}`;
+    };
+    const ap = (loc) => st.armour?.[loc]?.value ?? 0;
+    const ranged = weapons.find((w) => safe(() => w.system.isRanged));
+
+    const wounds = st.wounds ?? {};
+    const woundsCls = wounds.max && wounds.value < wounds.max ? "is-down" : "";
+
+    return {
+      physical: ["ws", "bs", "s", "t", "i", "ag"].map(charRow),
+      mental: [
+        ...["dex", "int", "wp", "fel"].map(charRow),
+        row("WFRPPD.Stats.Move", det.move?.value),
+        row("WFRPPD.Stats.Run", det.move?.run)
+      ],
+      defence: [
+        row("WFRPPD.Wounds", pair(wounds.value, wounds.max), woundsCls),
+        row("WFRPPD.Stats.Crits", pair(st.criticalWounds?.value ?? 0, st.criticalWounds?.max), (st.criticalWounds?.value ?? 0) > 0 ? "is-down" : ""),
+        row(cfg.locations?.head ?? "head", ap("head"), "is-armour"),
+        row(cfg.locations?.body ?? "body", ap("body"), "is-armour"),
+        row("WFRPPD.Stats.Arms", `${ap("rArm")} / ${ap("lArm")}`, "is-armour"),
+        row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, "is-armour")
+      ],
+      combat: [
+        row("WFRPPD.Stats.MainDmg", dmg(mainItems), "is-melee"),
+        row("WFRPPD.Stats.OffDmg", dmg(offItems), "is-melee"),
+        row("WFRPPD.Stats.RangedDmg", ranged ? dmg([ranged]) : "-", "is-melee"),
+        row("WFRPPD.Stats.SB", chars.s?.bonus),
+        row("WFRPPD.Stats.TB", chars.t?.bonus),
+        row("WFRPPD.Stats.Advantage", st.advantage?.value ?? 0)
+      ],
+      fate: [
+        row("WFRPPD.Stats.Fate", st.fate?.value, "is-fate"),
+        row("WFRPPD.Stats.Fortune", st.fortune?.value, "is-fate"),
+        row("WFRPPD.Stats.Resilience", st.resilience?.value, "is-fate"),
+        row("WFRPPD.Stats.Resolve", st.resolve?.value, "is-fate"),
+        row("WFRPPD.Stats.Corruption", pair(st.corruption?.value ?? 0, st.corruption?.max), "is-chaos"),
+        row("WFRPPD.Stats.Sin", st.sin?.value ?? 0, (st.sin?.value ?? 0) > 0 ? "is-sin" : "")
+      ]
+    };
+  }
+
+  /** Категории для вкладки «Характеристики» справа (как аддон ECS) */
+  _statCategories(sets) {
+    const sys = this.actor.system;
+    const L = (key) => game.i18n.localize(key);
+    const det = sys.details ?? {};
+    const exp = det.experience;
+    const enc = sys.status?.encumbrance ?? {};
+    const row = (labelKey, value, cls = "") => ({
+      label: L(labelKey),
+      value: value === undefined || value === null || value === "" ? "-" : value,
+      cls
+    });
+
+    const cats = [
+      {
+        key: "general",
+        rows: [
+          row("WFRPPD.Stats.Move", det.move?.value),
+          row("WFRPPD.Stats.Walk", det.move?.walk),
+          row("WFRPPD.Stats.Run", det.move?.run),
+          row("WFRPPD.Encumbrance", `${Number(enc.current) || 0} / ${Number(enc.max) || 0}`)
+        ]
+      },
+      { key: "physical", rows: sets.physical },
+      { key: "mental", rows: sets.mental.slice(0, 4) },
+      { key: "combat", rows: sets.combat },
+      { key: "defence", rows: sets.defence },
+      { key: "fate", rows: sets.fate }
+    ];
+    if (exp)
+      cats.push({
+        key: "experience",
+        rows: [
+          row("WFRPPD.Stats.ExpTotal", exp.total),
+          row("WFRPPD.Stats.ExpSpent", exp.spent),
+          row("WFRPPD.Stats.ExpCurrent", exp.current, "is-up")
+        ]
+      });
+    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`) }));
+  }
+
+  _itemView(item, editable, extra = {}) {
+    const sys = item.system;
+    const qty = sys.quantity?.value ?? 1;
+    return {
+      id: item.id,
+      name: item.name,
+      img: item.img,
+      rarity: RARITY[sys.availability?.value] ?? "none",
+      qty: qty > 1 ? qty : null,
+      draggable: editable && !extra.ghost,
+      equippable: !!sys.isEquippable && this._defaultSlot(item) !== null,
+      ghost: !!extra.ghost
+    };
+  }
+
+  _matchesFilter(item, filter) {
+    switch (filter) {
+      case "weapon":
+        return item.type === "weapon" || item.type === "ammunition";
+      case "armour":
+        return item.type === "armour";
+      case "clothing":
+        return (
+          item.type === "container" ||
+          (item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories")
+        );
+      case "other":
+        return !["weapon", "ammunition", "armour", "container"].includes(item.type) &&
+          !(item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories");
+      default:
+        return true;
+    }
+  }
+
+  /* -------------------------------------------- */
+  /*  Правила слотов                              */
+  /* -------------------------------------------- */
+
+  /** Можно ли положить предмет в этот слот */
+  _canDrop(item, slot) {
+    if (!item) return false;
+    const sys = item.system;
+    if (LOCATIONS.includes(slot)) return item.type === "armour" && !!sys.protects?.[slot];
+    if (slot === "main" || slot === "off") return item.type === "weapon";
+    if (slot === "accessory")
+      return item.type === "trapping" && sys.trappingType?.value === "clothingAccessories";
+    if (slot === "container") return item.type === "container";
+    return false;
+  }
+
+  /** Слот по умолчанию для двойного клика */
+  _defaultSlot(item) {
+    const sys = item.system;
+    if (item.type === "armour") return LOCATIONS.find((l) => sys.protects?.[l]) ?? null;
+    if (item.type === "container") return "container";
+    if (item.type === "trapping")
+      return sys.trappingType?.value === "clothingAccessories" ? "accessory" : null;
+    if (item.type === "weapon") {
+      if (sys.twohanded?.value) return "main";
+      const equippedWeapons = this.actor.itemTypes.weapon.filter((w) => w.system.isEquipped);
+      const mainBusy = equippedWeapons.some((w) => !w.system.offhand?.value);
+      const offBusy = equippedWeapons.some((w) => w.system.offhand?.value || w.system.twohanded?.value);
+      const isShield = !!safe(() => sys.properties?.qualities?.shield, false);
+      if (isShield && !offBusy) return "off";
+      if (mainBusy && !offBusy) return "off";
+      return "main";
+    }
+    return null;
+  }
+
+  /** Предмет сейчас лежит именно в этом слоте */
+  _isInSlot(item, slot) {
+    if (!item.system.isEquipped || !this._canDrop(item, slot)) return false;
+    if (item.type === "weapon") {
+      const off = !!item.system.offhand?.value;
+      return slot === "off" ? off : !off;
+    }
+    return true;
+  }
+
+  /** Что сейчас в слоте и чем его можно заменить (для быстрой смены) */
+  _swapCandidates(slot) {
+    const fits = this.actor.items.filter((i) => this._canDrop(i, slot));
+    const current = fits.filter((i) => this._isInSlot(i, slot));
+    let available = fits.filter((i) => !this._isInSlot(i, slot));
+    // Двуручное во вторую руку не предлагаем - оно всё равно уйдёт в основную
+    if (slot === "off") available = available.filter((i) => !i.system.twohanded?.value);
+    const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
+    return { current: current.sort(byName), available: available.sort(byName) };
+  }
+
+  /** Где сейчас надет предмет (для подписи «сейчас: ...») */
+  _currentSlotOf(item) {
+    if (!item.system.isEquipped) return null;
+    if (item.type === "weapon") return item.system.offhand?.value ? "off" : "main";
+    return null;
+  }
+
+  async _equipTo(item, slot) {
+    if (!this.editable) return;
+    if (!this._canDrop(item, slot)) {
+      ui.notifications.warn(
+        game.i18n.format("WFRPPD.Warn.WrongSlot", {
+          item: item.name,
+          slot: this._slotLabel(slot)
+        })
+      );
+      return;
+    }
+
+    try {
+      if (item.type === "weapon") await this._equipWeapon(item, slot);
+      else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
+    } catch (err) {
+      // Система сама показывает уведомление (например, лимит экипированного оружия)
+      console.warn(`${MODULE_ID} | equip failed`, err);
+    }
+  }
+
+  async _equipWeapon(item, slot) {
+    const sys = item.system;
+    const twoHanded = !!sys.twohanded?.value;
+    const wantOff = slot === "off" && !twoHanded;
+
+    // Как в WoW: то, что мешает, снимается автоматически
+    const conflicts = this.actor.itemTypes.weapon.filter((w) => {
+      if (w.id === item.id || !w.system.isEquipped) return false;
+      if (twoHanded || w.system.twohanded?.value) return true;
+      return !!w.system.offhand?.value === wantOff;
+    });
+    if (conflicts.length) {
+      await this.actor.updateEmbeddedDocuments(
+        "Item",
+        conflicts.map((w) => ({ _id: w.id, "system.equipped.value": false }))
+      );
+    }
+
+    // Порядок важен: при смене equipped система сбрасывает offhand,
+    // поэтому сначала надеваем, потом выставляем руку отдельным апдейтом
+    if (!sys.isEquipped) await item.update({ "system.equipped.value": true });
+    if (!!item.system.offhand?.value !== wantOff) await item.update({ "system.offhand.value": wantOff });
+  }
+
+  async _unequip(item) {
+    if (!this.editable || !item?.system?.isEquipped) return;
+    try {
+      await item.update({ "system.equipped.value": false });
+    } catch (err) {
+      console.warn(`${MODULE_ID} | unequip failed`, err);
+    }
+  }
+
+  _slotLabel(slot) {
+    if (LOCATIONS.includes(slot)) return game.i18n.localize(game.wfrp4e.config.locations[slot]);
+    const map = { main: "Main", off: "Off", accessory: "Accessory", container: "Container" };
+    return game.i18n.localize(`WFRPPD.Slot.${map[slot] ?? slot}`);
+  }
+
+  /* -------------------------------------------- */
+  /*  События                                     */
+  /* -------------------------------------------- */
+
+  static onSetFilter(event, target) {
+    this._filter = target.dataset.filter ?? "all";
+    this._saveUiState();
+    this.render();
+  }
+
+  static onSetTab(event, target) {
+    this._tab = target.dataset.tab === "stats" ? "stats" : "bag";
+    this._saveUiState();
+    this.render();
+  }
+
+  static onOpenSheet() {
+    this.actor.sheet?.render(true);
+  }
+
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    PaperdollTooltip.hide();
+    const root = this.element;
+
+    for (const el of root.querySelectorAll(".pd-item")) {
+      const item = this.actor.items.get(el.dataset.itemId);
+      if (!item) continue;
+
+      el.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev));
+      el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+      el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
+
+      el.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        PaperdollTooltip.hide();
+        item.sheet?.render(true);
+      });
+
+      if (el.classList.contains("is-ghost")) continue;
+
+      el.addEventListener("dblclick", (ev) => {
+        ev.preventDefault();
+        PaperdollTooltip.hide();
+        if (item.system.isEquipped) this._unequip(item);
+        else {
+          const slot = this._defaultSlot(item);
+          if (slot) this._equipTo(item, slot);
+        }
+      });
+
+      if (!this.editable) continue;
+      el.addEventListener("dragstart", (ev) => this._onDragStart(ev, item, el));
+      el.addEventListener("dragend", () => this._onDragEnd());
+    }
+
+    // Выпадашки статов под портретом
+    for (const select of root.querySelectorAll(".pd-statbox select")) {
+      select.addEventListener("change", () => {
+        this._statPanels[Number(select.dataset.panel)] = select.value;
+        this._saveUiState();
+        this.render();
+      });
+    }
+
+    // Кнопки быстрой смены (стрелочка справа от иконки)
+    PaperdollFlyout.close();
+    for (const btn of root.querySelectorAll(".pd-swap")) {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        PaperdollTooltip.hide();
+        if (PaperdollFlyout.isOpenFor(this, btn.dataset.slot)) PaperdollFlyout.close();
+        else PaperdollFlyout.open(this, btn.dataset.slot, btn);
+      });
+    }
+
+    // Слоты куколки
+    for (const slotEl of root.querySelectorAll(".pd-slot")) {
+      const slot = slotEl.dataset.slot;
+      slotEl.addEventListener("dragover", (ev) => {
+        if (!this.editable) return;
+        ev.preventDefault();
+        if (this._dragging)
+          ev.dataTransfer.dropEffect = this._canDrop(this._dragging.item, slot) ? "move" : "none";
+      });
+      slotEl.addEventListener("drop", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const item = await this._resolveDropItem(ev);
+        this._onDragEnd();
+        if (item) this._equipTo(item, slot);
+      });
+    }
+
+    // Сумка
+    const bag = root.querySelector(".pd-bag");
+    if (bag) {
+      bag.addEventListener("dragover", (ev) => {
+        if (!this.editable) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+      });
+      bag.addEventListener("drop", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const item = await this._resolveDropItem(ev);
+        this._onDragEnd();
+        if (item?.system.isEquipped) this._unequip(item);
+      });
+    }
+  }
+
+  /**
+   * Предмет, который бросили: из нашего окна или из листа персонажа.
+   * Чужие предметы (другой актёр, компендий) не принимаем.
+   */
+  async _resolveDropItem(event) {
+    if (this._dragging?.item) return this._dragging.item;
+    const TE = foundry.applications.ux.TextEditor.implementation;
+    const data = safe(() => TE.getDragEventData(event), {});
+    if (data?.type !== "Item" || !data.uuid) return null;
+    const item = await fromUuid(data.uuid);
+    if (!item) return null;
+    if (item.parent?.uuid !== this.actor.uuid) {
+      ui.notifications.warn(game.i18n.localize("WFRPPD.Warn.NotOwned"));
+      return null;
+    }
+    return item;
+  }
+
+  _onDragStart(event, item, el) {
+    PaperdollTooltip.hide();
+    this._dragging = { item };
+    // Формат Foundry: предмет можно бросить и в другие окна (лист, другой актёр)
+    event.dataTransfer.setData("text/plain", JSON.stringify(item.toDragData()));
+    event.dataTransfer.effectAllowed = "move";
+    el.classList.add("is-dragging");
+
+    // Подсветка подходящих слотов
+    for (const slotEl of this.element.querySelectorAll(".pd-slot")) {
+      const ok = this._canDrop(item, slotEl.dataset.slot);
+      slotEl.classList.toggle("is-valid", ok);
+      slotEl.classList.toggle("is-invalid", !ok);
+    }
+    if (item.system.isEquipped) this.element.querySelector(".pd-bag")?.classList.add("is-valid");
+  }
+
+  _onDragEnd() {
+    this._dragging = null;
+    if (!this.element) return;
+    for (const el of this.element.querySelectorAll(".is-valid, .is-invalid, .is-dragging")) {
+      el.classList.remove("is-valid", "is-invalid", "is-dragging");
+    }
+  }
+
+  async _onClose(options) {
+    await super._onClose(options);
+    PaperdollTooltip.hide();
+    if (PaperdollFlyout.app === this) PaperdollFlyout.close();
+    for (const [name, id] of this._hooks) Hooks.off(name, id);
+    PaperdollApp.instances.delete(this.actor.uuid);
+  }
+}
+
+/* ============================================ */
+/*  Тултип в стиле WoW                          */
+/* ============================================ */
+
+class PaperdollTooltip {
+  static el = null;
+
+  static ensure() {
+    if (this.el?.isConnected) return this.el;
+    this.el = document.createElement("div");
+    this.el.className = "wfrp-paperdoll-tooltip";
+    document.body.append(this.el);
+    return this.el;
+  }
+
+  static show(item, event) {
+    const el = this.ensure();
+    el.innerHTML = this.build(item);
+    el.classList.add("is-visible");
+    this.move(event);
+  }
+
+  static move(event) {
+    const el = this.el;
+    if (!el?.classList.contains("is-visible")) return;
+    const pad = 16;
+    const { innerWidth: vw, innerHeight: vh } = window;
+    const rect = el.getBoundingClientRect();
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+    if (x + rect.width > vw - 8) x = event.clientX - rect.width - pad;
+    if (y + rect.height > vh - 8) y = Math.max(8, vh - rect.height - 8);
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }
+
+  static hide() {
+    this.el?.classList.remove("is-visible");
+  }
+
+  static build(item) {
+    const sys = item.system;
+    const cfg = game.wfrp4e.config;
+    const L = (k) => game.i18n.localize(k);
+    const rarity = RARITY[sys.availability?.value] ?? "none";
+    const lines = [];
+
+    lines.push(`<div class="pd-tt-name rarity-${rarity}">${esc(item.name)}</div>`);
+
+    // Подзаголовок: тип и состояние
+    const typeKey = `TYPES.Item.${item.type}`;
+    const typeLabel = game.i18n.has(typeKey) ? L(typeKey) : item.type;
+    const sub = [typeLabel];
+    if (sys.isEquipped) sub.push(L("WFRPPD.Tooltip.Equipped"));
+    lines.push(`<div class="pd-tt-sub">${esc(sub.join(" · "))}</div>`);
+
+    if (item.type === "weapon") {
+      const group = safe(() => sys.WeaponGroup);
+      const twoH = sys.twohanded?.value ? L("WFRPPD.Tooltip.TwoHanded") : L("WFRPPD.Tooltip.OneHanded");
+      lines.push(`<div class="pd-tt-row"><span>${esc(group ? L(group) : "")}</span><span>${esc(twoH)}</span></div>`);
+      const dmg = safe(() => sys.Damage);
+      if (dmg !== null && dmg !== undefined && dmg !== "")
+        lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Damage"))}: <b>+${esc(dmg)}</b></div>`);
+      if (safe(() => sys.isMelee)) {
+        const reach = safe(() => sys.Reach);
+        if (reach) lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Reach"))}: ${esc(L(reach))}</div>`);
+      } else {
+        const range = safe(() => sys.Range);
+        if (range) lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Range"))}: ${esc(range)}</div>`);
+      }
+    }
+
+    if (item.type === "armour") {
+      const type = cfg.armorTypes?.[sys.armorType?.value];
+      if (type) lines.push(`<div class="pd-tt-row"><span>${esc(L(type))}</span></div>`);
+      const current = safe(() => sys.currentAP, sys.AP) ?? {};
+      const parts = LOCATIONS.filter((l) => (sys.AP?.[l] ?? 0) > 0).map((l) => {
+        const max = sys.AP[l];
+        const cur = current[l] ?? max;
+        const val = cur < max ? `${cur}/${max}` : `${max}`;
+        return `${esc(L(cfg.locations[l]))}: <b>${esc(val)}</b>`;
+      });
+      if (parts.length)
+        lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.AP"))}<br>${parts.join("<br>")}</div>`);
+      if (sys.penalty?.value)
+        lines.push(`<div class="pd-tt-flaw">${esc(L("WFRPPD.Tooltip.Penalty"))}: ${esc(sys.penalty.value)}</div>`);
+    }
+
+    const qualities = safe(() => sys.Qualities, []) ?? [];
+    const flaws = safe(() => sys.Flaws, []) ?? [];
+    if (qualities.length) lines.push(`<div class="pd-tt-quality">${qualities.map(esc).join(", ")}</div>`);
+    if (flaws.length) lines.push(`<div class="pd-tt-flaw">${flaws.map(esc).join(", ")}</div>`);
+
+    const desc = stripHTML(sys.description?.value);
+    if (desc) {
+      const short = desc.length > 220 ? `${desc.slice(0, 220)}…` : desc;
+      lines.push(`<div class="pd-tt-desc">«${esc(short)}»</div>`);
+    }
+
+    // Низ: нагрузка, цена, доступность
+    const footer = [];
+    const enc = sys.encumbrance?.total ?? sys.encumbrance?.value;
+    if (enc !== undefined && enc !== null) footer.push(`${L("WFRPPD.Tooltip.Enc")}: ${enc}`);
+    const price = this.formatPrice(sys.price);
+    if (price) footer.push(price);
+    if (footer.length) lines.push(`<div class="pd-tt-footer">${esc(footer.join(" · "))}</div>`);
+
+    const avail = cfg.availability?.[sys.availability?.value];
+    if (avail && sys.availability?.value !== "None")
+      lines.push(`<div class="pd-tt-avail rarity-${rarity}">${esc(L(avail))}</div>`);
+
+    lines.push(`<div class="pd-tt-hint">${esc(L("WFRPPD.Tooltip.Hint"))}</div>`);
+    return lines.join("");
+  }
+
+  static formatPrice(price) {
+    if (!price) return "";
+    const L = (k) => game.i18n.localize(k);
+    const parts = [];
+    if (price.gc) parts.push(`${price.gc} ${L("WFRPPD.Money.gc")}`);
+    if (price.ss) parts.push(`${price.ss} ${L("WFRPPD.Money.ss")}`);
+    if (price.bp) parts.push(`${price.bp} ${L("WFRPPD.Money.bp")}`);
+    return parts.join(" ");
+  }
+}
+
+
+/* ============================================ */
+/*  Быстрая смена: выпадающий список слота      */
+/* ============================================ */
+
+function itemMeta(item) {
+  const sys = item.system;
+  const cfg = game.wfrp4e.config;
+  const L = (k) => game.i18n.localize(k);
+  if (item.type === "weapon") {
+    const parts = [];
+    const dmg = safe(() => sys.Damage);
+    if (dmg !== null && dmg !== undefined && dmg !== "") parts.push(`${L("WFRPPD.Tooltip.Damage")} +${dmg}`);
+    parts.push(sys.twohanded?.value ? L("WFRPPD.Tooltip.TwoHanded") : L("WFRPPD.Tooltip.OneHanded"));
+    return parts.join(" · ");
+  }
+  if (item.type === "armour") {
+    const parts = LOCATIONS.filter((l) => (sys.AP?.[l] ?? 0) > 0).map((l) => `${L(cfg.locations[l])} ${sys.AP[l]}`);
+    return parts.length ? `${L("WFRPPD.Tooltip.APShort")}: ${parts.join(", ")}` : "";
+  }
+  const typeKey = `TYPES.Item.${item.type}`;
+  return game.i18n.has(typeKey) ? L(typeKey) : item.type;
+}
+
+class PaperdollFlyout {
+  static el = null;
+  static app = null;
+  static slot = null;
+  static _onDocPointer = null;
+  static _onKey = null;
+
+  static isOpenFor(app, slot) {
+    return this.el?.isConnected && this.app === app && this.slot === slot;
+  }
+
+  static open(app, slot, anchor) {
+    this.close();
+    this.app = app;
+    this.slot = slot;
+
+    const L = (k) => game.i18n.localize(k);
+    const { current, available } = app._swapCandidates(slot);
+
+    const row = (item, act) => {
+      const sys = item.system;
+      const rarity = RARITY[sys.availability?.value] ?? "none";
+      const qty = (sys.quantity?.value ?? 1) > 1 ? `<span class="pd-qty">${sys.quantity.value}</span>` : "";
+      let meta = itemMeta(item);
+      const where = act === "equip" ? app._currentSlotOf(item) : null;
+      if (where) meta += ` · ${game.i18n.format("WFRPPD.Fly.Now", { slot: app._slotLabel(where) })}`;
+      const icon = act === "unequip" ? `<i class="fa-solid fa-xmark pd-fly-act" title="${esc(L("WFRPPD.Fly.Unequip"))}"></i>` : "";
+      return `
+        <div class="pd-fly-row" data-item-id="${item.id}" data-act="${act}">
+          <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(item.img)}" alt="">${qty}</div>
+          <div class="pd-fly-text">
+            <div class="pd-fly-name rarity-${rarity}">${esc(item.name)}</div>
+            <div class="pd-fly-meta">${esc(meta)}</div>
+          </div>
+          ${icon}
+        </div>`;
+    };
+
+    let html = `<div class="pd-fly-title">${esc(app._slotLabel(slot))}</div>`;
+    if (current.length) {
+      html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Current"))}</div>`;
+      html += current.map((i) => row(i, "unequip")).join("");
+    }
+    html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Available"))}</div>`;
+    html += available.length
+      ? available.map((i) => row(i, "equip")).join("")
+      : `<div class="pd-fly-empty">${esc(L("WFRPPD.Fly.Empty"))}</div>`;
+
+    const el = document.createElement("div");
+    el.className = "wfrp-paperdoll-flyout";
+    el.innerHTML = html;
+    document.body.append(el);
+    this.el = el;
+    anchor.classList.add("is-open");
+    this.anchor = anchor;
+
+    // Позиция: справа от стрелочки, с переворотом у края экрана
+    const r = anchor.getBoundingClientRect();
+    const fr = el.getBoundingClientRect();
+    let x = r.right + 6;
+    if (x + fr.width > window.innerWidth - 8) x = r.left - fr.width - 6;
+    let y = r.top - 8;
+    if (y + fr.height > window.innerHeight - 8) y = Math.max(8, window.innerHeight - fr.height - 8);
+    el.style.left = `${Math.max(8, x)}px`;
+    el.style.top = `${y}px`;
+
+    for (const rowEl of el.querySelectorAll(".pd-fly-row")) {
+      const item = app.actor.items.get(rowEl.dataset.itemId);
+      if (!item) continue;
+      rowEl.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev));
+      rowEl.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+      rowEl.addEventListener("pointerleave", () => PaperdollTooltip.hide());
+      rowEl.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        PaperdollTooltip.hide();
+        const act = rowEl.dataset.act;
+        this.close();
+        if (act === "unequip") app._unequip(item);
+        else app._equipTo(item, slot);
+      });
+      rowEl.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        PaperdollTooltip.hide();
+        item.sheet?.render(true);
+      });
+    }
+
+    this._onDocPointer = (ev) => {
+      if (el.contains(ev.target) || ev.target.closest?.(".pd-swap")) return;
+      this.close();
+    };
+    this._onKey = (ev) => {
+      if (ev.key === "Escape") this.close();
+    };
+    document.addEventListener("pointerdown", this._onDocPointer, true);
+    document.addEventListener("keydown", this._onKey, true);
+  }
+
+  static close() {
+    if (this._onDocPointer) document.removeEventListener("pointerdown", this._onDocPointer, true);
+    if (this._onKey) document.removeEventListener("keydown", this._onKey, true);
+    this._onDocPointer = this._onKey = null;
+    this.anchor?.classList.remove("is-open");
+    this.anchor = null;
+    this.el?.remove();
+    this.el = null;
+    this.app = null;
+    this.slot = null;
+  }
+}
+
+window.PaperdollApp = PaperdollApp;
+})();
+</script>
+<script>
+const PaperdollApp = window.PaperdollApp;
 const actor = window.__PD_makeActor__({"id":"hugo","name":"Хьюго Брандлин","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20400%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22b%22%20cx%3D%2250%25%22%20cy%3D%2230%25%22%20r%3D%2280%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a3a22%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23120d09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22300%22%20height%3D%22400%22%20fill%3D%22url(%23b)%22%2F%3E%3Cg%20fill%3D%22%230a0806%22%20opacity%3D%22.92%22%3E%3Ccircle%20cx%3D%22150%22%20cy%3D%22120%22%20r%3D%2248%22%2F%3E%3Cpath%20d%3D%22M60%20400%20C60%20250%20100%20190%20150%20190%20C200%20190%20240%20250%20240%20400Z%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M150%20200%20L150%20330%20M115%20240%20L185%20240%22%20stroke%3D%22%238a2a1f%22%20stroke-width%3D%2210%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E","career":{"name":"Флагеллант","level":1},"system":{"characteristics":{"ws":{"initial":33,"advances":5,"modifier":0},"bs":{"initial":27,"advances":0,"modifier":0},"s":{"initial":36,"advances":5,"modifier":0},"t":{"initial":39,"advances":5,"modifier":0},"i":{"initial":31,"advances":2,"modifier":0},"ag":{"initial":36,"advances":0,"modifier":0},"dex":{"initial":29,"advances":0,"modifier":0},"int":{"initial":31,"advances":0,"modifier":0},"wp":{"initial":42,"advances":5,"modifier":5},"fel":{"initial":24,"advances":0,"modifier":0}},"status":{"wounds":{"value":11,"max":14},"criticalWounds":{"value":1,"max":4},"advantage":{"value":0},"fate":{"value":3},"fortune":{"value":2},"resilience":{"value":2},"resolve":{"value":1},"corruption":{"value":2,"max":7},"sin":{"value":1},"encumbrance":{"current":0,"max":0}},"details":{"species":{"value":"human"},"status":{"value":"Медь 2"},"move":{"value":4,"walk":"8","run":"16"},"experience":{"total":420,"spent":350,"current":70}},"settings":{"equipPoints":2}},"items":[{"id":"flail","name":"Цеп","type":"weapon","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5a4a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9B%93%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":1},"price":{"gc":2},"availability":{"value":"scarce"},"description":{"value":"\u003cp>Тяжёлые цепи с шипами, которыми флагеллант бичует себя и врагов Зигмара.\u003c/p>"},"equipped":{"value":true},"twohanded":{"value":true},"offhand":{"value":false},"weaponGroup":{"value":"flail"},"reach":{"value":"average"},"damage":{"value":"SB+5"},"_qualities":["Отвлекающее","Обвивающее"],"_flaws":["Опасное"]}},{"id":"sword","name":"Меч охотника на ведьм","type":"weapon","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%238a8a9a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9A%94%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":1},"price":{"gc":1},"availability":{"value":"rare"},"description":{"value":"\u003cp>Подарок храмовника, который не дожил до утра.\u003c/p>"},"equipped":{"value":false},"twohanded":{"value":false},"offhand":{"value":false},"weaponGroup":{"value":"basic"},"reach":{"value":"average"},"damage":{"value":"SB+4"},"_qualities":["Пробивающее"]}},{"id":"dagger","name":"Кинжал","type":"weapon","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a6a7a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%97%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"ss":16},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"twohanded":{"value":false},"offhand":{"value":false},"weaponGroup":{"value":"basic"},"reach":{"value":"vshort"},"damage":{"value":"SB+2"}}},{"id":"whip","name":"Плеть","type":"weapon","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a3020%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E3%80%B0%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"ss":5},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"twohanded":{"value":false},"offhand":{"value":false},"weaponGroup":{"value":"flail"},"reach":{"value":"long"},"damage":{"value":"SB+2"},"_qualities":["Быстрое","Обвивающее"],"_flaws":["Слабое"]}},{"id":"buckler","name":"Баклер","type":"weapon","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a6a3a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%94%B0%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"ss":18},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"twohanded":{"value":false},"offhand":{"value":false},"weaponGroup":{"value":"parry"},"reach":{"value":"personal"},"damage":{"value":"SB+1"},"_qualities":["Щит 1","Защитное"]}},{"id":"sling","name":"Праща","type":"weapon","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a6a5a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AA%A8%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"ss":1},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"twohanded":{"value":false},"offhand":{"value":false},"weaponGroup":{"value":"sling"},"reach":{"value":"average"},"damage":{"value":"+6"},"_ranged":true,"_range":"60"}},{"id":"hood","name":"Кожаный капюшон","type":"armour","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a4030%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AA%96%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"ss":5},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":true},"armorType":{"value":"softLeather"},"penalty":{"value":""},"AP":{"head":1,"body":0,"rArm":0,"lArm":0,"rLeg":0,"lLeg":0},"_flaws":["Частичное"]}},{"id":"jack","name":"Кожаная куртка","type":"armour","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a5230%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A5%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":1},"price":{"ss":12},"availability":{"value":"common"},"description":{"value":"\u003cp>Потёртая кожаная куртка, пропитанная кровью и воском.\u003c/p>"},"equipped":{"value":true},"armorType":{"value":"softLeather"},"penalty":{"value":""},"AP":{"head":0,"body":1,"rArm":1,"lArm":1,"rLeg":0,"lLeg":0}}},{"id":"mail","name":"Кольчужная рубаха","type":"armour","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a7a8a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%9B%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":2},"price":{"gc":3},"availability":{"value":"scarce"},"description":{"value":"\u003cp>Снята с мёртвого рыцаря у дороги на Убершрейк.\u003c/p>"},"equipped":{"value":false},"armorType":{"value":"mail"},"penalty":{"value":""},"AP":{"head":0,"body":2,"rArm":0,"lArm":0,"rLeg":0,"lLeg":0},"_qualities":["Гибкая"]}},{"id":"legs","name":"Кожаные штаны","type":"armour","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a4a2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%91%96%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":1},"price":{"ss":14},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"armorType":{"value":"softLeather"},"penalty":{"value":""},"AP":{"head":0,"body":0,"rArm":0,"lArm":0,"rLeg":1,"lLeg":1}}},{"id":"robe","name":"Рваная ряса","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a3a5a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%91%98%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":1},"price":{"ss":2},"availability":{"value":"common"},"description":{"value":"\u003cp>Ряса, порванная плетьми. На спине вышит молот Зигмара.\u003c/p>"},"equipped":{"value":true},"trappingType":{"value":"clothingAccessories"}}},{"id":"hammer","name":"Подвеска-молот","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23c9a45c%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%94%A8%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"gc":4},"availability":{"value":"exotic"},"description":{"value":"\u003cp>Серебряный молот Зигмара на чёрном шнуре. Тёплый на ощупь.\u003c/p>"},"equipped":{"value":false},"trappingType":{"value":"clothingAccessories"}}},{"id":"sack","name":"Котомка","type":"container","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5530%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%8E%92%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":1},"price":{"ss":4},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":true}}},{"id":"relic","name":"Палец святого","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23c9a45c%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%98%9D%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"gc":10},"availability":{"value":"exotic"},"description":{"value":"\u003cp>Высохший палец в серебряном ковчежце. Говорят, принадлежал мученику из Нульна.\u003c/p>"},"equipped":{"value":false},"trappingType":{"value":"misc"}}},{"id":"tome","name":"Молитвенник Зигмара","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%238a3a2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%93%96%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"gc":1},"availability":{"value":"rare"},"description":{"value":""},"equipped":{"value":false},"trappingType":{"value":"booksAndDocuments"}}},{"id":"candle","name":"Свечи","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a08050%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%95%AF%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":6},"encumbrance":{"value":0},"price":{"bp":1},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"trappingType":{"value":"misc"}}},{"id":"bandage","name":"Бинты","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a09080%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A9%B9%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":4},"encumbrance":{"value":0},"price":{"bp":2},"availability":{"value":"common"},"description":{"value":""},"equipped":{"value":false},"trappingType":{"value":"misc"}}},{"id":"water","name":"Фляга с водой","type":"trapping","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a6a7a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AB%97%3C%2Ftext%3E%3C%2Fsvg%3E","system":{"quantity":{"value":1},"encumbrance":{"value":0},"price":{"bp":3},"availability":{"value":"None"},"description":{"value":""},"equipped":{"value":false},"trappingType":{"value":"misc"}}}]});
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
 document.getElementById("mock-reopen").addEventListener("click", open);
 open();
-window.__PD_APP__ = PaperdollApp;
 </script>
 </body>
 </html>
