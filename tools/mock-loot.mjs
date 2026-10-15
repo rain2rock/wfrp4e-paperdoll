@@ -92,5 +92,9 @@ export const LOOT = [
 
   // --- Контейнер ---
   { id: "loot-pack", name: "Купеческий ранец", type: "container", _icon: "core:containers/bags/pack-leather-gold-brown.webp",
-    system: base({ availability: { value: "scarce" }, encumbrance: { value: 1 }, price: { gc: 1 } }) }
+    system: base({ availability: { value: "scarce" }, encumbrance: { value: 1 }, price: { gc: 1 }, carries: { value: 6 } }) },
+  { id: "loot-sack", name: "Большой мешок", type: "container", _icon: "core:containers/bags/pack-simple-leather-brown.webp",
+    system: base({ encumbrance: { value: 3 }, price: { ss: 1 }, carries: { value: 6 } }) },
+  { id: "loot-pouch", name: "Кошель", type: "container", _icon: "core:containers/bags/pouch-leather-simple-tan.webp",
+    system: base({ encumbrance: { value: 0 }, price: { bp: 4 }, carries: { value: 1 } }) }
 ];

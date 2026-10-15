@@ -15,6 +15,9 @@ const SLOT_ICONS = {
   lLeg: "fa-solid fa-socks",
   accessory: "fa-solid fa-ring",
   container: "fa-solid fa-sack-xmark",
+  bag1: "fa-solid fa-sack-xmark",
+  bag2: "fa-solid fa-sack-xmark",
+  bag3: "fa-solid fa-sack-xmark",
   main: "fa-solid fa-hand-fist",
   off: "fa-solid fa-shield-halved"
 };
@@ -29,6 +32,10 @@ const RARITY = {
 };
 
 const BAG_FILTERS = ["all", "weapon", "armour", "clothing", "other"];
+
+/** Слоты для сумок, как сумки на панели в WoW */
+const BAG_SLOTS = ["bag1", "bag2", "bag3"];
+const isBagSlot = (slot) => BAG_SLOTS.includes(slot);
 
 /* -------------------------------------------- */
 /*  Ограничения по правилам (базовая книга 4e)  */
@@ -234,7 +241,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static PARTS = {
     main: {
       template: `modules/${MODULE_ID}/templates/paperdoll.hbs`,
-      scrollable: [".pd-bag-grid"]
+      scrollable: [".pd-bag-list"]
     }
   };
 
@@ -320,7 +327,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       { area: "left", slots: ["head", "body", "rArm", "lArm"].map(armourSlot) },
       {
         area: "right",
-        slots: [armourSlot("rLeg"), armourSlot("lLeg"), makeSlot("accessory", clothing), makeSlot("container", equipped("container"))]
+        slots: [armourSlot("rLeg"), armourSlot("lLeg"), makeSlot("accessory", clothing)]
       },
       {
         area: "weapons",
@@ -328,11 +335,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     ];
 
-    // --- Сумка ---
+    // --- Сумки: три слота и раскладка по сумкам ---
+    const bagAssign = this._bagAssignment();
+    const bagSlots = BAG_SLOTS.map((key) => makeSlot(key, bagAssign.bySlot[key] ? [bagAssign.bySlot[key]] : []));
+
     const bagAll = actor.items
       .filter((i) => i.system?.isPhysical && i.type !== "money" && !i.system.isEquipped)
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name, game.i18n.lang));
     const bag = bagAll.filter((i) => this._matchesFilter(i, this._filter)).map((i) => view(i));
+    const bagSections = this._bagSections(bagAll, bagAssign, view);
     const filters = BAG_FILTERS.map((key) => ({
       key,
       label: L(`WFRPPD.Filter.${key}`),
@@ -391,6 +402,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       groups,
       bag,
       bagEmpty: !bag.length,
+      bagSlots,
+      bagSections,
+      bagOverflow: bagAssign.overflow.length
+        ? game.i18n.format("WFRPPD.Bags.Overflow", { names: bagAssign.overflow.map((i) => i.name).join(", ") })
+        : "",
       filters,
       statPanels,
       statCategories,
@@ -576,7 +592,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (slot === "main" || slot === "off") return item.type === "weapon";
     if (slot === "accessory")
       return item.type === "trapping" && sys.trappingType?.value === "clothingAccessories";
-    if (slot === "container") return item.type === "container";
+    if (slot === "container" || isBagSlot(slot)) return item.type === "container";
     return false;
   }
 
@@ -584,7 +600,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _defaultSlot(item) {
     const sys = item.system;
     if (item.type === "armour") return LOCATIONS.find((l) => sys.protects?.[l]) ?? null;
-    if (item.type === "container") return "container";
+    if (item.type === "container") {
+      const { bySlot } = this._bagAssignment();
+      return BAG_SLOTS.find((k) => !bySlot[k]) ?? null;
+    }
     if (item.type === "trapping")
       return sys.trappingType?.value === "clothingAccessories" ? "accessory" : null;
     if (item.type === "weapon") {
@@ -600,9 +619,133 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return null;
   }
 
+  /* -------------------------------------------- */
+  /*  Сумки                                       */
+  /* -------------------------------------------- */
+
+  /**
+   * Какая надетая сумка в каком слоте.
+   * Номер слота хранится во флаге предмета; надетые без флага занимают свободные слоты по порядку.
+   * Всё, что не влезло в 3 слота (надели с обычного листа), - overflow.
+   */
+  _bagAssignment() {
+    const worn = (this.actor.itemTypes.container ?? []).filter((c) => c.system.isEquipped);
+    const bySlot = {};
+    const rest = [];
+    for (const c of worn) {
+      const want = c.flags?.[MODULE_ID]?.bagSlot;
+      if (isBagSlot(want) && !bySlot[want]) bySlot[want] = c;
+      else rest.push(c);
+    }
+    const overflow = [];
+    for (const c of rest) {
+      const free = BAG_SLOTS.find((k) => !bySlot[k]);
+      if (free) bySlot[free] = c;
+      else overflow.push(c);
+    }
+    const slotOf = new Map(Object.entries(bySlot).map(([k, c]) => [c.id, k]));
+    return { bySlot, overflow, slotOf };
+  }
+
+  /** Сколько веса лежит в контейнере и сколько он вмещает */
+  _bagLoad(container) {
+    const inside = this.actor.items.filter((i) => i.system?.location?.value === container.id && !i.system.isEquipped);
+    const used = inside.reduce((n, i) => n + (Number(i.system.encumbrance?.total ?? i.system.encumbrance?.value) || 0), 0);
+    const cap = Number(container.system.carries?.value) || 0;
+    return { inside, used: Math.round(used * 100) / 100, cap };
+  }
+
+  /**
+   * Разделы вкладки «Сумка»: каждая надетая сумка, потом ненадетые контейнеры с вещами,
+   * в конце - «При себе» (вещи вне сумок).
+   */
+  _bagSections(bagAll, assign, view) {
+    const L = (k) => game.i18n.localize(k);
+    const containers = this.actor.itemTypes.container ?? [];
+    const filter = (i) => this._matchesFilter(i, this._filter);
+    const section = (c, kind) => {
+      const { inside, used, cap } = this._bagLoad(c);
+      const items = inside.filter(filter).map((i) => view(i));
+      const over = cap > 0 && used > cap;
+      return {
+        id: c.id,
+        kind,
+        name: c.name,
+        img: c.img,
+        slotLabel: kind === "worn" ? this._slotLabel(assign.slotOf.get(c.id) ?? "") : L("WFRPPD.Bags.NotWorn"),
+        used,
+        cap,
+        hasCap: cap > 0,
+        pct: cap ? Math.clamp((used / cap) * 100, 0, 100) : 0,
+        over,
+        full: cap > 0 && used >= cap,
+        items,
+        empty: !items.length
+      };
+    };
+
+    const worn = BAG_SLOTS.map((k) => assign.bySlot[k]).filter(Boolean);
+    const sections = worn.map((c) => section(c, "worn"));
+    // Ненадетые контейнеры показываем, только если в них что-то лежит
+    for (const c of containers) {
+      if (c.system.isEquipped) continue;
+      if (this._bagLoad(c).inside.length) sections.push(section(c, "stored"));
+    }
+    const shown = new Set(sections.map((sec) => sec.id));
+    const loose = bagAll.filter((i) => !shown.has(i.system?.location?.value) && !(shown.has(i.id) && i.type === "container"));
+    sections.push({
+      id: "",
+      kind: "loose",
+      name: L("WFRPPD.Bags.Loose"),
+      img: null,
+      slotLabel: "",
+      hasCap: false,
+      items: loose.filter(filter).map((i) => view(i)),
+      empty: !loose.filter(filter).length
+    });
+    return sections;
+  }
+
+  /** Переложить предмет в контейнер (или достать, если containerId пустой) */
+  async _moveToContainer(item, containerId) {
+    if (!this.editable || !item) return;
+    if (item.id === containerId) return;
+    if ((item.system.location?.value ?? "") === containerId && !item.system.isEquipped) return;
+    if (containerId) {
+      const container = this.actor.items.get(containerId);
+      if (!container) return;
+      const { used, cap } = this._bagLoad(container);
+      const weight = Number(item.system.encumbrance?.total ?? item.system.encumbrance?.value) || 0;
+      if (cap > 0 && used + weight > cap) {
+        ui.notifications.warn(
+          game.i18n.format("WFRPPD.Bags.Full", { bag: container.name, used, cap, weight })
+        );
+        return;
+      }
+    }
+    const update = { "system.location.value": containerId };
+    if (item.system.isEquipped) update["system.equipped.value"] = false;
+    try {
+      await item.update(update);
+    } catch (err) {
+      console.warn(`${MODULE_ID} | move failed`, err);
+    }
+  }
+
+  /** Надеть сумку в конкретный слот; то, что там было, снимается */
+  async _equipBag(item, slot) {
+    const { bySlot } = this._bagAssignment();
+    const occupant = bySlot[slot];
+    if (occupant && occupant.id !== item.id) {
+      await occupant.update({ "system.equipped.value": false, [`flags.${MODULE_ID}.bagSlot`]: null });
+    }
+    await item.update({ "system.equipped.value": true, [`flags.${MODULE_ID}.bagSlot`]: slot });
+  }
+
   /** Предмет сейчас лежит именно в этом слоте */
   _isInSlot(item, slot) {
     if (!item.system.isEquipped || !this._canDrop(item, slot)) return false;
+    if (isBagSlot(slot)) return this._bagAssignment().slotOf.get(item.id) === slot;
     if (item.type === "weapon") {
       const off = !!item.system.offhand?.value;
       return slot === "off" ? off : !off;
@@ -949,6 +1092,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const dmg = this._weaponDamage(item) ?? 0;
       return { value: dmg, unit: "dmg", score: dmg * 100 + extras };
     }
+    if (isBagSlot(slot)) {
+      const cap = Number(sys.carries?.value) || 0;
+      return { value: cap, unit: "cap", score: cap * 100 + extras };
+    }
     return { value: null, unit: null, score: extras };
   }
 
@@ -973,6 +1120,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     try {
       if (item.type === "weapon") await this._equipWeapon(item, slot);
+      else if (isBagSlot(slot)) await this._equipBag(item, slot);
       else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
     } catch (err) {
       // Система сама показывает уведомление (например, лимит экипированного оружия)
@@ -1030,7 +1178,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _slotLabel(slot) {
     if (LOCATIONS.includes(slot)) return game.i18n.localize(game.wfrp4e.config.locations[slot]);
-    const map = { main: "Main", off: "Off", accessory: "Accessory", container: "Container" };
+    const map = { main: "Main", off: "Off", accessory: "Accessory", container: "Container", bag1: "Bag1", bag2: "Bag2", bag3: "Bag3" };
     return game.i18n.localize(`WFRPPD.Slot.${map[slot] ?? slot}`);
   }
 
@@ -1082,6 +1230,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         else {
           const slot = this._defaultSlot(item);
           if (slot) this._equipTo(item, slot);
+          else if (item.type === "container") ui.notifications.warn(game.i18n.localize("WFRPPD.Bags.NoFreeSlot"));
         }
       });
 
@@ -1166,6 +1315,29 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         if (item?.system.isEquipped) this._unequip(item);
       });
     }
+
+    // Разделы сумок: перетащил в раздел - переложил в эту сумку (или «при себе»)
+    for (const sec of root.querySelectorAll(".pd-bagsec")) {
+      const containerId = sec.dataset.container ?? "";
+      sec.addEventListener("dragover", (ev) => {
+        if (!this.editable) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        sec.classList.add("is-drop");
+        ev.dataTransfer.dropEffect = "move";
+      });
+      sec.addEventListener("dragleave", (ev) => {
+        if (!sec.contains(ev.relatedTarget)) sec.classList.remove("is-drop");
+      });
+      sec.addEventListener("drop", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        sec.classList.remove("is-drop");
+        const item = await this._resolveDropItem(ev);
+        this._onDragEnd();
+        if (item) this._moveToContainer(item, containerId);
+      });
+    }
   }
 
   /**
@@ -1201,6 +1373,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       slotEl.classList.toggle("is-invalid", !ok);
     }
     if (item.system.isEquipped) this.element.querySelector(".pd-bag")?.classList.add("is-valid");
+    // Подсветить сумки, куда предмет влезает, и приглушить переполненные
+    const weight = Number(item.system.encumbrance?.total ?? item.system.encumbrance?.value) || 0;
+    for (const sec of this.element.querySelectorAll(".pd-bagsec")) {
+      const id = sec.dataset.container;
+      if (!id) continue;
+      const c = this.actor.items.get(id);
+      if (!c || c.id === item.id) continue;
+      const { used, cap } = this._bagLoad(c);
+      const here = item.system.location?.value === id;
+      sec.classList.toggle("is-invalid", !here && cap > 0 && used + weight > cap);
+    }
   }
 
   _onDragEnd() {

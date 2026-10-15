@@ -50,7 +50,10 @@
 
 - Снаряжение (`model/item/trapping.js`): надеть можно только если `system.trappingType.value === "clothingAccessories"`
 - Контейнеры (`model/item/container.js`): надеваются всегда
+- Вместимость контейнера: `system.carries.value` (в пунктах нагрузки), `system.countEnc.value`, `system.wearable.value`
 - Предмет внутри контейнера: `system.location.value` = id контейнера
+- Нагрузка: вещи с `location` система не считает напрямую (`computeItems` в `model/actor/standard.js`)
+- Номер слота сумки в куколке хранится во флаге предмета: `flags["wfrp4e-paperdoll"].bagSlot` = `bag1 | bag2 | bag3`
 
 ## Общие поля физических предметов (`model/item/components/physical.js`)
 

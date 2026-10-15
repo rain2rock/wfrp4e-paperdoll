@@ -381,6 +381,11 @@
       for (const i of this.items) {
         const sys = i.system;
         if (!sys.isPhysical) continue;
+        // Как в системе: вещи внутри контейнеров не считаются напрямую, только сам контейнер
+        if (sys.location?.value) {
+          sys.encumbrance.total = (sys.encumbrance?.value ?? 0) * (sys.quantity?.value ?? 1);
+          continue;
+        }
         let e = (sys.encumbrance?.value ?? 0) * (sys.quantity?.value ?? 1);
         if (sys.isEquipped && ["armour", "trapping"].includes(i.type)) e = Math.max(0, e - 1);
         sys.encumbrance.total = e;

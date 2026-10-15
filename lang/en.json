@@ -6,12 +6,15 @@
     "BagEmpty": "Empty",
     "Wounds": "Wounds",
     "Encumbrance": "Encumbrance",
-    "Hint": "Drag an item onto a slot to equip it, back to the bag to unequip. Double-click to equip/unequip, right-click to open.",
+    "Hint": "Drag an item onto a bag section to move it there. Bags go into the three slots on top. Double-click to equip/unequip, right-click to open.",
     "Slot": {
       "Main": "Main hand",
       "Off": "Off hand",
       "Accessory": "Clothing & accessories",
-      "Container": "Bags & packs"
+      "Container": "Bags & packs",
+      "Bag1": "Bag 1",
+      "Bag2": "Bag 2",
+      "Bag3": "Bag 3"
     },
     "Filter": {
       "all": "All",
@@ -60,7 +63,8 @@
       "Unit": {
         "AP": "AP",
         "dmg": "dmg",
-        "shield": "shield"
+        "shield": "shield",
+        "cap": "capacity"
       },
       "Clear": "Unequip all",
       "ClearHint": "Leave the slot empty ({n})"
@@ -163,6 +167,16 @@
       "ShortSureShot": "Sure Shot {n}",
       "ShortAmbidextrous": "Ambidextrous {n}",
       "ShortDualWielder": "Dual Wielder"
+    },
+    "Bags": {
+      "Worn": "Bags",
+      "Loose": "Carried (not in a bag)",
+      "NotWorn": "not worn",
+      "Empty": "Empty",
+      "CapHint": "Used / capacity (encumbrance points)",
+      "Full": "\"{bag}\" can't fit it: {used} of {cap} used, item weighs {weight}.",
+      "NoFreeSlot": "All three bag slots are taken. Remove one or swap via the arrow.",
+      "Overflow": "More than three bags worn, not in slots: {names}"
     }
   }
 }

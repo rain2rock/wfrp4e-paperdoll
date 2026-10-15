@@ -1,4 +1,27 @@
 <div class="pd-root {{#unless editable}}is-readonly{{/unless}}">
+  {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
+  {{#*inline "pdSlot"}}
+        <div class="pd-slot {{#unless top}}is-empty{{/unless}}" data-slot="{{key}}">
+          <div class="pd-slot-frame">
+            {{#if top}}
+            <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
+                 draggable="{{#if top.draggable}}true{{else}}false{{/if}}">
+              <img src="{{top.img}}" alt="{{top.name}}">
+              {{#if top.qty}}<span class="pd-qty">{{top.qty}}</span>{{/if}}
+            </div>
+            {{else}}
+            <div class="pd-slot-placeholder" title="{{label}}"><i class="{{icon}}"></i></div>
+            {{/if}}
+            {{#if layers}}<span class="pd-layers" title="{{label}}">+{{layers}}</span>{{/if}}
+            {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
+          </div>
+          {{#if @root.editable}}
+          <button type="button" class="pd-swap" data-slot="{{key}}" title="{{localize "WFRPPD.Swap"}}: {{label}}">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          {{/if}}
+        </div>
+{{/inline}}
 
   <section class="pd-main">
 
@@ -23,26 +46,7 @@
       {{#each groups}}
       <div class="pd-group pd-group--{{area}}">
         {{#each slots}}
-        <div class="pd-slot {{#unless top}}is-empty{{/unless}}" data-slot="{{key}}">
-          <div class="pd-slot-frame">
-            {{#if top}}
-            <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
-                 draggable="{{#if top.draggable}}true{{else}}false{{/if}}">
-              <img src="{{top.img}}" alt="{{top.name}}">
-              {{#if top.qty}}<span class="pd-qty">{{top.qty}}</span>{{/if}}
-            </div>
-            {{else}}
-            <div class="pd-slot-placeholder" title="{{label}}"><i class="{{icon}}"></i></div>
-            {{/if}}
-            {{#if layers}}<span class="pd-layers" title="{{label}}">+{{layers}}</span>{{/if}}
-            {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
-          </div>
-          {{#if @root.editable}}
-          <button type="button" class="pd-swap" data-slot="{{key}}" title="{{localize "WFRPPD.Swap"}}: {{label}}">
-            <i class="fa-solid fa-chevron-right"></i>
-          </button>
-          {{/if}}
-        </div>
+        {{> pdSlot}}
         {{/each}}
       </div>
       {{/each}}
@@ -101,6 +105,14 @@
     </nav>
 
     {{#if tabBag}}
+    <div class="pd-bagbar">
+      <span class="pd-bagbar-label">{{localize "WFRPPD.Bags.Worn"}}</span>
+      <div class="pd-bagbar-slots">
+        {{#each bagSlots}}{{> pdSlot}}{{/each}}
+      </div>
+    </div>
+    {{#if bagOverflow}}<div class="pd-bag-warn">{{bagOverflow}}</div>{{/if}}
+
     <div class="pd-filters">
       {{#each filters}}
       <button type="button" class="pd-filter {{#if active}}is-active{{/if}}" data-action="setFilter" data-filter="{{key}}">
@@ -109,15 +121,30 @@
       {{/each}}
     </div>
 
-    <div class="pd-bag-grid">
-      {{#each bag}}
-      <div class="pd-item rarity-{{rarity}} {{#unless equippable}}is-plain{{/unless}}" data-item-id="{{id}}"
-           draggable="{{#if draggable}}true{{else}}false{{/if}}">
-        <img src="{{img}}" alt="{{name}}">
-        {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
-      </div>
+    <div class="pd-bag-list">
+      {{#each bagSections}}
+      <section class="pd-bagsec pd-bagsec--{{kind}} {{#if over}}is-over{{/if}} {{#if full}}is-full{{/if}}" data-container="{{id}}">
+        <header class="pd-bagsec-head">
+          {{#if img}}<img class="pd-bagsec-icon" src="{{img}}" alt="">{{else}}<i class="pd-bagsec-icon fa-solid fa-person"></i>{{/if}}
+          <div class="pd-bagsec-title">
+            <span class="pd-bagsec-name">{{name}}</span>
+            {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
+          </div>
+          {{#if hasCap}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.CapHint"}}">{{used}} / {{cap}}</span>{{/if}}
+        </header>
+        {{#if hasCap}}<div class="pd-bagsec-bar"><div style="width: {{pct}}%"></div></div>{{/if}}
+        <div class="pd-bag-grid">
+          {{#each items}}
+          <div class="pd-item rarity-{{rarity}} {{#unless equippable}}is-plain{{/unless}}" data-item-id="{{id}}"
+               draggable="{{#if draggable}}true{{else}}false{{/if}}">
+            <img src="{{img}}" alt="{{name}}">
+            {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
+          </div>
+          {{/each}}
+          {{#if empty}}<div class="pd-bag-empty">{{localize "WFRPPD.Bags.Empty"}}</div>{{/if}}
+        </div>
+      </section>
       {{/each}}
-      {{#if bagEmpty}}<div class="pd-bag-empty">{{localize "WFRPPD.BagEmpty"}}</div>{{/if}}
     </div>
 
     <footer class="pd-bag-hint">{{localize "WFRPPD.Hint"}}</footer>

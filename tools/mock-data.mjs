@@ -93,14 +93,14 @@ export const actorData = {
       system: trapping({ trappingType: { value: "clothingAccessories" }, availability: { value: "exotic" }, price: { gc: 4 },
         description: { value: "<p>Серебряный молот Зигмара на чёрном шнуре. Тёплый на ощупь.</p>" } }) },
     { id: "sack", name: "Котомка", type: "container", img: icon("🎒", "#6a5530"),
-      system: base({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 4 } }) },
+      system: base({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 4 }, carries: { value: 2 } }) },
     { id: "relic", name: "Палец святого", type: "trapping", img: icon("☝️", "#c9a45c"),
       system: trapping({ availability: { value: "exotic" }, price: { gc: 10 },
         description: { value: "<p>Высохший палец в серебряном ковчежце. Говорят, принадлежал мученику из Нульна.</p>" } }) },
     { id: "tome", name: "Молитвенник Зигмара", type: "trapping", img: icon("📖", "#8a3a2a"),
       system: trapping({ availability: { value: "rare" }, trappingType: { value: "booksAndDocuments" }, price: { gc: 1 } }) },
-    { id: "candle", name: "Свечи", type: "trapping", img: icon("🕯️", "#a08050"), system: trapping({ quantity: { value: 6 }, price: { bp: 1 } }) },
-    { id: "bandage", name: "Бинты", type: "trapping", img: icon("🩹", "#a09080"), system: trapping({ quantity: { value: 4 }, price: { bp: 2 } }) },
+    { id: "candle", name: "Свечи", type: "trapping", img: icon("🕯️", "#a08050"), system: trapping({ location: { value: "sack" }, quantity: { value: 6 }, price: { bp: 1 } }) },
+    { id: "bandage", name: "Бинты", type: "trapping", img: icon("🩹", "#a09080"), system: trapping({ location: { value: "sack" }, quantity: { value: 4 }, price: { bp: 2 } }) },
     { id: "water", name: "Фляга с водой", type: "trapping", img: icon("🫗", "#4a6a7a"), system: trapping({ availability: { value: "None" }, price: { bp: 3 } }) }
   ]
 };
