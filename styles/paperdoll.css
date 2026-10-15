@@ -1,0 +1,572 @@
+/* ==========================================================
+   WFRP4e Paperdoll - окно персонажа в стиле WoW
+   ========================================================== */
+
+.wfrp-paperdoll {
+  --pd-bg: #17130f;
+  --pd-bg-2: #211b15;
+  --pd-panel: #2a221a;
+  --pd-border: #5c4a32;
+  --pd-gold: #c9a45c;
+  --pd-gold-dim: #8a7040;
+  --pd-text: #e8dcc4;
+  --pd-text-dim: #a8987a;
+  --pd-red: #a8261f;
+  --pd-green: #3f8f3a;
+
+  --rarity-none: #6b5f52;
+  --rarity-common: #c8c8c8;
+  --rarity-scarce: #1eff00;
+  --rarity-rare: #3a8dff;
+  --rarity-exotic: #b45cff;
+}
+
+.wfrp-paperdoll .window-content {
+  padding: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, #2b2219 0%, var(--pd-bg) 70%),
+    var(--pd-bg);
+  color: var(--pd-text);
+  overflow: hidden;
+}
+
+.wfrp-paperdoll .pd-root {
+  display: grid;
+  grid-template-columns: minmax(540px, 1fr) minmax(260px, 320px);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- Куколка ---------- */
+
+.wfrp-paperdoll .pd-doll {
+  display: grid;
+  grid-template-columns: 156px 1fr 156px;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    "left center right"
+    "weapons weapons weapons";
+  gap: 10px;
+  padding: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wfrp-paperdoll .pd-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wfrp-paperdoll .pd-group--left { grid-area: left; }
+.wfrp-paperdoll .pd-group--right { grid-area: right; }
+.wfrp-paperdoll .pd-group--weapons {
+  grid-area: weapons;
+  flex-direction: row;
+  justify-content: center;
+}
+.wfrp-paperdoll .pd-group--weapons .pd-slot { width: 200px; }
+
+/* ---------- Слот ---------- */
+
+.wfrp-paperdoll .pd-slot {
+  position: relative;
+  background: linear-gradient(180deg, var(--pd-panel), var(--pd-bg-2));
+  border: 1px solid var(--pd-border);
+  border-radius: 4px;
+  padding: 4px 6px 6px;
+  min-height: 74px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.wfrp-paperdoll .pd-slot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.wfrp-paperdoll .pd-slot-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pd-gold);
+}
+
+.wfrp-paperdoll .pd-ap {
+  min-width: 22px;
+  padding: 0 5px;
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+  color: #fff;
+  background: #3b3126;
+  border: 1px solid var(--pd-gold-dim);
+  border-radius: 10px;
+}
+
+.wfrp-paperdoll .pd-slot-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 44px;
+}
+
+.wfrp-paperdoll .pd-slot-placeholder {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--pd-border);
+  border-radius: 4px;
+  color: #4a3e30;
+  font-size: 20px;
+}
+
+/* Подсветка при перетаскивании */
+.wfrp-paperdoll .pd-slot.is-valid {
+  border-color: var(--pd-gold);
+  box-shadow: 0 0 10px rgba(201, 164, 92, 0.55), inset 0 0 12px rgba(0, 0, 0, 0.6);
+}
+.wfrp-paperdoll .pd-slot.is-invalid { opacity: 0.45; }
+
+/* ---------- Иконка предмета ---------- */
+
+.wfrp-paperdoll .pd-item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--rarity-none);
+  border-radius: 4px;
+  background: #0d0b09;
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  transition: transform 0.1s, filter 0.1s;
+}
+.wfrp-paperdoll .pd-item:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.2);
+}
+.wfrp-paperdoll .pd-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.wfrp-paperdoll .pd-item.is-dragging { opacity: 0.35; }
+.wfrp-paperdoll .pd-item.is-ghost {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+  cursor: default;
+}
+.wfrp-paperdoll .pd-item.is-plain { cursor: default; }
+.wfrp-paperdoll .is-readonly .pd-item { cursor: default; }
+
+.wfrp-paperdoll .pd-qty {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000;
+}
+
+.wfrp-paperdoll .rarity-common { border-color: var(--rarity-common); }
+.wfrp-paperdoll .rarity-scarce { border-color: var(--rarity-scarce); }
+.wfrp-paperdoll .rarity-rare { border-color: var(--rarity-rare); }
+.wfrp-paperdoll .rarity-exotic { border-color: var(--rarity-exotic); }
+
+/* ---------- Центр: портрет и статы ---------- */
+
+.wfrp-paperdoll .pd-center {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wfrp-paperdoll .pd-portrait {
+  position: relative;
+  flex: 1;
+  min-height: 180px;
+  border: 1px solid var(--pd-border);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #0d0b09;
+}
+.wfrp-paperdoll .pd-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border: none;
+}
+.wfrp-paperdoll .pd-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 8px 6px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pd-gold);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+  text-shadow: 0 1px 2px #000;
+}
+
+.wfrp-paperdoll .pd-chars {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.wfrp-paperdoll .pd-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 0;
+  background: var(--pd-panel);
+  border: 1px solid var(--pd-border);
+  border-radius: 3px;
+}
+.wfrp-paperdoll .pd-char-label {
+  font-size: 10px;
+  color: var(--pd-text-dim);
+  text-transform: uppercase;
+}
+.wfrp-paperdoll .pd-char-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pd-text);
+}
+
+.wfrp-paperdoll .pd-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wfrp-paperdoll .pd-bar {
+  position: relative;
+  height: 20px;
+  border: 1px solid var(--pd-border);
+  border-radius: 3px;
+  background: #0d0b09;
+  overflow: hidden;
+}
+.wfrp-paperdoll .pd-bar-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+.wfrp-paperdoll .pd-bar-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+.wfrp-paperdoll .pd-bar--wounds .pd-bar-fill { background: linear-gradient(180deg, #c0392b, #7a1d14); }
+.wfrp-paperdoll .pd-bar--enc .pd-bar-fill { background: linear-gradient(180deg, #8a7040, #5c4a2a); }
+.wfrp-paperdoll .pd-bar--enc.is-over .pd-bar-fill { background: linear-gradient(180deg, #d08a1f, #8a5410); }
+.wfrp-paperdoll .pd-bar--enc.is-max .pd-bar-fill { background: linear-gradient(180deg, #c0392b, #7a1d14); }
+
+.wfrp-paperdoll .pd-equip-points {
+  font-size: 12px;
+  text-align: center;
+  color: var(--pd-text-dim);
+}
+
+/* ---------- Сумка ---------- */
+
+.wfrp-paperdoll .pd-bag {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--pd-border);
+  background: rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.15s;
+}
+.wfrp-paperdoll .pd-bag.is-valid { box-shadow: inset 0 0 18px rgba(201, 164, 92, 0.4); }
+
+.wfrp-paperdoll .pd-bag-head {
+  padding: 10px 10px 6px;
+  border-bottom: 1px solid var(--pd-border);
+}
+.wfrp-paperdoll .pd-bag-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pd-gold);
+}
+.wfrp-paperdoll .pd-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wfrp-paperdoll .pd-filter {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--pd-text-dim);
+  background: var(--pd-panel);
+  border: 1px solid var(--pd-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-filter:hover { color: var(--pd-text); }
+.wfrp-paperdoll .pd-filter.is-active {
+  color: #1a140e;
+  background: var(--pd-gold);
+  border-color: var(--pd-gold);
+}
+.wfrp-paperdoll .pd-filter-count { opacity: 0.7; }
+
+.wfrp-paperdoll .pd-bag-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 44px);
+  grid-auto-rows: 44px;
+  gap: 6px;
+  align-content: start;
+  padding: 10px;
+  overflow-y: auto;
+}
+.wfrp-paperdoll .pd-bag-empty {
+  grid-column: 1 / -1;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--pd-text-dim);
+  font-style: italic;
+}
+.wfrp-paperdoll .pd-bag-hint {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  color: var(--pd-text-dim);
+  border-top: 1px solid var(--pd-border);
+}
+
+/* Кнопка в шапке листа персонажа */
+.wfrp-paperdoll-open { color: inherit; }
+
+/* ==========================================================
+   Тултип (висит в body, поэтому без префикса окна)
+   ========================================================== */
+
+.wfrp-paperdoll-tooltip {
+  --rarity-none: #e8dcc4;
+  --rarity-common: #ffffff;
+  --rarity-scarce: #1eff00;
+  --rarity-rare: #3a8dff;
+  --rarity-exotic: #b45cff;
+
+  position: fixed;
+  z-index: 10000;
+  display: none;
+  max-width: 300px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #e8dcc4;
+  background: rgba(12, 10, 20, 0.95);
+  border: 1px solid #8a8aa0;
+  border-radius: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.wfrp-paperdoll-tooltip.is-visible { display: block; }
+
+.wfrp-paperdoll-tooltip .pd-tt-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--rarity-none);
+}
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-common { color: var(--rarity-common); }
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-rare { color: var(--rarity-rare); }
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-exotic { color: var(--rarity-exotic); }
+
+.wfrp-paperdoll-tooltip .pd-tt-sub { color: #a8987a; font-size: 12px; margin-bottom: 4px; }
+.wfrp-paperdoll-tooltip .pd-tt-row { display: flex; justify-content: space-between; gap: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-stat { color: #fff; }
+.wfrp-paperdoll-tooltip .pd-tt-quality { color: #1eff00; margin-top: 4px; }
+.wfrp-paperdoll-tooltip .pd-tt-flaw { color: #ff4f4f; margin-top: 2px; }
+.wfrp-paperdoll-tooltip .pd-tt-desc { color: #ffd100; margin-top: 6px; font-style: italic; }
+.wfrp-paperdoll-tooltip .pd-tt-footer { color: #a8987a; margin-top: 6px; font-size: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-avail { font-size: 12px; color: var(--rarity-none); }
+.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-rare { color: var(--rarity-rare); }
+.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-exotic { color: var(--rarity-exotic); }
+.wfrp-paperdoll-tooltip .pd-tt-hint { margin-top: 6px; font-size: 11px; color: #6f6a80; }
+
+/* ==========================================================
+   Быстрая смена: стрелочка в слоте
+   ========================================================== */
+
+.wfrp-paperdoll .pd-slot-items { align-items: center; }
+
+.wfrp-paperdoll .pd-swap {
+  flex: 0 0 18px;
+  width: 18px;
+  min-width: 18px;
+  height: 44px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--pd-gold);
+  background: linear-gradient(90deg, #2f261c, #3b3024);
+  border: 1px solid var(--pd-gold-dim);
+  border-radius: 3px;
+  box-shadow: none;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.12s, transform 0.12s, background 0.12s;
+}
+.wfrp-paperdoll .pd-swap i { margin: 0; }
+.wfrp-paperdoll .pd-slot:hover .pd-swap,
+.wfrp-paperdoll .pd-swap:focus-visible,
+.wfrp-paperdoll .pd-swap.is-open {
+  opacity: 1;
+  transform: none;
+}
+.wfrp-paperdoll .pd-swap:hover,
+.wfrp-paperdoll .pd-swap.is-open {
+  color: #1a140e;
+  background: var(--pd-gold);
+}
+@media (hover: none) {
+  .wfrp-paperdoll .pd-swap { opacity: 0.8; transform: none; }
+}
+
+/* ==========================================================
+   Выпадающий список (висит в body)
+   ========================================================== */
+
+.wfrp-paperdoll-flyout {
+  --rarity-none: #6b5f52;
+  --rarity-common: #c8c8c8;
+  --rarity-scarce: #1eff00;
+  --rarity-rare: #3a8dff;
+  --rarity-exotic: #b45cff;
+
+  position: fixed;
+  z-index: 9999;
+  width: 280px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 6px;
+  color: #e8dcc4;
+  background: rgba(20, 16, 12, 0.97);
+  border: 1px solid #c9a45c;
+  border-radius: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
+  font-size: 13px;
+  animation: pd-fly-in 0.12s ease-out;
+}
+@keyframes pd-fly-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.wfrp-paperdoll-flyout .pd-fly-title {
+  padding: 2px 6px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c9a45c;
+  border-bottom: 1px solid #5c4a32;
+}
+.wfrp-paperdoll-flyout .pd-fly-section {
+  padding: 8px 6px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a7a5e;
+}
+.wfrp-paperdoll-flyout .pd-fly-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.wfrp-paperdoll-flyout .pd-fly-row:hover { background: rgba(201, 164, 92, 0.15); }
+
+.wfrp-paperdoll-flyout .pd-fly-icon {
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--rarity-none);
+  border-radius: 3px;
+  background: #0d0b09;
+}
+.wfrp-paperdoll-flyout .pd-fly-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+}
+.wfrp-paperdoll-flyout .pd-fly-icon .pd-qty {
+  position: absolute;
+  right: 1px;
+  bottom: -1px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-common { border-color: var(--rarity-common); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-scarce { border-color: var(--rarity-scarce); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-rare { border-color: var(--rarity-rare); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-exotic { border-color: var(--rarity-exotic); }
+
+.wfrp-paperdoll-flyout .pd-fly-text { flex: 1; min-width: 0; }
+.wfrp-paperdoll-flyout .pd-fly-name {
+  font-weight: 700;
+  color: #e8dcc4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-common { color: #ffffff; }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-rare { color: var(--rarity-rare); }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-exotic { color: var(--rarity-exotic); }
+.wfrp-paperdoll-flyout .pd-fly-meta {
+  font-size: 11px;
+  color: #a8987a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wfrp-paperdoll-flyout .pd-fly-act {
+  color: #a8987a;
+  font-size: 13px;
+  padding: 4px;
+}
+.wfrp-paperdoll-flyout .pd-fly-row:hover .pd-fly-act { color: #ff6b5b; }
+.wfrp-paperdoll-flyout .pd-fly-empty {
+  padding: 8px 6px;
+  font-style: italic;
+  color: #8a7a5e;
+}

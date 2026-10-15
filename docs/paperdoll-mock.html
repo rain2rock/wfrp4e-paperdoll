@@ -1,0 +1,964 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paperdoll Mock</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+html,body{margin:0;background:#3a3d42;font-family:"Signika","Segoe UI",sans-serif;}
+body{padding:24px;}
+.mock-note{color:#ccc;font-size:13px;margin:0 0 12px;max-width:900px}
+.app.window-app{width:900px;height:700px;max-width:100%;display:flex;flex-direction:column;border-radius:6px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.6);border:1px solid #000}
+.window-header{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;background:#0b0a09;color:#e8dcc4;font-size:14px;border-bottom:1px solid #5c4a32}
+.window-header .window-title{flex:1}
+.window-header i{opacity:.8}
+.window-content{flex:1;min-height:0}
+@media (max-width:700px){.wfrp-paperdoll .pd-root{grid-template-columns:1fr;overflow:auto}.wfrp-paperdoll .pd-doll{grid-template-columns:120px 1fr 120px}.app.window-app{height:auto}}
+/* ==========================================================
+   WFRP4e Paperdoll - окно персонажа в стиле WoW
+   ========================================================== */
+
+.wfrp-paperdoll {
+  --pd-bg: #17130f;
+  --pd-bg-2: #211b15;
+  --pd-panel: #2a221a;
+  --pd-border: #5c4a32;
+  --pd-gold: #c9a45c;
+  --pd-gold-dim: #8a7040;
+  --pd-text: #e8dcc4;
+  --pd-text-dim: #a8987a;
+  --pd-red: #a8261f;
+  --pd-green: #3f8f3a;
+
+  --rarity-none: #6b5f52;
+  --rarity-common: #c8c8c8;
+  --rarity-scarce: #1eff00;
+  --rarity-rare: #3a8dff;
+  --rarity-exotic: #b45cff;
+}
+
+.wfrp-paperdoll .window-content {
+  padding: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, #2b2219 0%, var(--pd-bg) 70%),
+    var(--pd-bg);
+  color: var(--pd-text);
+  overflow: hidden;
+}
+
+.wfrp-paperdoll .pd-root {
+  display: grid;
+  grid-template-columns: minmax(540px, 1fr) minmax(260px, 320px);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- Куколка ---------- */
+
+.wfrp-paperdoll .pd-doll {
+  display: grid;
+  grid-template-columns: 156px 1fr 156px;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    "left center right"
+    "weapons weapons weapons";
+  gap: 10px;
+  padding: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wfrp-paperdoll .pd-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wfrp-paperdoll .pd-group--left { grid-area: left; }
+.wfrp-paperdoll .pd-group--right { grid-area: right; }
+.wfrp-paperdoll .pd-group--weapons {
+  grid-area: weapons;
+  flex-direction: row;
+  justify-content: center;
+}
+.wfrp-paperdoll .pd-group--weapons .pd-slot { width: 200px; }
+
+/* ---------- Слот ---------- */
+
+.wfrp-paperdoll .pd-slot {
+  position: relative;
+  background: linear-gradient(180deg, var(--pd-panel), var(--pd-bg-2));
+  border: 1px solid var(--pd-border);
+  border-radius: 4px;
+  padding: 4px 6px 6px;
+  min-height: 74px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.wfrp-paperdoll .pd-slot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.wfrp-paperdoll .pd-slot-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pd-gold);
+}
+
+.wfrp-paperdoll .pd-ap {
+  min-width: 22px;
+  padding: 0 5px;
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+  color: #fff;
+  background: #3b3126;
+  border: 1px solid var(--pd-gold-dim);
+  border-radius: 10px;
+}
+
+.wfrp-paperdoll .pd-slot-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 44px;
+}
+
+.wfrp-paperdoll .pd-slot-placeholder {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--pd-border);
+  border-radius: 4px;
+  color: #4a3e30;
+  font-size: 20px;
+}
+
+/* Подсветка при перетаскивании */
+.wfrp-paperdoll .pd-slot.is-valid {
+  border-color: var(--pd-gold);
+  box-shadow: 0 0 10px rgba(201, 164, 92, 0.55), inset 0 0 12px rgba(0, 0, 0, 0.6);
+}
+.wfrp-paperdoll .pd-slot.is-invalid { opacity: 0.45; }
+
+/* ---------- Иконка предмета ---------- */
+
+.wfrp-paperdoll .pd-item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--rarity-none);
+  border-radius: 4px;
+  background: #0d0b09;
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  transition: transform 0.1s, filter 0.1s;
+}
+.wfrp-paperdoll .pd-item:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.2);
+}
+.wfrp-paperdoll .pd-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.wfrp-paperdoll .pd-item.is-dragging { opacity: 0.35; }
+.wfrp-paperdoll .pd-item.is-ghost {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+  cursor: default;
+}
+.wfrp-paperdoll .pd-item.is-plain { cursor: default; }
+.wfrp-paperdoll .is-readonly .pd-item { cursor: default; }
+
+.wfrp-paperdoll .pd-qty {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000;
+}
+
+.wfrp-paperdoll .rarity-common { border-color: var(--rarity-common); }
+.wfrp-paperdoll .rarity-scarce { border-color: var(--rarity-scarce); }
+.wfrp-paperdoll .rarity-rare { border-color: var(--rarity-rare); }
+.wfrp-paperdoll .rarity-exotic { border-color: var(--rarity-exotic); }
+
+/* ---------- Центр: портрет и статы ---------- */
+
+.wfrp-paperdoll .pd-center {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wfrp-paperdoll .pd-portrait {
+  position: relative;
+  flex: 1;
+  min-height: 180px;
+  border: 1px solid var(--pd-border);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #0d0b09;
+}
+.wfrp-paperdoll .pd-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border: none;
+}
+.wfrp-paperdoll .pd-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 8px 6px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pd-gold);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+  text-shadow: 0 1px 2px #000;
+}
+
+.wfrp-paperdoll .pd-chars {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.wfrp-paperdoll .pd-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 0;
+  background: var(--pd-panel);
+  border: 1px solid var(--pd-border);
+  border-radius: 3px;
+}
+.wfrp-paperdoll .pd-char-label {
+  font-size: 10px;
+  color: var(--pd-text-dim);
+  text-transform: uppercase;
+}
+.wfrp-paperdoll .pd-char-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pd-text);
+}
+
+.wfrp-paperdoll .pd-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wfrp-paperdoll .pd-bar {
+  position: relative;
+  height: 20px;
+  border: 1px solid var(--pd-border);
+  border-radius: 3px;
+  background: #0d0b09;
+  overflow: hidden;
+}
+.wfrp-paperdoll .pd-bar-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+.wfrp-paperdoll .pd-bar-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+.wfrp-paperdoll .pd-bar--wounds .pd-bar-fill { background: linear-gradient(180deg, #c0392b, #7a1d14); }
+.wfrp-paperdoll .pd-bar--enc .pd-bar-fill { background: linear-gradient(180deg, #8a7040, #5c4a2a); }
+.wfrp-paperdoll .pd-bar--enc.is-over .pd-bar-fill { background: linear-gradient(180deg, #d08a1f, #8a5410); }
+.wfrp-paperdoll .pd-bar--enc.is-max .pd-bar-fill { background: linear-gradient(180deg, #c0392b, #7a1d14); }
+
+.wfrp-paperdoll .pd-equip-points {
+  font-size: 12px;
+  text-align: center;
+  color: var(--pd-text-dim);
+}
+
+/* ---------- Сумка ---------- */
+
+.wfrp-paperdoll .pd-bag {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--pd-border);
+  background: rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.15s;
+}
+.wfrp-paperdoll .pd-bag.is-valid { box-shadow: inset 0 0 18px rgba(201, 164, 92, 0.4); }
+
+.wfrp-paperdoll .pd-bag-head {
+  padding: 10px 10px 6px;
+  border-bottom: 1px solid var(--pd-border);
+}
+.wfrp-paperdoll .pd-bag-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pd-gold);
+}
+.wfrp-paperdoll .pd-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wfrp-paperdoll .pd-filter {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--pd-text-dim);
+  background: var(--pd-panel);
+  border: 1px solid var(--pd-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-filter:hover { color: var(--pd-text); }
+.wfrp-paperdoll .pd-filter.is-active {
+  color: #1a140e;
+  background: var(--pd-gold);
+  border-color: var(--pd-gold);
+}
+.wfrp-paperdoll .pd-filter-count { opacity: 0.7; }
+
+.wfrp-paperdoll .pd-bag-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 44px);
+  grid-auto-rows: 44px;
+  gap: 6px;
+  align-content: start;
+  padding: 10px;
+  overflow-y: auto;
+}
+.wfrp-paperdoll .pd-bag-empty {
+  grid-column: 1 / -1;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--pd-text-dim);
+  font-style: italic;
+}
+.wfrp-paperdoll .pd-bag-hint {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  color: var(--pd-text-dim);
+  border-top: 1px solid var(--pd-border);
+}
+
+/* Кнопка в шапке листа персонажа */
+.wfrp-paperdoll-open { color: inherit; }
+
+/* ==========================================================
+   Тултип (висит в body, поэтому без префикса окна)
+   ========================================================== */
+
+.wfrp-paperdoll-tooltip {
+  --rarity-none: #e8dcc4;
+  --rarity-common: #ffffff;
+  --rarity-scarce: #1eff00;
+  --rarity-rare: #3a8dff;
+  --rarity-exotic: #b45cff;
+
+  position: fixed;
+  z-index: 10000;
+  display: none;
+  max-width: 300px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #e8dcc4;
+  background: rgba(12, 10, 20, 0.95);
+  border: 1px solid #8a8aa0;
+  border-radius: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.wfrp-paperdoll-tooltip.is-visible { display: block; }
+
+.wfrp-paperdoll-tooltip .pd-tt-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--rarity-none);
+}
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-common { color: var(--rarity-common); }
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-rare { color: var(--rarity-rare); }
+.wfrp-paperdoll-tooltip .pd-tt-name.rarity-exotic { color: var(--rarity-exotic); }
+
+.wfrp-paperdoll-tooltip .pd-tt-sub { color: #a8987a; font-size: 12px; margin-bottom: 4px; }
+.wfrp-paperdoll-tooltip .pd-tt-row { display: flex; justify-content: space-between; gap: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-stat { color: #fff; }
+.wfrp-paperdoll-tooltip .pd-tt-quality { color: #1eff00; margin-top: 4px; }
+.wfrp-paperdoll-tooltip .pd-tt-flaw { color: #ff4f4f; margin-top: 2px; }
+.wfrp-paperdoll-tooltip .pd-tt-desc { color: #ffd100; margin-top: 6px; font-style: italic; }
+.wfrp-paperdoll-tooltip .pd-tt-footer { color: #a8987a; margin-top: 6px; font-size: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-avail { font-size: 12px; color: var(--rarity-none); }
+.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-rare { color: var(--rarity-rare); }
+.wfrp-paperdoll-tooltip .pd-tt-avail.rarity-exotic { color: var(--rarity-exotic); }
+.wfrp-paperdoll-tooltip .pd-tt-hint { margin-top: 6px; font-size: 11px; color: #6f6a80; }
+
+/* ==========================================================
+   Быстрая смена: стрелочка в слоте
+   ========================================================== */
+
+.wfrp-paperdoll .pd-slot-items { align-items: center; }
+
+.wfrp-paperdoll .pd-swap {
+  flex: 0 0 18px;
+  width: 18px;
+  min-width: 18px;
+  height: 44px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--pd-gold);
+  background: linear-gradient(90deg, #2f261c, #3b3024);
+  border: 1px solid var(--pd-gold-dim);
+  border-radius: 3px;
+  box-shadow: none;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.12s, transform 0.12s, background 0.12s;
+}
+.wfrp-paperdoll .pd-swap i { margin: 0; }
+.wfrp-paperdoll .pd-slot:hover .pd-swap,
+.wfrp-paperdoll .pd-swap:focus-visible,
+.wfrp-paperdoll .pd-swap.is-open {
+  opacity: 1;
+  transform: none;
+}
+.wfrp-paperdoll .pd-swap:hover,
+.wfrp-paperdoll .pd-swap.is-open {
+  color: #1a140e;
+  background: var(--pd-gold);
+}
+@media (hover: none) {
+  .wfrp-paperdoll .pd-swap { opacity: 0.8; transform: none; }
+}
+
+/* ==========================================================
+   Выпадающий список (висит в body)
+   ========================================================== */
+
+.wfrp-paperdoll-flyout {
+  --rarity-none: #6b5f52;
+  --rarity-common: #c8c8c8;
+  --rarity-scarce: #1eff00;
+  --rarity-rare: #3a8dff;
+  --rarity-exotic: #b45cff;
+
+  position: fixed;
+  z-index: 9999;
+  width: 280px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 6px;
+  color: #e8dcc4;
+  background: rgba(20, 16, 12, 0.97);
+  border: 1px solid #c9a45c;
+  border-radius: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
+  font-size: 13px;
+  animation: pd-fly-in 0.12s ease-out;
+}
+@keyframes pd-fly-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.wfrp-paperdoll-flyout .pd-fly-title {
+  padding: 2px 6px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c9a45c;
+  border-bottom: 1px solid #5c4a32;
+}
+.wfrp-paperdoll-flyout .pd-fly-section {
+  padding: 8px 6px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a7a5e;
+}
+.wfrp-paperdoll-flyout .pd-fly-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.wfrp-paperdoll-flyout .pd-fly-row:hover { background: rgba(201, 164, 92, 0.15); }
+
+.wfrp-paperdoll-flyout .pd-fly-icon {
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--rarity-none);
+  border-radius: 3px;
+  background: #0d0b09;
+}
+.wfrp-paperdoll-flyout .pd-fly-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+}
+.wfrp-paperdoll-flyout .pd-fly-icon .pd-qty {
+  position: absolute;
+  right: 1px;
+  bottom: -1px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-common { border-color: var(--rarity-common); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-scarce { border-color: var(--rarity-scarce); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-rare { border-color: var(--rarity-rare); }
+.wfrp-paperdoll-flyout .pd-fly-icon.rarity-exotic { border-color: var(--rarity-exotic); }
+
+.wfrp-paperdoll-flyout .pd-fly-text { flex: 1; min-width: 0; }
+.wfrp-paperdoll-flyout .pd-fly-name {
+  font-weight: 700;
+  color: #e8dcc4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-common { color: #ffffff; }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-scarce { color: var(--rarity-scarce); }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-rare { color: var(--rarity-rare); }
+.wfrp-paperdoll-flyout .pd-fly-name.rarity-exotic { color: var(--rarity-exotic); }
+.wfrp-paperdoll-flyout .pd-fly-meta {
+  font-size: 11px;
+  color: #a8987a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wfrp-paperdoll-flyout .pd-fly-act {
+  color: #a8987a;
+  font-size: 13px;
+  padding: 4px;
+}
+.wfrp-paperdoll-flyout .pd-fly-row:hover .pd-fly-act { color: #ff6b5b; }
+.wfrp-paperdoll-flyout .pd-fly-empty {
+  padding: 8px 6px;
+  font-style: italic;
+  color: #8a7a5e;
+}
+
+</style></head><body>
+<p class="mock-note">Мок окна модуля: тот же шаблон и CSS, что в архиве, данные выдуманные. Наведи на слот - справа от иконки появится стрелочка быстрой смены. Ещё работают тултипы, перетаскивание и двойной клик.</p>
+<div class="app window-app wfrp-paperdoll"><header class="window-header"><i class="fa-solid fa-user-shield"></i><span class="window-title">Снаряжение: Хьюго Брандлин</span><i class="fa-solid fa-ellipsis-vertical"></i><i class="fa-solid fa-xmark"></i></header>
+<section class="window-content"><div class="pd-root ">
+
+  <section class="pd-doll">
+    <div class="pd-group pd-group--left">
+      <div class="pd-slot pd-slot--armour " data-slot="head">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Голова</span>
+          <span class="pd-ap" title="AP">1</span>
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-common " data-item-id="hood"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a4030%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AA%96%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кожаный капюшон">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="head" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--armour " data-slot="body">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Тело</span>
+          <span class="pd-ap" title="AP">1</span>
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-common " data-item-id="jack"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a5230%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A5%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кожаная куртка">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="body" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--armour " data-slot="rArm">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Правая рука</span>
+          <span class="pd-ap" title="AP">1</span>
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-common " data-item-id="jack"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a5230%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A5%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кожаная куртка">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="rArm" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--armour " data-slot="lArm">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Левая рука</span>
+          <span class="pd-ap" title="AP">1</span>
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-common " data-item-id="jack"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a5230%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A5%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кожаная куртка">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="lArm" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="pd-group pd-group--right">
+      <div class="pd-slot pd-slot--armour is-empty" data-slot="rLeg">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Правая нога</span>
+          <span class="pd-ap" title="AP">0</span>
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-slot-placeholder"><i class="fa-solid fa-socks"></i></div>
+          <button type="button" class="pd-swap" data-slot="rLeg" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--armour is-empty" data-slot="lLeg">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Левая нога</span>
+          <span class="pd-ap" title="AP">0</span>
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-slot-placeholder"><i class="fa-solid fa-socks"></i></div>
+          <button type="button" class="pd-swap" data-slot="lLeg" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--accessory " data-slot="accessory">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Одежда и аксессуары</span>
+          
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-common " data-item-id="robe"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a3a5a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%91%98%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Рваная ряса">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="accessory" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--container " data-slot="container">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Сумки и рюкзаки</span>
+          
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-common " data-item-id="sack"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5530%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%8E%92%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Котомка">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="container" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="pd-group pd-group--weapons">
+      <div class="pd-slot pd-slot--main " data-slot="main">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Основная рука</span>
+          
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-scarce " data-item-id="flail"
+               draggable="true">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5a4a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9B%93%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Цеп">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="main" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pd-slot pd-slot--off " data-slot="off">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">Вторая рука</span>
+          
+        </div>
+        <div class="pd-slot-items">
+          <div class="pd-item rarity-scarce is-ghost" data-item-id="flail"
+               draggable="false">
+            <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5a4a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9B%93%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Цеп">
+            
+          </div>
+          <button type="button" class="pd-swap" data-slot="off" title="Быстрая смена">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pd-center">
+      <div class="pd-portrait" data-action="openSheet" title="Хьюго Брандлин">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20400%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22b%22%20cx%3D%2250%25%22%20cy%3D%2230%25%22%20r%3D%2280%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a3a22%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23120d09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22300%22%20height%3D%22400%22%20fill%3D%22url(%23b)%22%2F%3E%3Cg%20fill%3D%22%230a0806%22%20opacity%3D%22.9%22%3E%3Ccircle%20cx%3D%22150%22%20cy%3D%22120%22%20r%3D%2248%22%2F%3E%3Cpath%20d%3D%22M60%20400%20C60%20250%20100%20190%20150%20190%20C200%20190%20240%20250%20240%20400Z%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M150%20200%20L150%20330%20M115%20240%20L185%20240%22%20stroke%3D%22%238a2a1f%22%20stroke-width%3D%2210%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E" alt="Хьюго Брандлин">
+        <div class="pd-name">Хьюго Брандлин</div>
+      </div>
+
+      <div class="pd-chars">
+        <div class="pd-char" title="ОР: 38 (3)">
+          <span class="pd-char-label">ОР</span>
+          <span class="pd-char-value">38</span>
+        </div>
+        <div class="pd-char" title="ОС: 27 (2)">
+          <span class="pd-char-label">ОС</span>
+          <span class="pd-char-value">27</span>
+        </div>
+        <div class="pd-char" title="С: 41 (4)">
+          <span class="pd-char-label">С</span>
+          <span class="pd-char-value">41</span>
+        </div>
+        <div class="pd-char" title="В: 44 (4)">
+          <span class="pd-char-label">В</span>
+          <span class="pd-char-value">44</span>
+        </div>
+        <div class="pd-char" title="И: 33 (3)">
+          <span class="pd-char-label">И</span>
+          <span class="pd-char-value">33</span>
+        </div>
+        <div class="pd-char" title="Л: 36 (3)">
+          <span class="pd-char-label">Л</span>
+          <span class="pd-char-value">36</span>
+        </div>
+        <div class="pd-char" title="Лв: 29 (2)">
+          <span class="pd-char-label">Лв</span>
+          <span class="pd-char-value">29</span>
+        </div>
+        <div class="pd-char" title="Инт: 31 (3)">
+          <span class="pd-char-label">Инт</span>
+          <span class="pd-char-value">31</span>
+        </div>
+        <div class="pd-char" title="СВ: 47 (4)">
+          <span class="pd-char-label">СВ</span>
+          <span class="pd-char-value">47</span>
+        </div>
+        <div class="pd-char" title="Х: 24 (2)">
+          <span class="pd-char-label">Х</span>
+          <span class="pd-char-value">24</span>
+        </div>
+      </div>
+
+      <div class="pd-vitals">
+        <div class="pd-bar pd-bar--wounds">
+          <div class="pd-bar-fill" style="width: 78%"></div>
+          <span class="pd-bar-text">Раны: 11 / 14</span>
+        </div>
+        <div class="pd-bar pd-bar--enc is-ok">
+          <div class="pd-bar-fill" style="width: 62%"></div>
+          <span class="pd-bar-text">Нагрузка: 5 / 8 · норма</span>
+        </div>
+        <div class="pd-equip-points">Руки заняты: 2 / 2</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pd-bag">
+    <header class="pd-bag-head">
+      <span class="pd-bag-title"><i class="fa-solid fa-sack"></i> Сумка</span>
+      <nav class="pd-filters">
+        <button type="button" class="pd-filter is-active" data-action="setFilter" data-filter="all">
+          Всё <span class="pd-filter-count">13</span>
+        </button>
+        <button type="button" class="pd-filter " data-action="setFilter" data-filter="weapon">
+          Оружие <span class="pd-filter-count">4</span>
+        </button>
+        <button type="button" class="pd-filter " data-action="setFilter" data-filter="armour">
+          Броня <span class="pd-filter-count">2</span>
+        </button>
+        <button type="button" class="pd-filter " data-action="setFilter" data-filter="clothing">
+          Одежда <span class="pd-filter-count">1</span>
+        </button>
+        <button type="button" class="pd-filter " data-action="setFilter" data-filter="other">
+          Прочее <span class="pd-filter-count">5</span>
+        </button>
+      </nav>
+    </header>
+
+    <div class="pd-bag-grid">
+      <div class="pd-item rarity-common " data-item-id="dagger"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a6a7a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%97%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кинжал">
+        
+      </div>
+      <div class="pd-item rarity-common " data-item-id="whip"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a3020%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E3%80%B0%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Плеть">
+        
+      </div>
+      <div class="pd-item rarity-rare " data-item-id="sword"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%238a8a9a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9A%94%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Меч охотника на ведьм">
+        
+      </div>
+      <div class="pd-item rarity-common " data-item-id="buckler"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a6a3a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%94%B0%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Баклер">
+        
+      </div>
+      <div class="pd-item rarity-scarce " data-item-id="mail"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a7a8a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%9B%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кольчужная рубаха">
+        
+      </div>
+      <div class="pd-item rarity-common " data-item-id="legs"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a4a2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%91%96%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Кожаные штаны">
+        
+      </div>
+      <div class="pd-item rarity-common " data-item-id="cap"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a4a3a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A2%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Шапка">
+        
+      </div>
+      <div class="pd-item rarity-exotic is-plain" data-item-id="relic"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23c9a45c%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%98%9D%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Палец святого">
+        
+      </div>
+      <div class="pd-item rarity-rare is-plain" data-item-id="tome"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%238a3a2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%93%96%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Молитвенник Зигмара">
+        
+      </div>
+      <div class="pd-item rarity-common is-plain" data-item-id="candle"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a08050%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%95%AF%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Свечи">
+        <span class="pd-qty">6</span>
+      </div>
+      <div class="pd-item rarity-common is-plain" data-item-id="bandage"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a09080%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A9%B9%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Бинты">
+        <span class="pd-qty">4</span>
+      </div>
+      <div class="pd-item rarity-common is-plain" data-item-id="water"
+           draggable="true">
+        <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a6a7a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AB%97%3C%2Ftext%3E%3C%2Fsvg%3E" alt="Фляга с водой">
+        
+      </div>
+      
+    </div>
+
+    <footer class="pd-bag-hint">Перетащи предмет в слот, чтобы надеть, обратно в сумку - чтобы снять. Двойной клик - надеть/снять, ПКМ - открыть предмет.</footer>
+  </section>
+
+</div>
+</section></div>
+<script>
+const T={"flail":{"two":true,"m":"Урон +8 · Двуручное","name":"Цеп","g":"⛓️","c":"#6a5a4a","r":"scarce","t":"weapon","sub":"Оружие · Надето","rows":[["Цепы","Двуручное"]],"stats":["Урон: <b>+8</b>","Длина: Средняя"],"q":["Отвлекающее","Обвивающее"],"f":["Опасное"],"d":"Тяжёлые цепи с шипами, которыми флагеллант бичует себя и врагов Зигмара.","foot":"Нагрузка: 1 · 2 зк","av":"Дефицит","id":"flail","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5a4a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9B%93%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"scarce","draggable":true,"equippable":true},"jack":{"m":"AP: Тело 1, Руки 1","name":"Кожаная куртка","g":"🧥","c":"#7a5230","r":"common","t":"armour","sub":"Броня · Надето","rows":[["Мягкая кожа"]],"stats":["Очки брони:<br>Тело: <b>1</b><br>Правая рука: <b>1</b><br>Левая рука: <b>1</b>"],"q":[],"f":[],"d":"Потёртая кожаная куртка, пропитанная кровью и воском.","foot":"Нагрузка: 0 · 12 сш","av":"Обычное","id":"jack","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a5230%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A5%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"hood":{"m":"AP: Голова 1","name":"Кожаный капюшон","g":"🪖","c":"#5a4030","r":"common","t":"armour","sub":"Броня · Надето","rows":[["Мягкая кожа"]],"stats":["Очки брони:<br>Голова: <b>1</b>"],"q":[],"f":["Частичное"],"d":"","foot":"Нагрузка: 0 · 5 сш","av":"Обычное","id":"hood","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a4030%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AA%96%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"robe":{"m":"Снаряжение","name":"Рваная ряса","g":"👘","c":"#4a3a5a","r":"common","t":"trapping","sub":"Снаряжение · Надето","rows":[],"stats":[],"q":[],"f":[],"d":"Ряса, порванная плетьми. На спине вышит молот Зигмара.","foot":"Нагрузка: 0 · 2 сш","av":"Обычное","id":"robe","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a3a5a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%91%98%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"sack":{"m":"Контейнер","name":"Котомка","g":"🎒","c":"#6a5530","r":"common","t":"container","sub":"Контейнер · Надето","rows":[],"stats":[],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 4 сш","av":"Обычное","id":"sack","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a5530%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%8E%92%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"dagger":{"m":"Урон +5 · Одноручное","name":"Кинжал","g":"🗡️","c":"#5a6a7a","r":"common","t":"weapon","sub":"Оружие","rows":[["Обычное","Одноручное"]],"stats":["Урон: <b>+5</b>","Длина: Очень короткая"],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 16 сш","av":"Обычное","id":"dagger","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a6a7a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%97%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"mail":{"m":"AP: Тело 2","name":"Кольчужная рубаха","g":"🛡️","c":"#7a7a8a","r":"scarce","t":"armour","sub":"Броня","rows":[["Кольчуга"]],"stats":["Очки брони:<br>Тело: <b>2</b>"],"q":["Гибкая"],"f":[],"d":"Снята с мёртвого рыцаря у дороги на Убершрейк.","foot":"Нагрузка: 2 · 3 зк","av":"Дефицит","id":"mail","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a7a8a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%9B%A1%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"scarce","draggable":true,"equippable":true},"relic":{"name":"Палец святого","g":"☝️","c":"#c9a45c","r":"exotic","t":"trapping","sub":"Снаряжение","rows":[],"stats":[],"q":["Священное"],"f":[],"d":"Высохший палец в серебряном ковчежце. Говорят, принадлежал мученику из Нульна.","foot":"Нагрузка: 0 · 10 зк","av":"Экзотика","id":"relic","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23c9a45c%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%98%9D%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"exotic","draggable":true,"equippable":false},"tome":{"name":"Молитвенник Зигмара","g":"📖","c":"#8a3a2a","r":"rare","t":"trapping","sub":"Снаряжение","rows":[],"stats":[],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 1 зк","av":"Редкое","id":"tome","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%238a3a2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%93%96%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"rare","draggable":true,"equippable":false},"candle":{"name":"Свечи","g":"🕯️","c":"#a08050","r":"common","t":"trapping","sub":"Снаряжение","qty":6,"rows":[],"stats":[],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 1 п","av":"Обычное","id":"candle","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a08050%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%95%AF%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":false},"bandage":{"name":"Бинты","g":"🩹","c":"#a09080","r":"common","t":"trapping","sub":"Снаряжение","qty":4,"rows":[],"stats":[],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 2 п","av":"Обычное","id":"bandage","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a09080%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A9%B9%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":false},"water":{"name":"Фляга с водой","g":"🫗","c":"#4a6a7a","r":"common","t":"trapping","sub":"Снаряжение","rows":[],"stats":[],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 3 п","av":"Обычное","id":"water","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234a6a7a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%AB%97%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":false},"whip":{"m":"Урон +2 · Одноручное","name":"Плеть","g":"〰️","c":"#5a3020","r":"common","t":"weapon","sub":"Оружие","rows":[["Цепы","Одноручное"]],"stats":["Урон: <b>+2</b>","Длина: Длинная"],"q":["Быстрое","Обвивающее"],"f":["Слабое"],"d":"","foot":"Нагрузка: 0 · 5 сш","av":"Обычное","id":"whip","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a3020%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E3%80%B0%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"sword":{"m":"Урон +7 · Одноручное","name":"Меч охотника на ведьм","g":"⚔️","c":"#8a8a9a","r":"rare","t":"weapon","sub":"Оружие","rows":[["Обычное","Одноручное"]],"stats":["Урон: <b>+7</b>","Длина: Средняя"],"q":["Пробивающее"],"f":[],"d":"Подарок храмовника, который не дожил до утра.","foot":"Нагрузка: 1 · 1 зк","av":"Редкое","id":"sword","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%238a8a9a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%E2%9A%94%EF%B8%8F%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"rare","draggable":true,"equippable":true},"buckler":{"m":"Урон +1 · Одноручное","name":"Баклер","g":"🔰","c":"#7a6a3a","r":"common","t":"weapon","sub":"Оружие","rows":[["Парирующее","Одноручное"]],"stats":["Урон: <b>+1</b>"],"q":["Щит 1","Защитное"],"f":[],"d":"","foot":"Нагрузка: 0 · 18 сш","av":"Обычное","id":"buckler","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%237a6a3a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%94%B0%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"legs":{"m":"AP: Ноги 1","name":"Кожаные штаны","g":"👖","c":"#6a4a2a","r":"common","t":"armour","sub":"Броня","rows":[["Мягкая кожа"]],"stats":["Очки брони:<br>Правая нога: <b>1</b><br>Левая нога: <b>1</b>"],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 14 сш","av":"Обычное","id":"legs","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236a4a2a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%91%96%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true},"cap":{"m":"Снаряжение","name":"Шапка","g":"🧢","c":"#5a4a3a","r":"common","t":"trapping","sub":"Снаряжение","rows":[],"stats":[],"q":[],"f":[],"d":"","foot":"Нагрузка: 0 · 8 п","av":"Обычное","id":"cap","img":"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235a4a3a%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230d0b09%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22url(%23g)%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-size%3D%2234%22%20text-anchor%3D%22middle%22%3E%F0%9F%A7%A2%3C%2Ftext%3E%3C%2Fsvg%3E","rarity":"common","draggable":true,"equippable":true}};
+const tt=document.createElement('div');tt.className='wfrp-paperdoll-tooltip';document.body.append(tt);
+const build=v=>'<div class="pd-tt-name rarity-'+v.rarity+'">'+v.name+'</div><div class="pd-tt-sub">'+v.sub+'</div>'+v.rows.map(r=>'<div class="pd-tt-row">'+r.map(x=>'<span>'+x+'</span>').join('')+'</div>').join('')+v.stats.map(s=>'<div class="pd-tt-stat">'+s+'</div>').join('')+(v.q.length?'<div class="pd-tt-quality">'+v.q.join(', ')+'</div>':'')+(v.f.length?'<div class="pd-tt-flaw">'+v.f.join(', ')+'</div>':'')+(v.d?'<div class="pd-tt-desc">«'+v.d+'»</div>':'')+'<div class="pd-tt-footer">'+v.foot+'</div><div class="pd-tt-avail rarity-'+v.rarity+'">'+v.av+'</div><div class="pd-tt-hint">Двойной клик - надеть/снять · ПКМ - открыть</div>';
+function move(e){const r=tt.getBoundingClientRect();let x=e.clientX+16,y=e.clientY+16;if(x+r.width>innerWidth-8)x=e.clientX-r.width-16;if(y+r.height>innerHeight-8)y=Math.max(8,innerHeight-r.height-8);tt.style.left=x+'px';tt.style.top=y+'px'}
+const LOC={hood:['head'],jack:['body','rArm','lArm'],mail:['body'],legs:['rLeg','lLeg'],cap:[]};
+const canDrop=(id,slot)=>{const t=T[id].t;if(['head','body','rArm','lArm','rLeg','lLeg'].includes(slot))return t==='armour'&&(LOC[id]||[]).includes(slot);if(slot==='main'||slot==='off')return t==='weapon';if(slot==='accessory')return id==='robe'||id==='cap';if(slot==='container')return t==='container';return false};
+let drag=null;const root=document.querySelector('.pd-root');
+function bind(el){const id=el.dataset.itemId;
+ el.onpointerenter=e=>{tt.innerHTML=build(T[id]);tt.classList.add('is-visible');move(e)};el.onpointermove=move;el.onpointerleave=()=>tt.classList.remove('is-visible');
+ if(el.classList.contains('is-ghost'))return;
+ el.ondragstart=e=>{tt.classList.remove('is-visible');drag=el;e.dataTransfer.setData('text/plain',id);el.classList.add('is-dragging');root.querySelectorAll('.pd-slot').forEach(s=>{const ok=canDrop(id,s.dataset.slot);s.classList.toggle('is-valid',ok);s.classList.toggle('is-invalid',!ok)});if(el.closest('.pd-slot'))root.querySelector('.pd-bag').classList.add('is-valid')};
+ el.ondragend=()=>{drag=null;root.querySelectorAll('.is-valid,.is-invalid,.is-dragging').forEach(x=>x.classList.remove('is-valid','is-invalid','is-dragging'))};
+ el.ondblclick=()=>{tt.classList.remove('is-visible');if(el.closest('.pd-slot'))toBag(id);else{const s=[...root.querySelectorAll('.pd-slot')].find(s=>canDrop(id,s.dataset.slot));if(s)equip(id,s.dataset.slot);else toast('«'+T[id].name+'» нельзя надеть')}}}
+function mk(id){const v=T[id];const d=document.createElement('div');d.className='pd-item rarity-'+v.rarity;d.dataset.itemId=id;d.draggable=true;d.innerHTML='<img src="'+v.img+'">'+(v.qty?'<span class="pd-qty">'+v.qty+'</span>':'');bind(d);return d}
+function refreshEmpty(){root.querySelectorAll('.pd-slot').forEach(s=>{const b=s.querySelector('.pd-slot-items');const has=b.querySelector('.pd-item');s.classList.toggle('is-empty',!has);const ph=b.querySelector('.pd-slot-placeholder');if(has&&ph)ph.remove();if(!has&&!ph){const p=document.createElement('div');p.className='pd-slot-placeholder';p.innerHTML='<i class="'+s.dataset.icon+'"></i>';b.insertBefore(p,b.querySelector('.pd-swap'))}})}
+function removeAll(id){root.querySelectorAll('.pd-item[data-item-id="'+id+'"]').forEach(x=>x.remove())}
+const box=s=>root.querySelector('[data-slot="'+s+'"] .pd-slot-items');
+const bagGrid=()=>root.querySelector('.pd-bag-grid');
+function put(s,el){box(s).insertBefore(el,box(s).querySelector('.pd-swap'))}
+function clearSlot(s){box(s).querySelectorAll('.pd-item').forEach(x=>{if(!x.classList.contains('is-ghost'))bagGrid().append(mk(x.dataset.itemId));x.remove()})}
+function equip(id,slot){if(!canDrop(id,slot)){toast('«'+T[id].name+'» нельзя поместить в этот слот');return}
+ removeAll(id);
+ if(T[id].t==='weapon'){
+  const two=!!T[id].two;if(two)slot='main';
+  const mainTwo=[...box('main').querySelectorAll('.pd-item')].some(x=>T[x.dataset.itemId].two);
+  if(two||mainTwo){clearSlot('main');clearSlot('off')}else clearSlot(slot);
+  put(slot,mk(id));
+  if(two){const g=mk(id);g.classList.add('is-ghost');g.draggable=false;put('off',g)}
+ } else {(T[id].t==='armour'?LOC[id]:[slot]).forEach(s=>put(s,mk(id)))}
+ refreshEmpty()}
+function toBag(id){removeAll(id);bagGrid().append(mk(id));refreshEmpty()}
+function toast(m){const t=document.createElement('div');t.textContent=m;t.style.cssText='position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#5a1a14;color:#fff;padding:8px 14px;border-radius:4px;font-size:13px;z-index:20000';document.body.append(t);setTimeout(()=>t.remove(),2200)}
+root.querySelectorAll('.pd-slot').forEach(s=>{const ph=s.querySelector('.pd-slot-placeholder i');s.dataset.icon=ph?ph.className:({rLeg:'fa-solid fa-socks',lLeg:'fa-solid fa-socks',off:'fa-solid fa-shield-halved',main:'fa-solid fa-hand-fist',head:'fa-solid fa-user',body:'fa-solid fa-shirt',rArm:'fa-solid fa-hand',lArm:'fa-solid fa-hand',accessory:'fa-solid fa-ring',container:'fa-solid fa-sack-xmark'})[s.dataset.slot];
+ s.ondragover=e=>e.preventDefault();s.ondrop=e=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');if(drag)drag.ondragend();equip(id,s.dataset.slot)}});
+const bag=root.querySelector('.pd-bag');bag.ondragover=e=>e.preventDefault();bag.ondrop=e=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');const from=drag&&drag.closest('.pd-slot');if(drag)drag.ondragend();if(from)toBag(id)};
+root.querySelectorAll('.pd-item').forEach(bind);
+root.querySelectorAll('.pd-filter').forEach(b=>b.onclick=()=>{root.querySelectorAll('.pd-filter').forEach(x=>x.classList.remove('is-active'));b.classList.add('is-active');const f=b.dataset.filter;root.querySelectorAll('.pd-bag-grid .pd-item').forEach(el=>{const t=T[el.dataset.itemId].t;const ok=f==='all'||(f==='weapon'&&t==='weapon')||(f==='armour'&&t==='armour')||(f==='clothing'&&(t==='container'||el.dataset.itemId==='cap'))||(f==='other'&&t==='trapping'&&el.dataset.itemId!=='cap');el.style.display=ok?'':'none'})});
+
+const SLOTN={head:'Голова',body:'Тело',rArm:'Правая рука',lArm:'Левая рука',rLeg:'Правая нога',lLeg:'Левая нога',accessory:'Одежда и аксессуары',container:'Сумки и рюкзаки',main:'Основная рука',off:'Вторая рука'};
+let fly=null,flyBtn=null,flySlot=null;
+function inSlot(id,slot){return [...box(slot).querySelectorAll('.pd-item:not(.is-ghost)')].some(x=>x.dataset.itemId===id)}
+function whereW(id){if(inSlot(id,'main'))return 'main';if(inSlot(id,'off'))return 'off';return null}
+function closeFly(){fly?.remove();fly=null;flyBtn?.classList.remove('is-open');flyBtn=null;flySlot=null;tt.classList.remove('is-visible')}
+function openFly(slot,btn){closeFly();
+ const all=Object.keys(T).filter(id=>canDrop(id,slot));
+ const cur=all.filter(id=>inSlot(id,slot));let av=all.filter(id=>!inSlot(id,slot));if(slot==='off')av=av.filter(id=>!T[id].two);
+ const row=(id,act)=>{const v=T[id];let m=v.m||'';const w=act==='equip'&&v.t==='weapon'?whereW(id):null;if(w)m+=' · сейчас: '+SLOTN[w];
+  return '<div class="pd-fly-row" data-id="'+id+'" data-act="'+act+'"><div class="pd-fly-icon rarity-'+v.rarity+'"><img src="'+v.img+'">'+(v.qty?'<span class="pd-qty">'+v.qty+'</span>':'')+'</div><div class="pd-fly-text"><div class="pd-fly-name rarity-'+v.rarity+'">'+v.name+'</div><div class="pd-fly-meta">'+m+'</div></div>'+(act==='unequip'?'<i class="fa-solid fa-xmark pd-fly-act" title="Снять"></i>':'')+'</div>'};
+ let h='<div class="pd-fly-title">'+SLOTN[slot]+'</div>';
+ if(cur.length)h+='<div class="pd-fly-section">Надето</div>'+cur.map(i=>row(i,'unequip')).join('');
+ h+='<div class="pd-fly-section">Можно надеть</div>'+(av.length?av.map(i=>row(i,'equip')).join(''):'<div class="pd-fly-empty">Подходящих предметов нет</div>');
+ fly=document.createElement('div');fly.className='wfrp-paperdoll-flyout';fly.innerHTML=h;document.body.append(fly);flyBtn=btn;flySlot=slot;btn.classList.add('is-open');
+ const r=btn.getBoundingClientRect(),fr=fly.getBoundingClientRect();let x=r.right+6;if(x+fr.width>innerWidth-8)x=r.left-fr.width-6;let y=r.top-8;if(y+fr.height>innerHeight-8)y=Math.max(8,innerHeight-fr.height-8);fly.style.left=Math.max(8,x)+'px';fly.style.top=y+'px';
+ fly.querySelectorAll('.pd-fly-row').forEach(el=>{const id=el.dataset.id;el.onpointerenter=e=>{tt.innerHTML=build(T[id]);tt.classList.add('is-visible');move(e)};el.onpointermove=move;el.onpointerleave=()=>tt.classList.remove('is-visible');
+  el.onclick=()=>{const act=el.dataset.act;closeFly();if(act==='unequip')toBag(id);else equip(id,slot)}})}
+root.querySelectorAll('.pd-swap').forEach(b=>b.onclick=e=>{e.stopPropagation();tt.classList.remove('is-visible');if(fly&&flySlot===b.dataset.slot)closeFly();else openFly(b.dataset.slot,b)});
+document.addEventListener('pointerdown',e=>{if(fly&&!fly.contains(e.target)&&!e.target.closest('.pd-swap'))closeFly()},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFly()});
+</script></body></html>

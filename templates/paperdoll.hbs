@@ -1,0 +1,90 @@
+<div class="pd-root {{#unless editable}}is-readonly{{/unless}}">
+
+  <section class="pd-doll">
+    {{#each groups}}
+    <div class="pd-group pd-group--{{area}}">
+      {{#each slots}}
+      <div class="pd-slot pd-slot--{{kind}} {{#unless items.length}}is-empty{{/unless}}" data-slot="{{key}}">
+        <div class="pd-slot-head">
+          <span class="pd-slot-label">{{label}}</span>
+          {{#if showAP}}<span class="pd-ap" title="AP">{{ap}}</span>{{/if}}
+        </div>
+        <div class="pd-slot-items">
+          {{#each items}}
+          <div class="pd-item rarity-{{rarity}} {{#if ghost}}is-ghost{{/if}}" data-item-id="{{id}}"
+               draggable="{{#if draggable}}true{{else}}false{{/if}}">
+            <img src="{{img}}" alt="{{name}}">
+            {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
+          </div>
+          {{else}}
+          <div class="pd-slot-placeholder"><i class="{{icon}}"></i></div>
+          {{/each}}
+          {{#if @root.editable}}
+          <button type="button" class="pd-swap" data-slot="{{key}}" title="{{localize "WFRPPD.Swap"}}">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+    {{/each}}
+
+    <div class="pd-center">
+      <div class="pd-portrait" data-action="openSheet" title="{{name}}">
+        <img src="{{img}}" alt="{{name}}">
+        <div class="pd-name">{{name}}</div>
+      </div>
+
+      <div class="pd-chars">
+        {{#each characteristics}}
+        <div class="pd-char" title="{{label}}: {{value}} ({{bonus}})">
+          <span class="pd-char-label">{{label}}</span>
+          <span class="pd-char-value">{{value}}</span>
+        </div>
+        {{/each}}
+      </div>
+
+      <div class="pd-vitals">
+        <div class="pd-bar pd-bar--wounds">
+          <div class="pd-bar-fill" style="width: {{wounds.pct}}%"></div>
+          <span class="pd-bar-text">{{localize "WFRPPD.Wounds"}}: {{wounds.value}} / {{wounds.max}}</span>
+        </div>
+        <div class="pd-bar pd-bar--enc is-{{encumbrance.state}}">
+          <div class="pd-bar-fill" style="width: {{encumbrance.pct}}%"></div>
+          <span class="pd-bar-text">{{localize "WFRPPD.Encumbrance"}}: {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
+        </div>
+        {{#if equipPoints}}
+        <div class="pd-equip-points">{{localize "WFRPPD.EquipPoints"}}: {{equipPoints.used}} / {{equipPoints.max}}</div>
+        {{/if}}
+      </div>
+    </div>
+  </section>
+
+  <section class="pd-bag">
+    <header class="pd-bag-head">
+      <span class="pd-bag-title"><i class="fa-solid fa-sack"></i> {{localize "WFRPPD.Bag"}}</span>
+      <nav class="pd-filters">
+        {{#each filters}}
+        <button type="button" class="pd-filter {{#if active}}is-active{{/if}}" data-action="setFilter" data-filter="{{key}}">
+          {{label}} <span class="pd-filter-count">{{count}}</span>
+        </button>
+        {{/each}}
+      </nav>
+    </header>
+
+    <div class="pd-bag-grid">
+      {{#each bag}}
+      <div class="pd-item rarity-{{rarity}} {{#unless equippable}}is-plain{{/unless}}" data-item-id="{{id}}"
+           draggable="{{#if draggable}}true{{else}}false{{/if}}">
+        <img src="{{img}}" alt="{{name}}">
+        {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
+      </div>
+      {{/each}}
+      {{#if bagEmpty}}<div class="pd-bag-empty">{{localize "WFRPPD.BagEmpty"}}</div>{{/if}}
+    </div>
+
+    <footer class="pd-bag-hint">{{localize "WFRPPD.Hint"}}</footer>
+  </section>
+
+</div>

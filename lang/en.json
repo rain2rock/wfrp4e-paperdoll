@@ -1,0 +1,60 @@
+{
+  "WFRPPD": {
+    "Open": "Equipment (paperdoll)",
+    "Title": "Equipment",
+    "Bag": "Bag",
+    "BagEmpty": "Empty",
+    "Wounds": "Wounds",
+    "Encumbrance": "Encumbrance",
+    "EquipPoints": "Hands used",
+    "Hint": "Drag an item onto a slot to equip it, back to the bag to unequip. Double-click to equip/unequip, right-click to open.",
+    "Slot": {
+      "Main": "Main hand",
+      "Off": "Off hand",
+      "Accessory": "Clothing & accessories",
+      "Container": "Bags & packs"
+    },
+    "Filter": {
+      "all": "All",
+      "weapon": "Weapons",
+      "armour": "Armour",
+      "clothing": "Clothing",
+      "other": "Other"
+    },
+    "Enc": {
+      "ok": "fine",
+      "over": "encumbered",
+      "max": "overloaded"
+    },
+    "Tooltip": {
+      "Equipped": "Equipped",
+      "OneHanded": "One-handed",
+      "TwoHanded": "Two-handed",
+      "Damage": "Damage",
+      "Reach": "Reach",
+      "Range": "Range",
+      "AP": "Armour points:",
+      "Penalty": "Penalty",
+      "Enc": "Enc",
+      "Hint": "Double-click to equip/unequip · Right-click to open",
+      "APShort": "AP"
+    },
+    "Money": {
+      "gc": "GC",
+      "ss": "SS",
+      "bp": "BP"
+    },
+    "Warn": {
+      "WrongSlot": "\"{item}\" can't go into the \"{slot}\" slot.",
+      "NotOwned": "Add the item to the character first, then equip it from the paperdoll."
+    },
+    "Swap": "Quick swap",
+    "Fly": {
+      "Current": "Equipped",
+      "Available": "Available",
+      "Empty": "No matching items",
+      "Unequip": "Unequip",
+      "Now": "now: {slot}"
+    }
+  }
+}
