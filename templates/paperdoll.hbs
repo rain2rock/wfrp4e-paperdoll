@@ -32,6 +32,11 @@
       <div class="pd-hero-text">
         <div class="pd-hero-name">{{name}}</div>
         {{#if subtitle}}<div class="pd-hero-sub">{{subtitle}}</div>{{/if}}
+        {{#if money}}
+        <div class="pd-money" title="{{localize "WFRPPD.Money.Title"}}. {{money.hint}}">
+          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}}" title="{{title}}">{{value}}</span>{{/each}}
+        </div>
+        {{/if}}
       </div>
       {{#if careerIcon}}
       <div class="pd-hero-career" title="{{careerIcon.title}}">

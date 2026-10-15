@@ -1316,3 +1316,56 @@
 .wfrp-paperdoll-flyout.pd-theme-parchment .pd-chip.is-good { background: rgba(47, 122, 18, 0.1); border-color: rgba(47, 122, 18, 0.4); }
 .wfrp-paperdoll-flyout.pd-theme-parchment .pd-chip.is-info { background: rgba(0, 0, 0, 0.05); border-color: rgba(0, 0, 0, 0.15); }
 .wfrp-paperdoll-flyout.pd-theme-parchment img.pd-fly-bis { filter: drop-shadow(0 0 3px rgba(122, 76, 8, 0.5)); }
+
+/* ---------- v0.10.1: деньги, контраст нагрузки, вкладки ---------- */
+
+/* Деньги под именем: монеты по номиналам */
+.wfrp-paperdoll .pd-money {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pd-text);
+}
+.wfrp-paperdoll .pd-coin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+.wfrp-paperdoll .pd-coin::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 -2px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.wfrp-paperdoll .pd-coin--gc::before { background: radial-gradient(circle at 35% 30%, #fff3a0, #e0b020 55%, #8a6408); }
+.wfrp-paperdoll .pd-coin--ss::before { background: radial-gradient(circle at 35% 30%, #ffffff, #c8ccd0 55%, #6e7378); }
+.wfrp-paperdoll .pd-coin--bp::before { background: radial-gradient(circle at 35% 30%, #ffd2a0, #c07a38 55%, #6a3a12); }
+
+/* Текст нагрузки: белый с тёмной обводкой, читается на любой заливке */
+.wfrp-paperdoll .pd-enc span,
+.pd-theme-parchment .pd-enc span {
+  font-weight: 700;
+  color: #fff;
+  -webkit-text-stroke: 0;
+  text-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000;
+}
+
+/* Активная вкладка без нижней линии: линия полосы вкладок рисуется под вкладками,
+   активная перекрывает её, а нижняя кромка её картинки уходит за край */
+.wfrp-paperdoll .pd-tabs {
+  border-bottom: none;
+  align-items: flex-end;
+  box-shadow: inset 0 -1px 0 var(--pd-frame);
+}
+.wfrp-paperdoll .pd-tab.is-active {
+  height: 31px;
+  background-size: 100% calc(100% + 8px);
+  background-position: center top;
+}

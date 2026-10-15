@@ -451,6 +451,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       name: actor.name,
       subtitle,
       careerIcon,
+      money: this._moneyView(),
       theme: currentTheme(),
       art: {
         swap: ui("ui-swap-arrow"),
@@ -606,6 +607,32 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ]
       });
     return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`), art: STAT_ART[c.key] ? ui(STAT_ART[c.key]) : null }));
+  }
+
+  /** Деньги персонажа: монеты по номиналам (1 зк = 20 сш = 240 п) */
+  _moneyView() {
+    const L = (k) => game.i18n.localize(k);
+    const coins = this.actor.items.filter((i) => i.type === "money");
+    if (!coins.length) return null;
+    let total = 0;
+    const by = { gc: 0, ss: 0, bp: 0 };
+    for (const c of coins) {
+      const qty = Number(c.system.quantity?.value) || 0;
+      const value = Number(c.system.coinValue?.value) || 1;
+      total += qty * value;
+      if (value === 240) by.gc += qty;
+      else if (value === 12) by.ss += qty;
+      else if (value === 1) by.bp += qty;
+      else by.bp += qty * value;
+    }
+    const parts = ["gc", "ss", "bp"].map((k) => ({ key: k, value: by[k], label: L(`WFRPPD.Money.${k}`), title: L(`WFRPPD.Money.Name.${k}`) }));
+    const gc = Math.floor(total / 240);
+    const ss = Math.floor((total % 240) / 12);
+    const bp = total % 12;
+    const sum = [gc && `${gc} ${L("WFRPPD.Money.gc")}`, ss && `${ss} ${L("WFRPPD.Money.ss")}`, (bp || !total) && `${bp} ${L("WFRPPD.Money.bp")}`]
+      .filter(Boolean)
+      .join(" ");
+    return { parts, hint: game.i18n.format("WFRPPD.Money.Total", { sum }) };
   }
 
   _itemView(item, editable, extra = {}) {

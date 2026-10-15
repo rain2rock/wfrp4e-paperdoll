@@ -98,3 +98,10 @@ export const LOOT = [
   { id: "loot-pouch", name: "Кошель", type: "container", _icon: "core:containers/bags/pouch-leather-simple-tan.webp",
     system: base({ encumbrance: { value: 0 }, price: { bp: 4 }, carries: { value: 1 } }) }
 ];
+
+/** Кошелёк для мока: монеты WFRP (coinValue в медных пенни) */
+export const COINS = [
+  { id: "coin-gc", name: "Золотая крона", type: "money", system: { quantity: { value: 2 }, coinValue: { value: 240 }, encumbrance: { value: 0.005 } } },
+  { id: "coin-ss", name: "Серебряный шиллинг", type: "money", system: { quantity: { value: 14 }, coinValue: { value: 12 }, encumbrance: { value: 0.005 } } },
+  { id: "coin-bp", name: "Медный пенни", type: "money", system: { quantity: { value: 37 }, coinValue: { value: 1 }, encumbrance: { value: 0.005 } } }
+];

@@ -46,7 +46,14 @@
     "Money": {
       "gc": "GC",
       "ss": "SS",
-      "bp": "BP"
+      "bp": "BP",
+      "Name": {
+        "gc": "Gold Crowns",
+        "ss": "Silver Shillings",
+        "bp": "Brass Pennies"
+      },
+      "Total": "Total: {sum}",
+      "Title": "Money"
     },
     "Warn": {
       "WrongSlot": "\"{item}\" can't go into the \"{slot}\" slot.",

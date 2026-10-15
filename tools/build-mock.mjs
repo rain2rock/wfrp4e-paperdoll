@@ -27,7 +27,7 @@ import { createRequire } from "node:module";
 import crypto from "node:crypto";
 import { actorData as demoActor, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
-import { LOOT } from "./mock-loot.mjs";
+import { LOOT, COINS } from "./mock-loot.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
@@ -61,6 +61,8 @@ if ("loot" in args) {
   const loot = structuredClone(LOOT).map((i) => ({ ...i, img: emojiIcon(...(GLYPH[i.type] ?? GLYPH.trapping)) }));
   actor = { ...actor, items: [...actor.items, ...loot] };
 }
+// Деньги: если в слепке их нет, кладём тестовый кошелёк
+if (!actor.items.some((i) => i.type === "money")) actor = { ...actor, items: [...actor.items, ...structuredClone(COINS)] };
 function emojiIcon(glyph, color) {
   return "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><radialGradient id="g" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#0d0b09"/></radialGradient></defs><rect width="64" height="64" fill="url(#g)"/><text x="32" y="44" font-size="34" text-anchor="middle">${glyph}</text></svg>`);
 }

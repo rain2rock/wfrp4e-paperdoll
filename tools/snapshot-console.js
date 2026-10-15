@@ -30,7 +30,7 @@ const dump = {
     statuses: [...e.statuses], value: e.conditionValue ?? null
   })),
   items: a.items
-    .filter((i) => (i.system.isPhysical && i.type !== "money") || ["injury", "critical", "disease"].includes(i.type))
+    .filter((i) => i.system.isPhysical || ["injury", "critical", "disease"].includes(i.type))
     .map((i) => ({ id: i.id, name: i.name, type: i.type, img: i.img, system: i.system.toObject?.() ?? i.system }))
 };
 copy(JSON.stringify(dump, null, 2));
