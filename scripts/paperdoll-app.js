@@ -436,11 +436,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       cls
     });
     const pair = (a, b) => (a === undefined || a === null ? "-" : `${a} / ${b ?? "-"}`);
+    const profile = this._profile();
     const dmg = (items) => {
       const w = items[0];
       if (!w) return "-";
-      const d = safe(() => w.system.Damage);
-      return d === null || d === undefined || d === "" ? "-" : `+${d}`;
+      const d = this._weaponDamage(w, profile);
+      return d === null ? "-" : `+${d}`;
     };
     const ap = (loc) => st.armour?.[loc]?.value ?? 0;
     const ranged = weapons.find((w) => safe(() => w.system.isRanged));
@@ -783,8 +784,48 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       metalLore: lores.some((l) => /metal|металл/.test(l)),
       beastLore: lores.some((l) => /beast|звер/.test(l)),
       ambidextrous: Math.min(2, talentLevel(/^(ambidextrous|амбидекстр)/i)),
+      mightyBlow: talentLevel(/^(strike mighty blow|могучий удар)/i),
+      accurateShot: talentLevel(/^(accurate shot|точный выстрел)/i),
+      sureShot: talentLevel(/^(sure shot|верный выстрел)/i),
+      dualWielder: talentLevel(/^(dual wielder|двойная атака)/i) > 0,
+      frenzy: talentLevel(/^(frenzy|ярость)/i) > 0,
       cults
     };
+  }
+
+  /**
+   * Бонусы талантов к оружию, которые система добавляет только в момент броска.
+   * dmg - прибавка к урону, parts - откуда она, info - пометки без влияния на урон.
+   */
+  _weaponBonuses(item, profile = this._profile()) {
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const out = { dmg: 0, parts: [], info: [], score: 0 };
+    if (item?.type !== "weapon") return out;
+    const ranged = !!safe(() => item.system.isRanged);
+    if (!ranged && profile.mightyBlow) {
+      out.dmg += profile.mightyBlow;
+      out.parts.push(F("WFRPPD.Talent.MightyBlow", { n: profile.mightyBlow }));
+    }
+    if (ranged && profile.accurateShot) {
+      out.dmg += profile.accurateShot;
+      out.parts.push(F("WFRPPD.Talent.AccurateShot", { n: profile.accurateShot }));
+    }
+    if (ranged && profile.sureShot) {
+      out.info.push(F("WFRPPD.Talent.SureShot", { n: profile.sureShot }));
+      out.score += profile.sureShot * 30;
+    }
+    if (!ranged && profile.frenzy) out.info.push(L("WFRPPD.Talent.Frenzy"));
+    return out;
+  }
+
+  /** Урон оружия с учётом талантов (число или null) */
+  _weaponDamage(item, profile = this._profile()) {
+    const base = safe(() => item.system.Damage);
+    if (base === null || base === undefined || base === "") return null;
+    const n = Number(base);
+    if (Number.isNaN(n)) return null;
+    return n + this._weaponBonuses(item, profile).dmg;
   }
 
   /** Даёт ли эта броня штраф к касту этому магу */
@@ -838,16 +879,24 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         warn.push({ label: L("WFRPPD.Restr.Cavalry") });
         score -= 100;
       }
-      // Неосновная рука: щиты и защитное оружие с Ближним боем (парирующее) без штрафа
+      // Неосновная рука: атака -20, Амбидекстр 1 -> -10, 2 -> 0.
+      // Защитное оружие с Ближним боем (парирующее) без штрафа только В ЗАЩИТЕ.
       if (slot === "off" && !shieldValue(item)) {
         const defensive = (safe(() => sys.Qualities, []) ?? []).some((q) => /defensive|защитн/i.test(q));
         const parry = defensive && profile.hasSkill(GROUP_SKILL.parry);
-        const pen = parry ? 0 : -20 + 10 * profile.ambidextrous;
+        const pen = -20 + 10 * profile.ambidextrous;
         if (pen < 0) {
-          warn.push({ label: F("WFRPPD.Restr.OffHand", { n: pen }), hint: L("WFRPPD.Restr.OffHandHint") });
-          score += pen * 10;
+          warn.push({
+            label: F(parry ? "WFRPPD.Restr.OffHandAttack" : "WFRPPD.Restr.OffHand", { n: pen }),
+            hint: L(parry ? "WFRPPD.Restr.OffHandParryHint" : "WFRPPD.Restr.OffHandHint")
+          });
+          // Парирующее оружие во второй руке чаще для защиты - штраф к атаке весит вдвое меньше
+          score += pen * (parry ? 5 : 10);
         }
+        if (profile.dualWielder) score += 100;
       }
+      // Бонусы талантов уже сидят в уроне; здесь только «невидимая» часть (Верный выстрел)
+      score += this._weaponBonuses(item, profile).score;
     }
 
     if (item.type === "armour") {
@@ -897,7 +946,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (slot === "main" || slot === "off") {
       const shield = shieldValue(item);
       if (slot === "off" && shield) return { value: shield, unit: "shield", score: 1000 + shield * 100 + extras };
-      const dmg = Number(safe(() => sys.Damage, 0)) || 0;
+      const dmg = this._weaponDamage(item) ?? 0;
       return { value: dmg, unit: "dmg", score: dmg * 100 + extras };
     }
     return { value: null, unit: null, score: extras };
@@ -1014,7 +1063,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const item = this.actor.items.get(el.dataset.itemId);
       if (!item) continue;
 
-      el.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev));
+      el.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev, this));
       el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
       el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
 
@@ -1206,9 +1255,9 @@ class PaperdollTooltip {
     this.move(event);
   }
 
-  static show(item, event) {
+  static show(item, event, app = null) {
     const el = this.ensure();
-    el.innerHTML = this.build(item);
+    el.innerHTML = this.build(item, app);
     el.classList.add("is-visible");
     this.move(event);
   }
@@ -1231,7 +1280,7 @@ class PaperdollTooltip {
     this.el?.classList.remove("is-visible");
   }
 
-  static build(item) {
+  static build(item, app = null) {
     const sys = item.system;
     const cfg = game.wfrp4e.config;
     const L = (k) => game.i18n.localize(k);
@@ -1251,9 +1300,14 @@ class PaperdollTooltip {
       const group = safe(() => sys.WeaponGroup);
       const twoH = sys.twohanded?.value ? L("WFRPPD.Tooltip.TwoHanded") : L("WFRPPD.Tooltip.OneHanded");
       lines.push(`<div class="pd-tt-row"><span>${esc(group ? L(group) : "")}</span><span>${esc(twoH)}</span></div>`);
-      const dmg = safe(() => sys.Damage);
-      if (dmg !== null && dmg !== undefined && dmg !== "")
-        lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Damage"))}: <b>+${esc(dmg)}</b></div>`);
+      const bonus = app ? app._weaponBonuses(item) : { dmg: 0, parts: [], info: [] };
+      const base = safe(() => sys.Damage);
+      if (base !== null && base !== undefined && base !== "") {
+        const total = Number(base) + bonus.dmg;
+        const from = bonus.parts.length ? ` <span class="pd-tt-bonus">(${esc(bonus.parts.join(", "))})</span>` : "";
+        lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Damage"))}: <b>+${esc(Number.isNaN(total) ? base : total)}</b>${from}</div>`);
+      }
+      for (const i of bonus.info) lines.push(`<div class="pd-tt-bonus">${esc(i)}</div>`);
       if (safe(() => sys.isMelee)) {
         const reach = safe(() => sys.Reach);
         if (reach) lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Reach"))}: ${esc(L(reach))}</div>`);
@@ -1337,13 +1391,13 @@ class PaperdollTooltip {
 /*  Быстрая смена: выпадающий список слота      */
 /* ============================================ */
 
-function itemMeta(item) {
+function itemMeta(item, app = null) {
   const sys = item.system;
   const cfg = game.wfrp4e.config;
   const L = (k) => game.i18n.localize(k);
   if (item.type === "weapon") {
     const parts = [];
-    const dmg = safe(() => sys.Damage);
+    const dmg = app ? app._weaponDamage(item) : safe(() => sys.Damage);
     if (dmg !== null && dmg !== undefined && dmg !== "") parts.push(`${L("WFRPPD.Tooltip.Damage")} +${dmg}`);
     parts.push(sys.twohanded?.value ? L("WFRPPD.Tooltip.TwoHanded") : L("WFRPPD.Tooltip.OneHanded"));
     return parts.join(" · ");
@@ -1403,7 +1457,7 @@ class PaperdollFlyout {
       const sys = item.system;
       const rarity = RARITY[sys.availability?.value] ?? "none";
       const qty = (sys.quantity?.value ?? 1) > 1 ? `<span class="pd-qty">${sys.quantity.value}</span>` : "";
-      let meta = itemMeta(item);
+      let meta = itemMeta(item, app);
       const where = act === "equip" ? app._currentSlotOf(item) : null;
       if (where) meta += ` · ${game.i18n.format("WFRPPD.Fly.Now", { slot: app._slotLabel(where) })}`;
       const icon = act === "unequip" ? `<i class="fa-solid fa-xmark pd-fly-act" title="${esc(L("WFRPPD.Fly.Unequip"))}"></i>` : "";
@@ -1412,7 +1466,7 @@ class PaperdollFlyout {
       const bis = !v.forbidden && bisCount === 1 && v.score === bestScore && all.length > 1;
       const chips = [
         ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}">${esc(r.label)}</span>`),
-        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${esc(humanizeTerms(r.label))}</span>`)
+        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.good ? "is-good" : r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${esc(humanizeTerms(r.label))}</span>`)
       ].join("");
       const bisBadge = bis ? `<span class="pd-fly-bis" title="${esc(L("WFRPPD.Fly.BisHint"))}">BIS</span>` : "";
       const delta = act === "equip" ? deltaChip(item) : "";
@@ -1430,6 +1484,16 @@ class PaperdollFlyout {
     };
 
     let html = `<div class="pd-fly-title">${esc(app._slotLabel(slot))}</div>`;
+    // Какие таланты учтены в оценке - один раз на весь список, а не у каждой строки
+    if (slot === "main" || slot === "off") {
+      const t = [];
+      if (profile.mightyBlow) t.push(game.i18n.format("WFRPPD.Talent.ShortMightyBlow", { n: profile.mightyBlow }));
+      if (profile.accurateShot) t.push(game.i18n.format("WFRPPD.Talent.ShortAccurateShot", { n: profile.accurateShot }));
+      if (profile.sureShot) t.push(game.i18n.format("WFRPPD.Talent.ShortSureShot", { n: profile.sureShot }));
+      if (slot === "off" && profile.ambidextrous) t.push(game.i18n.format("WFRPPD.Talent.ShortAmbidextrous", { n: profile.ambidextrous }));
+      if (slot === "off" && profile.dualWielder) t.push(L("WFRPPD.Talent.ShortDualWielder"));
+      if (t.length) html += `<div class="pd-fly-talents">${esc(L("WFRPPD.Talent.Counted"))}: ${esc(t.join(", "))}</div>`;
+    }
     if (current.length) {
       html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Current"))}</div>`;
       html += current.map((i) => row(i, "unequip")).join("");
@@ -1478,7 +1542,7 @@ class PaperdollFlyout {
     for (const rowEl of el.querySelectorAll(".pd-fly-row[data-item-id]")) {
       const item = app.actor.items.get(rowEl.dataset.itemId);
       if (!item) continue;
-      rowEl.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev));
+      rowEl.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev, app));
       rowEl.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
       rowEl.addEventListener("pointerleave", () => PaperdollTooltip.hide());
       rowEl.addEventListener("click", (ev) => {

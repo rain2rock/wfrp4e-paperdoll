@@ -855,3 +855,8 @@
 }
 .wfrp-paperdoll-flyout .pd-fly-clear .pd-fly-name { color: #d8ccb4; }
 .wfrp-paperdoll-flyout .pd-fly-clear:hover .pd-fly-icon { color: #ff6b5b; }
+
+/* Бонусы талантов */
+.wfrp-paperdoll-flyout .pd-chip.is-good { color: #9dff8a; background: rgba(30, 255, 0, 0.08); border-color: rgba(30, 255, 0, 0.35); }
+.wfrp-paperdoll-tooltip .pd-tt-bonus { color: #9dff8a; font-size: 12px; font-weight: normal; }
+.wfrp-paperdoll-flyout .pd-fly-talents { padding: 5px 6px 0; font-size: 11px; color: #9dff8a; }

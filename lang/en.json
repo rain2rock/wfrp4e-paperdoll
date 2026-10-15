@@ -119,7 +119,9 @@
       "Cult": "Against strictures: {god}",
       "CultUlric": "Ulric: blackpowder, helmets, crossbows and technology are not the way of Ulric",
       "Penalty": "{text}",
-      "ForbiddenHint": "Not allowed by the rules - excluded from BIS"
+      "ForbiddenHint": "Not allowed by the rules - excluded from BIS",
+      "OffHandAttack": "{n} off-hand attack",
+      "OffHandParryHint": "Off-hand attacks are penalised. Melee (Parry) removes the penalty when defending. Ambidextrous reduces the attack penalty"
     },
     "Class": "Class",
     "Career": "Career",
@@ -148,6 +150,19 @@
       "HintEnable": "Click to enable again",
       "HintOpen": "Click to open",
       "HintSheet": "Right-click for details"
+    },
+    "Talent": {
+      "MightyBlow": "+{n} dmg: Strike Mighty Blow",
+      "AccurateShot": "+{n} dmg: Accurate Shot",
+      "SureShot": "Sure Shot: ignores {n} AP",
+      "DualWielder": "Dual Wielder: attacks with both hands",
+      "Frenzy": "Frenzy: +1 dmg while frenzied",
+      "Counted": "Talents counted",
+      "ShortMightyBlow": "Strike Mighty Blow {n}",
+      "ShortAccurateShot": "Accurate Shot {n}",
+      "ShortSureShot": "Sure Shot {n}",
+      "ShortAmbidextrous": "Ambidextrous {n}",
+      "ShortDualWielder": "Dual Wielder"
     }
   }
 }

@@ -166,7 +166,10 @@ export const PROFILES = {
   // Боец с двумя руками: амбидекстр, парирование
   duelist: {
     skills: ["Melee (Basic)", "Melee (Fencing)", "Melee (Parry)", "Ranged (Blackpowder)"],
-    talents: [{ name: "Ambidextrous", advances: 1 }],
+    talents: [
+      { name: "Ambidextrous", advances: 1 }, { name: "Strike Mighty Blow", advances: 2 }, { name: "Dual Wielder" },
+      { name: "Accurate Shot", advances: 1 }, { name: "Sure Shot", advances: 1 }, { name: "Frenzy" }
+    ],
     god: ""
   }
 };
