@@ -28,6 +28,7 @@
             <div class="pd-slot-placeholder" title="{{label}}"><i class="{{icon}}"></i></div>
             {{/if}}
             {{#if layers}}<span class="pd-layers" title="{{label}}">+{{layers}}</span>{{/if}}
+            {{#if upgrade}}<span class="pd-upgrade" title="{{localize "WFRPPD.Fly.UpgradeHint"}}"><i class="fa-solid fa-circle-arrow-up"></i></span>{{/if}}
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
           </div>
           {{#if @root.editable}}

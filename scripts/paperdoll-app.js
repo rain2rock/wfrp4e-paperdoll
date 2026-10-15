@@ -30,6 +30,19 @@ const RARITY = {
 
 const BAG_FILTERS = ["all", "weapon", "armour", "clothing", "other"];
 
+/** Вес редкости для сравнения предметов */
+const RARITY_RANK = { None: 0, common: 1, scarce: 2, rare: 3, exotic: 4, special: 4 };
+
+/** Значение качества «Щит N» (система или подпись качества) */
+function shieldValue(item) {
+  const sys = item.system;
+  const v = safe(() => sys.properties?.qualities?.shield?.value, null);
+  if (Number(v)) return Number(v);
+  const label = (safe(() => sys.Qualities, []) ?? []).find((q) => /^(shield|щит)(\s|$)/i.test(q));
+  if (!label) return 0;
+  return Number(label.match(/(\d+)/)?.[1] ?? 1);
+}
+
 /** Наборы статов для выпадашек под портретом */
 const STAT_SETS = ["physical", "mental", "combat", "defence", "fate"];
 
@@ -151,6 +164,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!views.length && ghost) views.push(view(ghost, { ghost: true }));
       return {
         key,
+        upgrade: editable && this._slotBest(key).upgrade,
         label: this._slotLabel(key),
         icon: SLOT_ICONS[key],
         top: views[0] ?? null,
@@ -460,6 +474,44 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (slot === "off") available = available.filter((i) => !i.system.twohanded?.value);
     const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
     return { current: current.sort(byName), available: available.sort(byName) };
+  }
+
+  /* -------------------------------------------- */
+  /*  BIS: что лучше всего в этот слот            */
+  /* -------------------------------------------- */
+
+  /**
+   * Оценка предмета для слота.
+   * value - главное число для сравнения (AP, урон, значение щита),
+   * score - итог с учётом качеств, изъянов и редкости (для сортировки и BIS).
+   */
+  _slotValue(item, slot) {
+    const sys = item.system;
+    const q = (safe(() => sys.Qualities, []) ?? []).length;
+    const f = (safe(() => sys.Flaws, []) ?? []).length;
+    const rarity = RARITY_RANK[sys.availability?.value] ?? 0;
+    const extras = q * 10 - f * 10 + rarity;
+
+    if (LOCATIONS.includes(slot)) {
+      const ap = safe(() => sys.currentAP?.[slot], null) ?? sys.AP?.[slot] ?? 0;
+      return { value: ap, unit: "AP", score: ap * 100 + extras };
+    }
+    if (slot === "main" || slot === "off") {
+      const shield = shieldValue(item);
+      if (slot === "off" && shield) return { value: shield, unit: "shield", score: 1000 + shield * 100 + extras };
+      const dmg = Number(safe(() => sys.Damage, 0)) || 0;
+      return { value: dmg, unit: "dmg", score: dmg * 100 + extras };
+    }
+    return { value: null, unit: null, score: extras };
+  }
+
+  /** Лучшая оценка среди того, что сейчас надето в слот */
+  _slotBest(slot) {
+    const { current, available } = this._swapCandidates(slot);
+    const score = (i) => this._slotValue(i, slot).score;
+    const cur = current.length ? Math.max(...current.map(score)) : -Infinity;
+    const alt = available.length ? Math.max(...available.map(score)) : -Infinity;
+    return { cur, alt, upgrade: alt > cur && available.length > 0 };
   }
 
   /** Где сейчас надет предмет (для подписи «сейчас: ...») */
@@ -863,6 +915,26 @@ class PaperdollFlyout {
     const L = (k) => game.i18n.localize(k);
     const { current, available } = app._swapCandidates(slot);
 
+    // Сортировка по силе, BIS - лучший предмет среди всего подходящего
+    const val = new Map([...current, ...available].map((i) => [i.id, app._slotValue(i, slot)]));
+    const byScore = (a, b) => val.get(b.id).score - val.get(a.id).score || a.name.localeCompare(b.name, game.i18n.lang);
+    current.sort(byScore);
+    available.sort(byScore);
+    const all = [...current, ...available];
+    const bestScore = all.length ? Math.max(...all.map((i) => val.get(i.id).score)) : null;
+    const bisCount = all.filter((i) => val.get(i.id).score === bestScore).length;
+    const curValue = current.length ? Math.max(...current.map((i) => val.get(i.id).value ?? 0)) : 0;
+
+    const deltaChip = (item) => {
+      const v = val.get(item.id);
+      if (v.value === null) return "";
+      const d = v.value - curValue;
+      if (!current.length && !d) return "";
+      if (!d) return `<span class="pd-fly-delta is-same">=</span>`;
+      const unit = L(`WFRPPD.Fly.Unit.${v.unit}`);
+      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}">${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
+    };
+
     const row = (item, act) => {
       const sys = item.system;
       const rarity = RARITY[sys.availability?.value] ?? "none";
@@ -871,13 +943,18 @@ class PaperdollFlyout {
       const where = act === "equip" ? app._currentSlotOf(item) : null;
       if (where) meta += ` · ${game.i18n.format("WFRPPD.Fly.Now", { slot: app._slotLabel(where) })}`;
       const icon = act === "unequip" ? `<i class="fa-solid fa-xmark pd-fly-act" title="${esc(L("WFRPPD.Fly.Unequip"))}"></i>` : "";
+      // BIS только если он один: при равенстве подсвечивать нечего
+      const bis = bisCount === 1 && val.get(item.id).score === bestScore && all.length > 1;
+      const bisBadge = bis ? `<span class="pd-fly-bis" title="${esc(L("WFRPPD.Fly.BisHint"))}">BIS</span>` : "";
+      const delta = act === "equip" ? deltaChip(item) : "";
       return `
-        <div class="pd-fly-row" data-item-id="${item.id}" data-act="${act}">
+        <div class="pd-fly-row ${bis ? "is-bis" : ""}" data-item-id="${item.id}" data-act="${act}">
           <div class="pd-fly-icon rarity-${rarity}"><img src="${esc(item.img)}" alt="">${qty}</div>
           <div class="pd-fly-text">
             <div class="pd-fly-name rarity-${rarity}">${esc(item.name)}</div>
             <div class="pd-fly-meta">${esc(meta)}</div>
           </div>
+          <div class="pd-fly-side">${bisBadge}${delta}</div>
           ${icon}
         </div>`;
     };

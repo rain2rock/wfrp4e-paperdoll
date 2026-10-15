@@ -5,6 +5,7 @@
  *   npm run mock           демо-персонаж из tools/mock-data.mjs
  *   node tools/build-mock.mjs --snapshot tools/snapshot.json --out mock-hugo.html
  *                          персонаж из слепка, снятого скриптом из консоли Foundry
+ *   --loot                 добавить тестовый лут (tools/mock-loot.mjs): все слоты и все редкости
  *   --icons DIR --icons-core DIR
  *                          настоящие иконки: DIR с иконками wfrp4e-core и DIR со стандартными
  *                          иконками Foundry (см. tools/icon-fallbacks.mjs). Без них - эмодзи.
@@ -22,16 +23,26 @@ import { createRequire } from "node:module";
 import crypto from "node:crypto";
 import { actorData as demoActor, config, systemStrings } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
+import { LOOT } from "./mock-loot.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const args = Object.fromEntries(
-  process.argv.slice(2).reduce((acc, a, i, arr) => (a.startsWith("--") ? [...acc, [a.slice(2), arr[i + 1]]] : acc), [])
+  process.argv.slice(2).reduce((acc, a, i, arr) => (a.startsWith("--") ? [...acc, [a.slice(2), arr[i + 1]?.startsWith("--") ? true : arr[i + 1]]] : acc), [])
 );
 
 // ---------- Персонаж ----------
 let actor = demoActor;
 if (args.snapshot) actor = fromSnapshot(JSON.parse(fs.readFileSync(args.snapshot, "utf8")));
+if ("loot" in args) {
+  // Эмодзи-заглушка на случай сборки без папок с иконками
+  const GLYPH = { weapon: ["⚔️", "#5a6a7a"], armour: ["🛡️", "#6a5a4a"], trapping: ["💍", "#5a4a6a"], container: ["🎒", "#6a5530"] };
+  const loot = structuredClone(LOOT).map((i) => ({ ...i, img: emojiIcon(...(GLYPH[i.type] ?? GLYPH.trapping)) }));
+  actor = { ...actor, items: [...actor.items, ...loot] };
+}
+function emojiIcon(glyph, color) {
+  return "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><radialGradient id="g" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#0d0b09"/></radialGradient></defs><rect width="64" height="64" fill="url(#g)"/><text x="32" y="44" font-size="34" text-anchor="middle">${glyph}</text></svg>`);
+}
 
 // ---------- Иконки ----------
 const ROOTS = { icons: args.icons, core: args["icons-core"] };
@@ -54,6 +65,11 @@ function dataUri(f) {
   return `data:${mime};base64,${fs.readFileSync(f).toString("base64")}`;
 }
 function resolveIcon(item) {
+  // 0. Иконка, заданная явно (тестовый лут)
+  if (item._icon) {
+    const f = fileFor(item._icon);
+    if (f) return iconStats.rule++, dataUri(f);
+  }
   // 1. Путь из самого предмета
   const src = item._srcImg ?? "";
   let ref = null;

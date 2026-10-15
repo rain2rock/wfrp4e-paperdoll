@@ -689,3 +689,61 @@
 .wfrp-paperdoll-flyout .pd-fly-act { color: #a89c86; font-size: 13px; padding: 4px; }
 .wfrp-paperdoll-flyout .pd-fly-row:hover .pd-fly-act { color: #ff6b5b; }
 .wfrp-paperdoll-flyout .pd-fly-empty { padding: 8px 6px; font-style: italic; color: #8a7a5e; }
+
+/* ==========================================================
+   BIS и апгрейды
+   ========================================================== */
+
+/* Зелёная стрелка в слоте: в сумке есть вещь лучше */
+.wfrp-paperdoll .pd-upgrade {
+  position: absolute;
+  z-index: 2;
+  left: -6px;
+  top: -6px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--pd-up);
+  background: #0b0907;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 4px rgba(30, 255, 0, 0.6));
+  animation: pd-upgrade-bob 1.6s ease-in-out infinite;
+}
+@keyframes pd-upgrade-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Строка BIS в списке быстрой смены */
+.wfrp-paperdoll-flyout .pd-fly-row.is-bis {
+  background: linear-gradient(90deg, rgba(255, 209, 0, 0.16), rgba(255, 209, 0, 0.02) 70%);
+  box-shadow: inset 2px 0 0 #ffd100;
+}
+.wfrp-paperdoll-flyout .pd-fly-row.is-bis:hover {
+  background: linear-gradient(90deg, rgba(255, 209, 0, 0.26), rgba(255, 209, 0, 0.06) 70%);
+}
+.wfrp-paperdoll-flyout .pd-fly-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+.wfrp-paperdoll-flyout .pd-fly-bis {
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 15px;
+  color: #1a1200;
+  background: linear-gradient(180deg, #ffe066, #d4a000);
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(255, 209, 0, 0.55);
+}
+.wfrp-paperdoll-flyout .pd-fly-delta {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.wfrp-paperdoll-flyout .pd-fly-delta.is-up { color: #1eff00; }
+.wfrp-paperdoll-flyout .pd-fly-delta.is-down { color: #ff4f4f; }
+.wfrp-paperdoll-flyout .pd-fly-delta.is-same { color: #a89c86; }
