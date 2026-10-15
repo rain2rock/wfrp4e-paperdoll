@@ -144,9 +144,12 @@ function plainEnrichers(text) {
  * абзацы вида «<strong>Метка:</strong> значение» -> строки свойств,
  * остальное -> текст. Таблицы в тултип не тащим, только помечаем.
  */
-function parseDescription(html) {
+const PRICE_LABEL = /цен|стоимост|price|cost/i;
+
+function parseDescription(html, { hidePrices = false } = {}) {
   const root = document.createElement("div");
-  root.innerHTML = html ?? "";
+  // Для игроков ссылки на оплату (@Pay[...]) превращаем в пустоту ещё до разбора
+  root.innerHTML = hidePrices ? String(html ?? "").replace(/@Pay\[[^\]]*\](?:\{[^}]*\})?/gi, "") : html ?? "";
   const hasTable = !!root.querySelector("table");
   root.querySelectorAll("table").forEach((t) => t.remove());
   const clean = (t) => plainEnrichers(t).replace(/\s+/g, " ").trim();
@@ -162,6 +165,7 @@ function parseDescription(html) {
     if (strong && node.textContent.trim().startsWith(strong.textContent.trim()) && /:\s*$/.test(strong.textContent.trim())) {
       const label = clean(strong.textContent).replace(/:\s*$/, "");
       const value = clean(full.slice(full.indexOf(":") + 1));
+      if (label && hidePrices && PRICE_LABEL.test(label)) continue;
       if (label && value) {
         props.push([label, value]);
         continue;
@@ -1280,7 +1284,8 @@ class PaperdollTooltip {
     if (qualities.length) lines.push(`<div class="pd-tt-quality">${qualities.map(esc).join(", ")}</div>`);
     if (flaws.length) lines.push(`<div class="pd-tt-flaw">${flaws.map(esc).join(", ")}</div>`);
 
-    const desc = parseDescription(sys.description?.value);
+    // Цены (и самой вещи, и ингредиентов) видит только ГМ
+    const desc = parseDescription(sys.description?.value, { hidePrices: !game.user?.isGM });
     if (desc.props.length) {
       const rows = desc.props
         .slice(0, 8)
