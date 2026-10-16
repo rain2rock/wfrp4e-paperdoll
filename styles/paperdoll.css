@@ -2198,3 +2198,5 @@
   opacity: 0.55;
 }
 .wfrp-paperdoll .pd-ecs-row:hover .pd-ecs-can { opacity: 0; }
+.wfrp-paperdoll .pd-ecs-row.is-link { cursor: pointer; }
+.wfrp-paperdoll .pd-ecs-row.is-link:hover .pd-ecs-label { color: var(--pd-gold); }

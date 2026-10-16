@@ -1132,6 +1132,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         key: "skills",
         rows: skills.map(({ sk, adv }) => ({
           key: sk.name,
+          itemId: sk.id,
           label: sk.name,
           value: safe(() => sk.system.total?.value, null) ?? adv.adv,
           cls: adv.inCareer === false ? "is-outcareer" : "",
@@ -1150,6 +1151,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
           return {
             key: t.name,
+            itemId: t.id,
             label: t.name,
             value: lvl > 1 ? `×${lvl}` : "",
             cls: "",
@@ -2440,6 +2442,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
         this._openArticle(el.dataset.kind, el.textContent.trim());
+      });
+    }
+    // Клик по таланту или навыку - его описание (лист предмета)
+    for (const el of root.querySelectorAll(".pd-ecs-row[data-item-id]")) {
+      el.addEventListener("click", (ev) => {
+        if (ev.target.closest("button")) return;
+        this.actor.items.get(el.dataset.itemId)?.sheet?.render(true);
       });
     }
     // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг

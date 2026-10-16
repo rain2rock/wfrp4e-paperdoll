@@ -181,7 +181,7 @@
       <div class="pd-ecs-cat pd-ecs-cat--{{key}}">
         <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}</div>
         {{#each rows}}
-        <div class="pd-ecs-row" {{#if hint}}title="{{hint}}"{{/if}}>
+        <div class="pd-ecs-row {{#if itemId}}is-link{{/if}}" {{#if itemId}}data-item-id="{{itemId}}"{{/if}} {{#if hint}}title="{{hint}}"{{/if}}>
           <span class="pd-ecs-label">{{label}}</span>
           <span class="pd-ecs-value {{cls}}">{{value}}</span>
           {{#if done}}<span class="pd-ecs-check" aria-label="✓">✓</span>{{/if}}
