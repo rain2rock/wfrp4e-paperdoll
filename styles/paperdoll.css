@@ -2198,5 +2198,35 @@
   opacity: 0.55;
 }
 .wfrp-paperdoll .pd-ecs-row:hover .pd-ecs-can { opacity: 0; }
-.wfrp-paperdoll .pd-ecs-row.is-link { cursor: pointer; }
-.wfrp-paperdoll .pd-ecs-row.is-link:hover .pd-ecs-label { color: var(--pd-gold); }
+
+/* ---------- v0.22.5: шаг развития - маленький серый «+» сразу после числа ---------- */
+.wfrp-paperdoll .pd-adv {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--pd-text-dim);
+  background: none;
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  filter: none;
+  opacity: 0.55;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.wfrp-paperdoll .pd-adv:hover,
+.wfrp-paperdoll .pd-adv:focus-visible { opacity: 1; color: var(--pd-up); background: rgba(47, 122, 18, 0.12); filter: none; }
+.wfrp-paperdoll .pd-adv.is-out:hover { color: #8a6418; background: rgba(176, 138, 58, 0.15); }
+/* Опыта не хватает: плюс не виден, на наведении строки - бледный, с подсказкой сколько нужно */
+.wfrp-paperdoll .pd-adv.is-off { opacity: 0; background: none; color: var(--pd-text-dim); cursor: help; }
+.wfrp-paperdoll .pd-ecs-row:hover .pd-adv.is-off { opacity: 0.3; }
+.wfrp-paperdoll .pd-ecs-row:hover .pd-adv:not(.is-off) { opacity: 0.85; }
+.wfrp-paperdoll .pd-ecs-row .pd-adv:hover { opacity: 1; }
+.wfrp-paperdoll .pd-ecs-row .pd-ecs-info { margin-left: auto; }
+.wfrp-paperdoll .pd-adv.is-out { background: none; border: none; color: var(--pd-text-dim); }
+.wfrp-paperdoll .pd-adv.is-out:hover { color: #8a6418; background: rgba(176, 138, 58, 0.15); }

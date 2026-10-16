@@ -2444,13 +2444,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this._openArticle(el.dataset.kind, el.textContent.trim());
       });
     }
-    // Клик по таланту или навыку - его описание (лист предмета)
-    for (const el of root.querySelectorAll(".pd-ecs-row[data-item-id]")) {
-      el.addEventListener("click", (ev) => {
-        if (ev.target.closest("button")) return;
-        this.actor.items.get(el.dataset.itemId)?.sheet?.render(true);
-      });
-    }
     // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг
     for (const el of root.querySelectorAll(".pd-adv")) {
       el.addEventListener("click", (ev) => {
