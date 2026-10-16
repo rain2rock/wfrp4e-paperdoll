@@ -1976,3 +1976,36 @@
 
 /* Полоса нагрузки: текстура растягивается по длине заливки, без шва повтора */
 .wfrp-paperdoll .pd-enc-fill { background-size: 100% 100%; background-repeat: no-repeat; }
+
+/* ---------- v0.20.5: подсказка оружия блоком, достоинства и изъяны плашками ---------- */
+.wfrp-paperdoll-tooltip .pd-tt-ap-row > span:first-child { display: flex; flex-direction: column; }
+.wfrp-paperdoll-tooltip .pd-tt-ap-row small { font-size: 11px; line-height: 1.2; }
+.wfrp-paperdoll-tooltip .pd-tt-sub2 { color: var(--pd-text-dim); }
+.wfrp-paperdoll-tooltip .pd-tt-val {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 20px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--pd-badge-bg, #f3ead6);
+  border: 1px solid rgba(60, 45, 25, 0.35);
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.wfrp-paperdoll-tooltip .pd-tt-val.is-dmg { font-size: 15px; height: 24px; border-radius: 12px; }
+.wfrp-paperdoll-tooltip .pd-tt-val.is-hurt { color: var(--pd-bad); border-color: var(--pd-bad); }
+.wfrp-paperdoll-tooltip .pd-tt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.wfrp-paperdoll-tooltip .pd-tt-tag {
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 12px;
+  border: 1px solid currentColor;
+}
+.wfrp-paperdoll-tooltip .pd-tt-tag.is-quality { color: var(--pd-up); background: rgba(47, 122, 18, 0.08); }
+.wfrp-paperdoll-tooltip .pd-tt-tag.is-flaw { color: var(--pd-bad); background: rgba(163, 32, 20, 0.08); }
+.wfrp-paperdoll-tooltip .pd-tt-val.is-text { background: none; border: none; padding: 0; font-weight: 600; }

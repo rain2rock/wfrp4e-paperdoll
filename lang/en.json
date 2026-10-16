@@ -50,7 +50,9 @@
       "AllBody": "All locations",
       "Arms": "Arms",
       "Legs": "Legs",
-      "UnderLayer": "Can be worn under other armour"
+      "UnderLayer": "Can be worn under other armour",
+      "Ammo": "Ammunition",
+      "Yards": "{n} yd"
     },
     "Money": {
       "gc": "GC",

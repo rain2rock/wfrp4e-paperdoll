@@ -2502,24 +2502,46 @@ class PaperdollTooltip {
       </div>`);
 
     if (item.type === "weapon") {
+      // Блок оружия как у брони: заголовок (группа и хват), строки с крупными значениями
       const group = safe(() => sys.WeaponGroup);
       const twoH = sys.twohanded?.value ? L("WFRPPD.Tooltip.TwoHanded") : L("WFRPPD.Tooltip.OneHanded");
-      lines.push(`<div class="pd-tt-row"><span>${esc(group ? L(group) : "")}</span><span>${esc(twoH)}</span></div>`);
       const bonus = app ? app._weaponBonuses(item) : { dmg: 0, parts: [], info: [] };
       const base = safe(() => sys.Damage);
+      const rows = [];
+      const row = (label, val, cls = "", sub = "") =>
+        rows.push(`<div class="pd-tt-ap-row"><span>${esc(label)}${sub}</span><span class="pd-tt-val ${cls}">${esc(val)}</span></div>`);
       if (base !== null && base !== undefined && base !== "") {
         const total = Number(base) + bonus.dmg;
-        const from = bonus.parts.length ? ` <span class="pd-tt-bonus">(${esc(bonus.parts.join(", "))})</span>` : "";
-        lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Damage"))}: <b>+${esc(Number.isNaN(total) ? base : total)}</b>${from}</div>`);
+        const sub = bonus.parts.length ? `<small class="pd-tt-bonus">${esc(bonus.parts.join(", "))}</small>` : "";
+        row(L("WFRPPD.Tooltip.Damage"), `+${Number.isNaN(total) ? base : total}`, "is-dmg", sub);
       }
-      for (const i of bonus.info) lines.push(`<div class="pd-tt-bonus">${esc(i)}</div>`);
       if (safe(() => sys.isMelee)) {
         const reach = safe(() => sys.Reach);
-        if (reach) lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Reach"))}: ${esc(L(reach))}</div>`);
+        if (reach) row(L("WFRPPD.Tooltip.Reach"), L(reach), "is-text");
       } else {
         const range = safe(() => sys.Range);
-        if (range) lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.Range"))}: ${esc(range)}</div>`);
+        if (range) row(L("WFRPPD.Tooltip.Range"), game.i18n.format("WFRPPD.Tooltip.Yards", { n: range }), "is-text");
+        // Боеприпасы: что подходит и сколько
+        const need = weaponAmmoGroup(item);
+        if (need && app) {
+          const ammo = (app.actor.itemTypes.ammunition ?? []).filter((x) => ammoGroupOf(x) === need && Number(x.system.quantity?.value ?? 1) > 0);
+          const n = ammo.reduce((t, x) => t + Number(x.system.quantity?.value ?? 1), 0);
+          row(L("WFRPPD.Tooltip.Ammo"), n ? String(n) : "0", n ? "" : "is-hurt",
+            ammo.length ? `<small class="pd-tt-sub2">${esc(ammo.map((x) => x.name).join(", "))}</small>` : "");
+        }
       }
+      lines.push(`<div class="pd-tt-armour">
+          <div class="pd-tt-armour-head"><span>${esc(group ? L(group) : "")}</span><span>${esc(twoH)}</span></div>
+          ${rows.join("")}
+        </div>`);
+      const notes = bonus.info.map((i) => `<div class="pd-tt-note is-good">${esc(i)}</div>`);
+      // Ограничения по правилам: без навыка, неосновная рука, обеты, нет боеприпасов
+      if (app) {
+        const r = app._restrictions(item, sys.offhand?.value ? "off" : "main");
+        for (const x of r.forbid) notes.push(`<div class="pd-tt-note is-bad">${esc(x.label)}</div>`);
+        for (const x of r.warn) if (!x.info) notes.push(`<div class="pd-tt-note ${x.good ? "is-good" : "is-bad"}">${esc(humanizeTerms(x.label))}</div>`);
+      }
+      if (notes.length) lines.push(`<div class="pd-tt-notes">${notes.join("")}</div>`);
     }
 
     if (item.type === "armour") {
@@ -2568,8 +2590,12 @@ class PaperdollTooltip {
 
     const qualities = safe(() => sys.Qualities, []) ?? [];
     const flaws = safe(() => sys.Flaws, []) ?? [];
-    if (qualities.length) lines.push(`<div class="pd-tt-quality">${qualities.map(esc).join(", ")}</div>`);
-    if (flaws.length) lines.push(`<div class="pd-tt-flaw">${flaws.map(esc).join(", ")}</div>`);
+    if (qualities.length || flaws.length) {
+      lines.push(`<div class="pd-tt-tags">${[
+        ...qualities.map((q) => `<span class="pd-tt-tag is-quality">${esc(q)}</span>`),
+        ...flaws.map((f) => `<span class="pd-tt-tag is-flaw">${esc(f)}</span>`)
+      ].join("")}</div>`);
+    }
 
     // Цены (и самой вещи, и ингредиентов) видит только ГМ
     const desc = parseDescription(sys.description?.value, { hidePrices: !(game.user?.isGM || option("prices")) });
