@@ -1,4 +1,4 @@
-import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS } from "./paperdoll-app.js";
+import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS, option } from "./paperdoll-app.js";
 
 const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
@@ -30,6 +30,37 @@ Hooks.once("init", () => {
   // Доступ из макросов: game.modules.get("wfrp4e-paperdoll").api.open(actor)
   game.modules.get(MODULE_ID).api = {
     open: (actor) => PaperdollApp.openFor(actor)
+  };
+});
+
+/**
+ * Двойной клик по токену открывает снаряжение вместо листа (опция, у каждого игрока своя).
+ * Alt + двойной клик - обычный лист. Без прав наблюдателя - как в Foundry.
+ */
+Hooks.once("ready", () => {
+  if (game.system.id !== "wfrp4e") return;
+  const TokenCls = foundry.canvas?.placeables?.Token ?? globalThis.Token;
+  const proto = TokenCls?.prototype;
+  if (!proto?._onClickLeft2) return;
+  const original = proto._onClickLeft2;
+  proto._onClickLeft2 = function (event) {
+    try {
+      const actor = this.actor;
+      const alt = !!(event?.altKey ?? event?.nativeEvent?.altKey ?? event?.data?.originalEvent?.altKey);
+      if (
+        option("tokenDblClick") &&
+        !alt &&
+        actor &&
+        SUPPORTED_TYPES.includes(actor.type) &&
+        actor.testUserPermission?.(game.user, "OBSERVER")
+      ) {
+        PaperdollApp.openFor(actor);
+        return;
+      }
+    } catch (err) {
+      console.warn(`${MODULE_ID} | token double-click`, err);
+    }
+    return original.call(this, event);
   };
 });
 

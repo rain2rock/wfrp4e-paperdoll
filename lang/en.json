@@ -349,6 +349,10 @@
       "detailedStats": {
         "Name": "Detailed characteristics",
         "Hint": "Show characteristics as «I 35 + A 10 + M 0 = 45»: initial, advances, modifier"
+      },
+      "tokenDblClick": {
+        "Name": "Token double-click opens the equipment",
+        "Hint": "Opens the equipment window instead of the character sheet. Alt + double-click opens the usual sheet"
       }
     },
     "Vitals": {
