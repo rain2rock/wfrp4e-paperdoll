@@ -14,7 +14,7 @@ Hooks.once("init", () => {
     onChange: rerender
   });
 
-  // Опции куколки (шестерёнка справа внизу окна и настройки модуля), у каждого игрока свои
+  // Опции куколки - в настройках Foundry (вкладка модуля), у каждого игрока свои
   for (const [key, def] of Object.entries(PD_OPTIONS)) {
     game.settings.register(MODULE_ID, key, {
       name: `WFRPPD.Options.${key}.Name`,

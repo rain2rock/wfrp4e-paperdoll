@@ -510,8 +510,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       openSheet: PaperdollApp.onOpenSheet,
       setSort: PaperdollApp.onSetSort,
       setView: PaperdollApp.onSetView,
-      toggleSortMenu: PaperdollApp.onToggleSortMenu,
-      toggleOptions: PaperdollApp.onToggleOptions
+      toggleSortMenu: PaperdollApp.onToggleSortMenu
     }
   };
 
@@ -761,13 +760,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         active: key === this._sort
       })),
       viewList: this._view === "list",
-      options: Object.keys(PD_OPTIONS).map((key) => ({
-        key,
-        value: option(key),
-        label: game.i18n.localize(`WFRPPD.Options.${key}.Name`),
-        hint: game.i18n.localize(`WFRPPD.Options.${key}.Hint`)
-      })),
-      optionsOpen: !!this._optionsOpen,
       sortOpen: !!this._sortOpen,
       statPanels,
       statCategories,
@@ -2339,11 +2331,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
-  static onToggleOptions() {
-    this._optionsOpen = !this._optionsOpen;
-    this.element.querySelector(".pd-options-menu")?.classList.toggle("is-open", this._optionsOpen);
-  }
-
   static onToggleSortMenu() {
     this._sortOpen = !this._sortOpen;
     this.element.querySelector(".pd-sortmenu")?.classList.toggle("is-open", this._sortOpen);
@@ -2418,22 +2405,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           this._sortOpen = false;
           root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
         }
-        if (this._optionsOpen && !ev.target.closest?.(".pd-options")) {
-          this._optionsOpen = false;
-          root.querySelector(".pd-options-menu")?.classList.remove("is-open");
-        }
-      });
-    }
-
-    // Опции куколки: переключатели сохраняются в настройках модуля (у каждого игрока свои)
-    for (const box of root.querySelectorAll(".pd-option input[data-option]")) {
-      box.addEventListener("change", async () => {
-        try {
-          await game.settings.set(MODULE_ID, box.dataset.option, box.checked);
-        } catch (err) {
-          console.warn(`${MODULE_ID} | option failed`, err);
-        }
-        PaperdollApp.renderAll();
       });
     }
 
