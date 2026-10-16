@@ -1767,3 +1767,61 @@
 .wfrp-paperdoll .pd-filter-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .wfrp-paperdoll .pd-sort { flex: none; }
 .wfrp-paperdoll .pd-money { cursor: help; }
+
+/* ---------- v0.17: травмы конечностей и протезы ---------- */
+/* Значок на слоте: что с конечностью. Красный - не действует, зелёный - заменена инженерным чудом */
+.wfrp-paperdoll .pd-maim {
+  position: absolute;
+  z-index: 3;
+  top: -6px;
+  left: -6px;
+  width: 24px;
+  height: 24px;
+  padding: 1px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #f3ead6;
+  border: 2px solid #a32014;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  cursor: help;
+}
+.wfrp-paperdoll .pd-maim img { width: 100%; height: 100%; border: none; border-radius: 50%; object-fit: cover; }
+.wfrp-paperdoll .pd-maim.is-ok { border-color: #2f7a12; }
+.wfrp-paperdoll .pd-slot.is-maimed .pd-slot-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgba(163, 32, 20, 0.55), inset 0 0 14px rgba(163, 32, 20, 0.35);
+}
+
+/* Заголовок раздела сумки: сверху тот же отступ 12px, что снизу от ячеек до края */
+.wfrp-paperdoll .pd-bagsec-head { min-height: 0; padding: var(--pd-step) var(--pd-step) 8px; }
+.wfrp-paperdoll .pd-bagsec--free .pd-bagsec-head { padding-bottom: var(--pd-step); }
+
+/* Деньги: монета подпрыгивает, «+1» всплывает зелёным, «-1» уходит вниз красным */
+.wfrp-paperdoll .pd-coin { position: relative; }
+.wfrp-paperdoll .pd-coin.is-gain img,
+.wfrp-paperdoll .pd-coin.is-gain::before { animation: pd-coin-hop 0.45s ease-out; }
+.wfrp-paperdoll .pd-coin.is-spend img,
+.wfrp-paperdoll .pd-coin.is-spend::before { animation: pd-coin-shake 0.4s ease-in-out; }
+.wfrp-paperdoll .pd-coin-fx {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff;
+}
+.wfrp-paperdoll .pd-coin-fx.is-gain { color: #1f8a0a; animation: pd-coin-up 0.9s ease-out forwards; }
+.wfrp-paperdoll .pd-coin-fx.is-spend { color: #a32014; animation: pd-coin-down 0.9s ease-in forwards; }
+@keyframes pd-coin-hop { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-5px) scale(1.15); } 100% { transform: translateY(0) scale(1); } }
+@keyframes pd-coin-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px) rotate(-8deg); } 75% { transform: translateX(2px) rotate(8deg); } }
+@keyframes pd-coin-up { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -18px); } }
+@keyframes pd-coin-down { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 16px); } }
+@media (prefers-reduced-motion: reduce) {
+  .wfrp-paperdoll .pd-coin img, .wfrp-paperdoll .pd-coin::before, .wfrp-paperdoll .pd-coin-fx { animation-duration: 0.01s !important; }
+}

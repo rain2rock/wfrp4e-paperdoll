@@ -135,7 +135,7 @@ export const systemStrings = {
   "WFRP4E.Availability.Common": "Обычное", "WFRP4E.Availability.Scarce": "Дефицит", "WFRP4E.Availability.Rare": "Редкое",
   "WFRP4E.Availability.Exotic": "Экзотика", "WFRP4E.Availability.Special": "Особое",
   "WFRP4E.ArmourType.SLeather": "Мягкая кожа", "WFRP4E.ArmourType.Mail": "Кольчуга",
-  "WFRP4E.GroupType.basic": "Обычное", "WFRP4E.GroupType.flail": "Цепы", "WFRP4E.GroupType.parry": "Парирующее", "WFRP4E.GroupType.sling": "Пращи",
+  "WFRP4E.GroupType.basic": "Обычное", "WFRP4E.GroupType.twohanded": "Двуручное", "WFRP4E.GroupType.polearm": "Древковое", "WFRP4E.GroupType.crossbow": "Арбалеты", "WFRP4E.GroupType.fencing": "Фехтовальное", "WFRP4E.GroupType.flail": "Цепы", "WFRP4E.GroupType.parry": "Парирующее", "WFRP4E.GroupType.sling": "Пращи",
   "WFRP4E.Reach.average": "Средняя", "WFRP4E.Reach.vshort": "Очень короткая", "WFRP4E.Reach.long": "Длинная", "WFRP4E.Reach.personal": "Личная",
   "TYPES.Item.weapon": "Оружие", "TYPES.Item.armour": "Броня", "TYPES.Item.trapping": "Снаряжение", "TYPES.Item.container": "Контейнер"
 };
@@ -360,6 +360,40 @@ export const CAST = [
       { id: "g-healing", name: "Целебное зелье", type: "trapping", _icon: own("herbs_and_draughts/healing-draught.png"), img: icon("🧪", "#8a2a2a"),
         system: trapping({ quantity: { value: 2 }, availability: { value: "scarce" } }) },
       { id: "g-lens", name: "Лупа", type: "trapping", _icon: own("tools_and_kits/reading-lens.png"), img: icon("🔍", "#5a5a5a"), system: trapping({}) }
+    ]
+  },
+  {
+    id: "vet",
+    name: "Ветеран Гюнтер",
+    img: portrait,
+    career: { name: "Солдат", level: 3, class: "Воины" },
+    skills: ["Melee (Basic)", "Melee (Parry)"],
+    talents: [],
+    system: {
+      characteristics: { ws: ch(44, 5), bs: ch(30), s: ch(36), t: ch(41, 5), i: ch(32), ag: ch(29), dex: ch(27), int: ch(28), wp: ch(38), fel: ch(25) },
+      status: stats(14), details: details("Серебро 1"), settings: { equipPoints: 2 }
+    },
+    items: [
+      // Травмы: левой кисти нет (на культе крюк), правая нога сломана
+      { id: "v-hand", name: "Потеря кисти", type: "injury", _icon: "icons:injuries/amputatedhand.png", img: icon("✋", "#7a2a1a"),
+        system: { location: { value: "Левая рука", key: "lArm" }, penalty: { value: "-20 к проверкам, где нужны обе руки" }, duration: { value: "", active: false, permanent: true } } },
+      { id: "v-leg", name: "Лёгкий перелом ноги", type: "injury", _icon: "icons:injuries/broken-leg.png", img: icon("🦴", "#7a4a2a"),
+        system: { location: { value: "Правая нога", key: "rLeg" }, penalty: { value: "" }, duration: { value: "12", active: true, permanent: false } } },
+      { id: "v-hook", name: "Крюк", type: "trapping", _icon: own("prosthetics/basic-hook.png"), img: icon("🪝", "#5a5a5a"),
+        flags: { "wfrp4e-paperdoll": { limb: "lArm" } },
+        system: trapping({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 3, bp: 4 } }) },
+      { id: "v-leg-p", name: "Деревянная нога", type: "trapping", _icon: own("prosthetics/false-leg.png"), img: icon("🦵", "#6a4a2a"),
+        system: trapping({ encumbrance: { value: 2 }, availability: { value: "rare" }, price: { ss: 16 } }) },
+      { id: "v-marvel", name: "Инженерное чудо", type: "trapping", _icon: own("prosthetics/engineering-marvel.png"), img: icon("⚙️", "#6a6a7a"),
+        system: trapping({ encumbrance: { value: 1 }, availability: { value: "exotic" }, price: { gc: 20 } }) },
+      { id: "v-sword", name: "Меч", type: "weapon", _icon: own("weapons/sword-hand-weapon.png"), img: icon("⚔️", "#5a6a7a"),
+        system: weapon({ equipped: { value: true }, damage: { value: "SB+4" }, encumbrance: { value: 1 } }) },
+      { id: "v-shield", name: "Щит", type: "weapon", _icon: own("weapons/shield.png"), img: icon("🛡️", "#6a5a3a"),
+        system: weapon({ weaponGroup: { value: "parry" }, reach: { value: "personal" }, damage: { value: "SB+2" }, _qualities: ["Щит 2", "Защитное"], encumbrance: { value: 1 } }) },
+      { id: "v-axe", name: "Двуручная секира", type: "weapon", _icon: own("weapons/great-axe.png"), img: icon("🪓", "#5a6a7a"),
+        system: weapon({ twohanded: { value: true }, weaponGroup: { value: "twohanded" }, damage: { value: "SB+5" }, encumbrance: { value: 2 } }) },
+      { id: "v-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
+        system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 } }) }
     ]
   }
 ];

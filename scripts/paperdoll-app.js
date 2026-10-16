@@ -74,6 +74,55 @@ const ARTICLE_TERMS = {
 /** Иконки категорий во вкладке «Характеристики» */
 const STAT_ART = { physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
+/* -------------------------------------------- */
+/*  Конечности: ампутации, переломы, протезы    */
+/* -------------------------------------------- */
+
+const LIMB_LOCS = ["rArm", "lArm", "rLeg", "lLeg"];
+const isArmLoc = (loc) => loc === "rArm" || loc === "lArm";
+const baseName = (img) => String(img ?? "").split("/").pop().replace(/\.\w+$/, "").toLowerCase();
+
+/**
+ * Что травма делает с конечностью. Узнаём по картинке wfrp4e-core (не зависит от перевода),
+ * потом по названию на английском и русском.
+ * arm / hand / leg / foot - ампутация, broken / torn - временно не действует (книга: как ампутация, пока не заживёт)
+ */
+function injuryLimbKind(item) {
+  const img = baseName(item.img);
+  const name = String(item.name ?? "").toLowerCase();
+  const test = (imgRe, nameRe) => imgRe.test(img) || nameRe.test(name);
+  if (test(/^amputatedhand/, /amputated hand|lost hand|кист/)) return "hand";
+  if (test(/^amputatedarm/, /amputated arm|lost arm|потер\S* рук|ампутац\S* рук/)) return "arm";
+  if (test(/^amputatedfoot/, /amputated foot|lost foot|стоп/)) return "foot";
+  if (test(/^amputatedleg/, /amputated leg|lost leg|потер\S* ног|ампутац\S* ног/)) return "leg";
+  if (test(/^broken-(arm|leg)/, /broken bone|перелом/)) return "broken";
+  if (test(/^torn(arm|leg)/, /torn muscle \(major\)|серь\S* разрыв|разрыв\S* мышц\S* \(серь/)) return "torn";
+  return null;
+}
+
+/** Какая конечность: rArm / lArm / rLeg / lLeg или null, если по данным не понять */
+function injuryLimbLoc(item, kind) {
+  const key = item.system?.location?.key;
+  if (LIMB_LOCS.includes(key)) return key;
+  const text = `${item.system?.location?.value ?? ""} ${item.name ?? ""} ${baseName(item.img)}`.toLowerCase();
+  const side = /\bleft\b|лев/.test(text) ? "l" : /\bright\b|прав/.test(text) ? "r" : null;
+  const arm = ["hand", "arm"].includes(kind) || /arm|hand|рук|кист/.test(text);
+  const leg = ["foot", "leg"].includes(kind) || /leg|foot|ног|стоп/.test(text);
+  if (!side || arm === leg) return null;
+  return `${side}${arm ? "Arm" : "Leg"}`;
+}
+
+/** Протез: hook - крюк, leg - деревянная нога или стопа, marvel - инженерное чудо */
+function prostheticKind(item) {
+  if (item.type !== "trapping") return null;
+  const img = baseName(item.img);
+  const name = String(item.name ?? "").toLowerCase();
+  if (/engineering-marvel/.test(img) || /engineering marvel|инженерн\S* чуд/.test(name)) return "marvel";
+  if (/hook/.test(img) || /\bhook\b|крюк/.test(name)) return "hook";
+  if (/false-leg|wooden-leg/.test(img) || /false (leg|foot)|wooden leg|peg leg|деревянн\S* ног|искусственн\S* (ног|стоп)/.test(name)) return "leg";
+  return null;
+}
+
 /** Доступность предмета -> «редкость» рамки в стиле WoW */
 const RARITY = {
   common: "common",
@@ -255,6 +304,44 @@ function safe(fn, fallback = null) {
   }
 }
 
+/**
+ * Звон монет без звукового файла: несколько коротких «металлических» обертонов через Web Audio.
+ * gain - при получении две монетки, при трате одна и ниже. Громкость - из настройки интерфейса Foundry.
+ */
+let coinAudio = null;
+function playCoinSound(gain = true) {
+  try {
+    const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+    if (!AC) return;
+    coinAudio ??= new AC();
+    const ctx = coinAudio;
+    if (ctx.state === "suspended") ctx.resume();
+    let volume = 0.5;
+    try {
+      volume = Number(game.settings.get("core", "globalInterfaceVolume") ?? 0.5);
+    } catch {}
+    if (!(volume > 0)) return;
+    const hits = gain ? [0, 0.07] : [0];
+    for (const t0 of hits) {
+      const start = ctx.currentTime + t0;
+      const base = (gain ? 2600 : 2100) * (1 + (Math.random() - 0.5) * 0.08);
+      for (const [mul, amp, decay] of [[1, 0.35, 0.18], [2.76, 0.18, 0.12], [5.4, 0.08, 0.07]]) {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = base * mul;
+        g.gain.setValueAtTime(amp * volume, start);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + decay + 0.02);
+      }
+    }
+  } catch {
+    // Звук - украшение: без него всё работает
+  }
+}
+
 export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
   static instances = new Map();
@@ -385,12 +472,18 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const LAYER = { plate: 4, mail: 3, boiledLeather: 2, softLeather: 1 };
     const layerRank = (a) => LAYER[a.system.armorType?.value] ?? 0;
     const armour = equipped("armour");
+    const limbs = this._limbState();
+    const prosthetics = actor.items.filter((i) => i.system?.isEquipped && prostheticKind(i));
     const armourSlot = (key) => {
       const items = armour
         .filter((a) => a.system.protects?.[key])
         // При равном AP сверху то, что носят поверх: латы, потом кольчуга, потом кожа
         .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0) || layerRank(b) - layerRank(a));
-      return makeSlot(key, items, { showAP: true });
+      // Протез этой конечности - в её же слот, отдельным слоем (AP не даёт)
+      const prost = prosthetics.filter((pr) => pr.flags?.[MODULE_ID]?.limb === key);
+      const slot = makeSlot(key, [...items, ...prost], { showAP: true });
+      slot.maim = this._maimView(key, limbs);
+      return slot;
     };
 
     // --- Оружие ---
@@ -409,7 +502,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       },
       {
         area: "weapons",
-        slots: [makeSlot("main", mainItems), makeSlot("off", offItems, { ghost: twoHander })]
+        slots: ["main", "off"].map((key) => {
+          const loc = this._handLoc(key);
+          // Крюк вместо кисти виден в слоте этой руки, если в ней ничего нет
+          const hook = limbs[loc].hook ? limbs[loc].prosthetic : null;
+          const slot = key === "main" ? makeSlot("main", mainItems, { ghost: hook }) : makeSlot("off", offItems, { ghost: twoHander ?? hook });
+          slot.maim = this._maimView(loc, limbs);
+          // Двуручное при руке, которой нет: значок и на основной руке (держит, если ГМ разрешил)
+          const otherLoc = this._handLoc(key === "main" ? "off" : "main");
+          if (!slot.maim && key === "main" && twoHander && limbs[otherLoc].noHand) slot.maim = this._maimView(otherLoc, limbs);
+          return slot;
+        })
       }
     ];
 
@@ -723,7 +826,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const updates = Object.keys(V)
       .filter((k) => next[k] !== qty(k))
       .map((k) => ({ _id: coins[k].id, "system.quantity.value": next[k] }));
-    if (updates.length) await this.actor.updateEmbeddedDocuments("Item", updates);
+    if (!updates.length) return;
+    // Анимация и звон после перерисовки: «+1» / «-1» у нажатой монеты
+    this._moneyFx = { key, delta };
+    playCoinSound(delta > 0);
+    await this.actor.updateEmbeddedDocuments("Item", updates);
   }
 
   /**
@@ -800,6 +907,66 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
+  /**
+   * Состояние конечностей: какие травмы, какой протез надет, работает ли рука или нога.
+   * Инженерное чудо отменяет все последствия для своей конечности.
+   */
+  _limbState() {
+    const state = Object.fromEntries(LIMB_LOCS.map((loc) => [loc, { injuries: [], prosthetic: null }]));
+    for (const item of this.actor.items) {
+      if (item.type === "injury") {
+        const kind = injuryLimbKind(item);
+        const loc = kind && injuryLimbLoc(item, kind);
+        if (loc) state[loc].injuries.push({ item, kind });
+      } else if (item.system?.isEquipped && prostheticKind(item)) {
+        const loc = item.flags?.[MODULE_ID]?.limb;
+        if (LIMB_LOCS.includes(loc)) state[loc].prosthetic = item;
+      }
+    }
+    for (const [loc, st] of Object.entries(state)) {
+      const kinds = st.injuries.map((x) => x.kind);
+      st.marvel = prostheticKind(st.prosthetic ?? {}) === "marvel";
+      st.lost = !st.marvel && kinds.some((k) => ["arm", "hand", "leg", "foot"].includes(k));
+      st.disabled = !st.marvel && kinds.some((k) => ["broken", "torn"].includes(k));
+      // Рука: держать оружие нечем. Щит можно привязать к культе, если потеряна только кисть
+      st.noHand = isArmLoc(loc) && (st.lost || st.disabled);
+      st.stump = isArmLoc(loc) && !st.disabled && kinds.includes("hand") && !kinds.includes("arm") && !st.marvel;
+      st.hook = st.stump && prostheticKind(st.prosthetic ?? {}) === "hook";
+      st.any = st.injuries.length > 0;
+    }
+    return state;
+  }
+
+  /** Рука, которая держит оружие в слоте main / off */
+  _handLoc(slot) {
+    const main = safe(() => this.actor.mainArmLoc, null) ?? "rArm";
+    if (slot === "main") return main;
+    return main === "rArm" ? "lArm" : "rArm";
+  }
+
+  /** Значок на слоте: что не так с конечностью (и чем она заменена) */
+  _maimView(loc, limbs) {
+    const st = limbs[loc];
+    if (!st?.any) return null;
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const top = st.injuries[0].item;
+    const lines = st.injuries.map((x) => `${x.item.name} - ${L(`WFRPPD.Limb.Kind.${x.kind}`)}`);
+    if (st.prosthetic) lines.push(F("WFRPPD.Limb.Prosthetic", { name: st.prosthetic.name }));
+    if (st.marvel) lines.push(L("WFRPPD.Limb.MarvelHint"));
+    else if (isArmLoc(loc)) {
+      if (st.noHand) lines.push(L(st.stump ? "WFRPPD.Limb.StumpHint" : "WFRPPD.Limb.NoHandHint"));
+      if (st.hook) lines.push(L("WFRPPD.Limb.HookHint"));
+    } else if (st.lost) lines.push(L(prostheticKind(st.prosthetic ?? {}) === "leg" ? "WFRPPD.Limb.LegProsthesisHint" : "WFRPPD.Limb.NoLegHint"));
+    else if (st.disabled) lines.push(L("WFRPPD.Limb.LegDisabledHint"));
+    if (st.disabled) lines.push(L("WFRPPD.Limb.TempHint"));
+    return {
+      img: itemImg(st.prosthetic && !st.marvel ? st.prosthetic.img : top.img, st.prosthetic && !st.marvel ? st.prosthetic.name : top.name),
+      ok: st.marvel,
+      title: lines.join("\n")
+    };
+  }
+
   _matchesFilter(item, filter) {
     switch (filter) {
       case "weapon":
@@ -827,6 +994,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _canDrop(item, slot) {
     if (!item) return false;
     const sys = item.system;
+    const pk = prostheticKind(item);
+    if (pk) {
+      // Протез - в слот своей конечности: крюк на руку, нога на ногу, инженерное чудо куда угодно
+      if (!LIMB_LOCS.includes(slot)) return false;
+      return pk === "marvel" || (pk === "hook" ? isArmLoc(slot) : !isArmLoc(slot));
+    }
     if (LOCATIONS.includes(slot)) return item.type === "armour" && !!sys.protects?.[slot];
     if (slot === "main" || slot === "off") return item.type === "weapon";
     if (slot === "accessory")
@@ -838,6 +1011,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Слот по умолчанию для двойного клика */
   _defaultSlot(item) {
     const sys = item.system;
+    const pk = prostheticKind(item);
+    if (pk) {
+      // Сначала туда, где конечности не хватает
+      const limbs = this._limbState();
+      const fits = LIMB_LOCS.filter((loc) => this._canDrop(item, loc));
+      return fits.find((loc) => limbs[loc].lost || limbs[loc].disabled) ?? fits[0] ?? null;
+    }
     if (item.type === "armour") return LOCATIONS.find((l) => sys.protects?.[l]) ?? null;
     if (item.type === "container") {
       const { bySlot } = this._bagAssignment();
@@ -1111,6 +1291,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Предмет сейчас лежит именно в этом слоте */
   _isInSlot(item, slot) {
     if (!item.system.isEquipped || !this._canDrop(item, slot)) return false;
+    if (prostheticKind(item)) return item.flags?.[MODULE_ID]?.limb === slot;
     if (isBagSlot(slot)) return this._bagAssignment().slotOf.get(item.id) === slot;
     if (item.type === "weapon") {
       const off = !!item.system.offhand?.value;
@@ -1124,6 +1305,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const fits = this.actor.items.filter((i) => this._canDrop(i, slot));
     const current = fits.filter((i) => this._isInSlot(i, slot));
     let available = fits.filter((i) => !this._isInSlot(i, slot));
+    // Протезы в списке - только для потерянной конечности (перетащить можно куда угодно)
+    if (LIMB_LOCS.includes(slot) && !this._limbState()[slot].lost) available = available.filter((i) => !prostheticKind(i));
     // Двуручное во вторую руку не предлагаем - оно всё равно уйдёт в основную
     if (slot === "off") available = available.filter((i) => !i.system.twohanded?.value);
     // Сумки, надетые в других слотах, - отдельной группой: выбор такой сумки меняет слоты местами
@@ -1410,6 +1593,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         if (profile.dualWielder) score += 100;
       }
+      // Рука без кисти или сломана: держать оружие нечем (перетащить всё равно можно - вдруг ГМ разрешит)
+      if (slot === "main" || slot === "off") {
+        const limbs = this._limbState();
+        const hand = limbs[this._handLoc(slot)];
+        const other = limbs[this._handLoc(slot === "main" ? "off" : "main")];
+        if (hand.noHand) {
+          if (shieldValue(item) && hand.stump) warn.push({ label: L("WFRPPD.Limb.ShieldStrapped"), info: true });
+          else forbid.push({ label: L(hand.disabled ? "WFRPPD.Limb.HandBroken" : "WFRPPD.Limb.NoHand"), hint: L("WFRPPD.Limb.NoHandHint") });
+        }
+        if (sys.twohanded?.value && (hand.noHand || other.noHand)) forbid.push({ label: L("WFRPPD.Limb.NeedTwoHands") });
+      }
       // Бонусы талантов уже сидят в уроне; здесь только «невидимая» часть (Верный выстрел)
       score += this._weaponBonuses(item, profile).score;
     }
@@ -1454,6 +1648,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const rarity = RARITY_RANK[sys.availability?.value] ?? 0;
     const extras = q * 10 - f * 10 + rarity;
 
+    if (prostheticKind(item)) return { value: null, unit: null, score: (prostheticKind(item) === "marvel" ? 500 : 300) + extras };
     if (LOCATIONS.includes(slot)) {
       const ap = safe(() => sys.currentAP?.[slot], null) ?? sys.AP?.[slot] ?? 0;
       return { value: ap, unit: "AP", score: ap * 100 + extras };
@@ -1476,6 +1671,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!item.system.isEquipped) return null;
     if (item.type === "weapon") return item.system.offhand?.value ? "off" : "main";
     if (item.type === "container") return this._bagAssignment().slotOf.get(item.id) ?? null;
+    if (prostheticKind(item)) return item.flags?.[MODULE_ID]?.limb ?? null;
     return null;
   }
 
@@ -1497,6 +1693,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (item.system.location?.value) await item.update({ "system.location.value": "" });
       if (item.type === "weapon") await this._equipWeapon(item, slot);
       else if (isBagSlot(slot)) await this._equipBag(item, slot);
+      else if (prostheticKind(item)) {
+        // Протез на конечность: один на конечность, прежний снимаем
+        const prev = this.actor.items.find((i) => i.id !== item.id && prostheticKind(i) && i.system.isEquipped && i.flags?.[MODULE_ID]?.limb === slot);
+        if (prev) await prev.update({ "system.equipped.value": false, [`flags.${MODULE_ID}.limb`]: null });
+        await item.update({ "system.equipped.value": true, [`flags.${MODULE_ID}.limb`]: slot });
+      }
       else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
     } catch (err) {
       // Система сама показывает уведомление (например, лимит экипированного оружия)
@@ -1557,7 +1759,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.editable || !item?.system?.isEquipped) return;
     try {
       if (item.type === "container") await this._pinBags();
-      await item.update({ "system.equipped.value": false });
+      const update = { "system.equipped.value": false };
+      if (prostheticKind(item)) update[`flags.${MODULE_ID}.limb`] = null;
+      await item.update(update);
     } catch (err) {
       console.warn(`${MODULE_ID} | unequip failed`, err);
     }
@@ -1677,6 +1881,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         const terms = (el.dataset.article ?? "").split("|").filter(Boolean);
         this._openArticle("stat", terms.at(-1) ?? "", terms.slice(0, -1));
       });
+    }
+    // Анимация последней операции с деньгами
+    if (this._moneyFx) {
+      const { key, delta } = this._moneyFx;
+      this._moneyFx = null;
+      const coin = root.querySelector(`.pd-coin[data-coin="${key}"]`);
+      if (coin) {
+        coin.classList.add(delta > 0 ? "is-gain" : "is-spend");
+        const fx = document.createElement("span");
+        fx.className = `pd-coin-fx ${delta > 0 ? "is-gain" : "is-spend"}`;
+        fx.textContent = `${delta > 0 ? "+" : "-"}${Math.abs(delta)}`;
+        coin.append(fx);
+        fx.addEventListener("animationend", () => fx.remove(), { once: true });
+      }
     }
     // Монеты: ЛКМ +1, ПКМ -1, с Shift по 10
     for (const el of root.querySelectorAll(".pd-coin")) {

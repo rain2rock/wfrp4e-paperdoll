@@ -243,6 +243,29 @@
       "Title": "View",
       "grid": "Cells",
       "list": "List with names"
+    },
+    "Limb": {
+      "Kind": {
+        "arm": "arm lost",
+        "hand": "hand lost",
+        "leg": "leg lost",
+        "foot": "foot lost",
+        "broken": "broken: unusable until it heals",
+        "torn": "torn muscle: unusable until it heals"
+      },
+      "Prosthetic": "Prosthetic: {name}",
+      "MarvelHint": "Engineering Marvel: the loss has no effect.",
+      "NoHandHint": "By the rules this hand cannot hold a weapon, nor a two-handed one. You can still drag an item here if the GM allows it.",
+      "StumpHint": "No hand: cannot hold a weapon, but a shield can be strapped to the stump. -20 to tests needing both hands.",
+      "HookHint": "Hook: counts as a dagger in melee.",
+      "NoLegHint": "Movement is reduced (core rules, Amputations). A false leg restores 1 Movement.",
+      "LegProsthesisHint": "False leg: +1 to Movement lost with the leg.",
+      "TempHint": "Temporary: the limit goes away when the injury heals.",
+      "ShieldStrapped": "shield strapped to the stump",
+      "NoHand": "no hand",
+      "HandBroken": "arm unusable",
+      "NeedTwoHands": "needs two hands",
+      "LegDisabledHint": "The leg does not work until the injury heals: Movement is reduced as if it were lost."
     }
   }
 }

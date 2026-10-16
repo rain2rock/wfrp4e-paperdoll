@@ -258,6 +258,7 @@
       this.img = data.img;
       this.type = data.type;
       this.system = makeSystem(this, data.system ?? {});
+      this.flags = structuredClone(data.flags ?? {});
     }
     get actor() {
       return this.parent;

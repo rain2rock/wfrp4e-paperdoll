@@ -1,7 +1,7 @@
 <div class="pd-root {{#unless editable}}is-readonly{{/unless}}">
   {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
   {{#*inline "pdSlot"}}
-        <div class="pd-slot {{#unless top}}is-empty{{/unless}}" data-slot="{{key}}">
+        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
           <div class="pd-slot-frame" {{#if @root.editable}}title="{{label}}"{{/if}}>
             {{#if top}}
             <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
@@ -14,6 +14,7 @@
             {{/if}}
             {{#if layers}}<span class="pd-layers {{#if layersOnHover}}is-hover-only{{/if}}" title="{{localize "WFRPPD.Layers"}}: {{label}}">+{{layers}}</span>{{/if}}
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
+            {{#if maim}}<span class="pd-maim {{#if maim.ok}}is-ok{{/if}}" title="{{maim.title}}"><img src="{{maim.img}}" alt=""></span>{{/if}}
           </div>
         </div>
 {{/inline}}
@@ -45,9 +46,8 @@
     <div class="pd-doll">
       {{#each groups}}
       <div class="pd-group pd-group--{{area}}">
-        {{#each slots}}
-        {{> pdSlot}}
-        {{/each}}
+        {{!-- партиал в одну строку: иначе Handlebars добавляет отступ к переносам строк в подсказках --}}
+        {{#each slots}}{{> pdSlot}}{{/each}}
       </div>
       {{/each}}
 
