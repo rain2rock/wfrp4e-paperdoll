@@ -156,6 +156,9 @@
         <div class="pd-ecs-row" {{#if hint}}title="{{hint}}"{{/if}}>
           <span class="pd-ecs-label">{{label}}:</span>
           <span class="pd-ecs-value {{cls}}">{{value}}</span>
+          <button type="button" class="pd-ecs-info" data-article="{{article}}" title="{{localize "WFRPPD.Article.Open"}}">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.2C3.6 2.4 5.6 2.4 8 3.6c2.4-1.2 4.4-1.2 6 0V13c-1.6-.9-3.6-.9-6 .4-2.4-1.3-4.4-1.3-6-.4z M8 3.6V13.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          </button>
         </div>
         {{/each}}
       </div>

@@ -1507,3 +1507,49 @@
 .wfrp-paperdoll .pd-root:not(.is-readonly) .pd-coin { cursor: pointer; user-select: none; }
 .wfrp-paperdoll .pd-coin:hover { filter: brightness(1.15); }
 .wfrp-paperdoll .pd-item { box-sizing: border-box; }
+
+/* ---------- v0.14.1 ---------- */
+
+/* Размеры: надетая вещь размером с пустой слот, вещь в сумке размером с пустую ячейку */
+.wfrp-paperdoll .pd-item { border: 0; }
+.wfrp-paperdoll .pd-item::after,
+.wfrp-paperdoll .pd-bag-cell::after { inset: 0; }
+.wfrp-paperdoll .pd-slot:not(.is-empty) .pd-slot-frame { width: 66px; height: 66px; flex-basis: 66px; }
+
+/* Неактивная вкладка без нижней кромки: внизу только общая линия полосы вкладок */
+.wfrp-paperdoll .pd-tab:not(.is-active) {
+  border-style: solid;
+  border-width: 3px 3px 0;
+  border-image: url("../assets/ui/tab.png") 8 8 0 8 fill / 3px 3px 0 3px stretch;
+  background: none;
+}
+
+/* Стрелка «лучше / хуже» в списке смены: крупнее и цветом дельты */
+.wfrp-paperdoll-flyout .pd-fly-delta img { display: none; }
+.wfrp-paperdoll-flyout .pd-delta-ico {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--ico) center / contain no-repeat;
+  mask: var(--ico) center / contain no-repeat;
+}
+.wfrp-paperdoll-flyout .pd-fly-delta.is-up { color: #1f8a0a; font-weight: 700; }
+
+/* Значок статьи справа от строки характеристик */
+.wfrp-paperdoll .pd-ecs-row { display: flex; align-items: center; gap: 4px; }
+.wfrp-paperdoll .pd-ecs-info {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0 0 0 auto;
+  padding: 1px;
+  line-height: 0;
+  color: var(--pd-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-ecs-info svg { width: 16px; height: 16px; }
+.wfrp-paperdoll .pd-ecs-info:hover { color: var(--pd-gold); }

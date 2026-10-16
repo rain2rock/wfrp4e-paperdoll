@@ -57,6 +57,20 @@ const SLOT_ART = {
   off: "slot-off"
 };
 
+/** Статьи правил для строк вкладки «Характеристики»: как они называются в журналах wfrp4e-core */
+const ARTICLE_TERMS = {
+  "WFRPPD.Stats.Move": "Movement", "WFRPPD.Stats.Walk": "Movement", "WFRPPD.Stats.Run": "Movement",
+  "WFRPPD.Encumbrance": "Encumbrance",
+  "char.ws": "Weapon Skill", "char.bs": "Ballistic Skill", "char.s": "Strength", "char.t": "Toughness", "char.i": "Initiative",
+  "char.ag": "Agility", "char.dex": "Dexterity", "char.int": "Intelligence", "char.wp": "Willpower", "char.fel": "Fellowship",
+  "WFRPPD.Stats.MainDmg": "Damage", "WFRPPD.Stats.OffDmg": "Damage", "WFRPPD.Stats.RangedDmg": "Damage",
+  "WFRPPD.Stats.SB": "Strength", "WFRPPD.Stats.TB": "Toughness", "WFRPPD.Stats.Advantage": "Advantage",
+  "WFRPPD.Stats.Crits": "Critical", "WFRPPD.Stats.CastPenalty": "Armour",
+  "WFRPPD.Stats.Fate": "Fate", "WFRPPD.Stats.Fortune": "Fortune", "WFRPPD.Stats.Resilience": "Resilience",
+  "WFRPPD.Stats.Resolve": "Resolve", "WFRPPD.Stats.Corruption": "Corruption", "WFRPPD.Stats.Sin": "Sin",
+  "WFRPPD.Stats.ExpTotal": "Experience", "WFRPPD.Stats.ExpSpent": "Experience", "WFRPPD.Stats.ExpCurrent": "Experience"
+};
+
 /** Иконки категорий во вкладке «Характеристики» */
 const STAT_ART = { physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
@@ -500,6 +514,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const mod = Number(c.modifier) || 0;
       const full = cfg.characteristics?.[key];
       return {
+        key: `char.${key}`,
         label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
         value: c.value ?? "-",
         cls: mod > 0 ? "is-up" : mod < 0 ? "is-down" : "",
@@ -512,6 +527,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       };
     };
     const row = (labelKey, value, cls = "") => ({
+      key: labelKey,
       label: L(labelKey),
       value: value === undefined || value === null || value === "" ? "-" : value,
       cls
@@ -578,6 +594,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const exp = det.experience;
     const enc = sys.status?.encumbrance ?? {};
     const row = (labelKey, value, cls = "") => ({
+      key: labelKey,
       label: L(labelKey),
       value: value === undefined || value === null || value === "" ? "-" : value,
       cls
@@ -608,7 +625,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Stats.ExpCurrent", exp.current)
         ]
       });
-    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`), art: STAT_ART[c.key] ? uiArt(STAT_ART[c.key]) : null }));
+    // У каждой строки - термины для поиска статьи правил (английские названия из книги + подпись)
+    const withArticle = (r) => ({ ...r, article: [ARTICLE_TERMS[r.key], r.label.replace(/:$/, "")].filter(Boolean).join("|") });
+    return cats.map((c) => ({
+      ...c,
+      rows: c.rows.map(withArticle),
+      label: L(`WFRPPD.Stats.Set.${c.key}`),
+      art: STAT_ART[c.key] ? uiArt(STAT_ART[c.key]) : null
+    }));
   }
 
 /** Номинал монеты в медных пенни */
@@ -632,12 +656,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * Открыть статью к части подзаголовка: карьера - лист карьеры,
    * вид и статус - журнал с таким названием (в мире или в компендиумах, например wfrp4e-core).
    */
-  async _openArticle(kind, text) {
+  async _openArticle(kind, text, extra = []) {
     if (kind === "career") {
       const career = safe(() => this.actor.system.currentCareer ?? this.actor.currentCareer);
       if (career?.sheet) return career.sheet.render(true);
     }
-    const terms = new Set([text]);
+    const terms = new Set([...extra, text]);
     if (kind === "status") {
       // «Brass 0», «Медь 2» -> ищем и по слову тира: Brass / Silver / Gold
       const tier = String(text).replace(/\s*\d+\s*$/, "").trim();
@@ -1521,6 +1545,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this._openArticle(el.dataset.kind, el.textContent.trim());
       });
     }
+    // Вкладка «Характеристики»: значок справа от строки открывает статью правил
+    for (const el of root.querySelectorAll(".pd-ecs-info")) {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const terms = (el.dataset.article ?? "").split("|").filter(Boolean);
+        this._openArticle("stat", terms.at(-1) ?? "", terms.slice(0, -1));
+      });
+    }
     // Монеты: ЛКМ +1, ПКМ -1, с Shift по 10
     for (const el of root.querySelectorAll(".pd-coin")) {
       const step = (ev) => (ev.shiftKey ? 10 : 1);
@@ -1975,7 +2007,7 @@ class PaperdollFlyout {
       if (!current.length && !d) return "";
       if (!d) return `<span class="pd-fly-delta is-same">=</span>`;
       const unit = L(`WFRPPD.Fly.Unit.${v.unit}`);
-      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}"><img src="${uiArt(d > 0 ? "ui-delta-up" : "ui-delta-down")}" alt="">${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
+      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}"><i class="pd-delta-ico" style="--ico: url('${uiArt(d > 0 ? "ui-delta-up" : "ui-delta-down")}')"></i>${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
     };
 
     const row = (item, act) => {
