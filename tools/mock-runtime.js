@@ -107,7 +107,7 @@
 
     _buildFrame() {
       const el = document.createElement("div");
-      el.className = ["app", "window-app", ...this.options.classes].join(" ");
+      el.className = ["application", "app", "window-app", ...this.options.classes].join(" ");
       if (this.options.id) el.id = this.options.id;
       el.style.width = `${this.options.position.width}px`;
       el.style.height = `${this.options.position.height}px`;

@@ -2230,3 +2230,16 @@
 .wfrp-paperdoll .pd-ecs-row .pd-ecs-info { margin-left: auto; }
 .wfrp-paperdoll .pd-adv.is-out { background: none; border: none; color: var(--pd-text-dim); }
 .wfrp-paperdoll .pd-adv.is-out:hover { color: #8a6418; background: rgba(176, 138, 58, 0.15); }
+
+/* ---------- v0.22.8: тема WFRP4e (тёмная) рисует у всех окон рамку и отступ внутри .window-content
+   (border 10px + padding 1.25rem). У куколки свой фон и сетка - снимаем, иначе правый край обрезается. ---------- */
+.application.wfrp-paperdoll .window-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-image: none !important;
+  box-shadow: none !important;
+}
+.wfrp-paperdoll .pd-root { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+.wfrp-paperdoll .pd-side { min-width: 0; }
+.wfrp-paperdoll-tooltip .pd-tt-val.is-dmg { font-size: 13px; height: 20px; border-radius: 10px; }
