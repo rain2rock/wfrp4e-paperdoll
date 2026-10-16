@@ -59,11 +59,13 @@ Hooks.once("init", () => {
  * Двойной клик по токену открывает снаряжение вместо листа (опция, у каждого игрока своя).
  * Alt + двойной клик - обычный лист. Без прав наблюдателя - как в Foundry.
  */
-Hooks.once("ready", () => {
+// Патчим на этапе setup: холст рисуется до «ready», и токены привязывают обработчик двойного клика при отрисовке
+Hooks.once("setup", () => {
   if (game.system.id !== "wfrp4e") return;
-  const TokenCls = foundry.canvas?.placeables?.Token ?? globalThis.Token;
+  const TokenCls = CONFIG.Token?.objectClass ?? foundry.canvas?.placeables?.Token ?? globalThis.Token;
   const proto = TokenCls?.prototype;
-  if (!proto?._onClickLeft2) return;
+  if (!proto?._onClickLeft2 || proto._pdPatched) return;
+  proto._pdPatched = true;
   const original = proto._onClickLeft2;
   proto._onClickLeft2 = function (event) {
     try {
