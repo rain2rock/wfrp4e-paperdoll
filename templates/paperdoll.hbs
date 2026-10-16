@@ -56,13 +56,24 @@
         <div class="pd-model" data-action="openSheet">
           <img src="{{img}}" alt="{{name}}">
           {{#if effects.length}}
+          {{!-- Баффы слева, дебаффы справа, каждая группа - до середины --}}
           <div class="pd-effects">
-            {{#each effects}}
-            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}} {{#if passive}}is-passive{{/if}} {{#if groupStart}}is-group-start{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
+            <div class="pd-effects-side is-buffs">
+            {{#each effects}}{{#if isBuff}}
+            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}} {{#if passive}}is-passive{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
               <img src="{{img}}" alt="">
               {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
             </button>
-            {{/each}}
+            {{/if}}{{/each}}
+            </div>
+            <div class="pd-effects-side is-debuffs">
+            {{#each effects}}{{#unless isBuff}}
+            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}} {{#if passive}}is-passive{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
+              <img src="{{img}}" alt="">
+              {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
+            </button>
+            {{/unless}}{{/each}}
+            </div>
           </div>
           {{/if}}
           <div class="pd-vitals">

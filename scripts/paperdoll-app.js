@@ -2133,8 +2133,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Сначала баффы, потом остальное; на стыке - разделитель
     const buffs = out.filter((e) => e.kind === "buff");
     const rest = out.filter((e) => e.kind !== "buff");
-    if (buffs.length && rest.length) rest[0] = { ...rest[0], groupStart: true };
-    return [...buffs, ...rest].map((e) => ({ ...e, lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
+    return [...buffs, ...rest].map((e) => ({ ...e, isBuff: e.kind === "buff", lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
   }
 
   /** ЛКМ по эффекту */

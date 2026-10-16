@@ -2426,3 +2426,15 @@
 .wfrp-paperdoll .pd-effect.is-passive { opacity: 0.75; }
 .wfrp-paperdoll .pd-effect.is-group-start { margin-left: 10px; }
 .wfrp-paperdoll-tooltip .pd-tt-name.is-buff { color: var(--pd-up); }
+
+/* Лента эффектов: баффы слева, дебаффы справа, каждая сторона до середины с зазором */
+.wfrp-paperdoll .pd-effects { justify-content: space-between; flex-wrap: nowrap; gap: 16px; }
+.wfrp-paperdoll .pd-effects-side {
+  flex: 0 1 calc(50% - 8px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-content: flex-start;
+}
+.wfrp-paperdoll .pd-effects-side.is-buffs { justify-content: flex-start; }
+.wfrp-paperdoll .pd-effects-side.is-debuffs { justify-content: flex-end; }
