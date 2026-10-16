@@ -1907,3 +1907,21 @@
 .wfrp-paperdoll-tooltip .pd-coin-dot--gc { background: radial-gradient(circle at 35% 30%, #fff3a0, #e0b020 55%, #8a6408); }
 .wfrp-paperdoll-tooltip .pd-coin-dot--ss { background: radial-gradient(circle at 35% 30%, #ffffff, #c8ccd0 55%, #6e7378); }
 .wfrp-paperdoll-tooltip .pd-coin-dot--bp { background: radial-gradient(circle at 35% 30%, #ffd2a0, #c07a38 55%, #6a3a12); }
+
+/* ---------- v0.20: правила брони и боеприпасов ---------- */
+/* Значок «что-то не по правилам» (слои брони, нет боеприпасов) - левый нижний угол */
+.wfrp-paperdoll .pd-slot-warn {
+  position: absolute;
+  z-index: 3;
+  left: -6px;
+  bottom: -6px;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid #b8860b;
+  background: #f3ead6 url("../assets/ui/ui-warn.png") center / 14px 14px no-repeat;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  cursor: help;
+}
+.wfrp-paperdoll .pd-slot.is-warned:not(.is-maimed) .pd-slot-frame { box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.55); }

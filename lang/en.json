@@ -124,7 +124,9 @@
       "ExpSpent": "Spent",
       "ExpCurrent": "Available",
       "CastPenalty": "Armour casting penalty",
-      "Modified": "Modified: {mod} (effects, talents or a sheet edit)"
+      "Modified": "Modified: {mod} (effects, talents or a sheet edit)",
+      "StealthPenalty": "Stealth",
+      "PerceptionPenalty": "Perception"
     },
     "Terms": {
       "gc": "gold crown|gold crowns|gold crowns",
@@ -146,7 +148,16 @@
       "Penalty": "{text}",
       "ForbiddenHint": "Not allowed by the rules - excluded from BIS",
       "OffHandAttack": "{n} off-hand attack",
-      "OffHandParryHint": "Off-hand attacks are penalised. Melee (Parry) removes the penalty when defending. Ambidextrous reduces the attack penalty"
+      "OffHandParryHint": "Off-hand attacks are penalised. Melee (Parry) removes the penalty when defending. Ambidextrous reduces the attack penalty",
+      "NoAmmo": "No ammunition",
+      "NoAmmoHint": "No matching arrows, bolts or shot in the inventory - nothing to shoot",
+      "Layer": "Clashes with «{name}»",
+      "LayerHint": "Only Flexible armour or soft leather can be worn under other armour (p. 300). Two rigid layers on one location are up to the GM",
+      "LayerSlot": "Two rigid armour layers",
+      "Stealth": "{n} Stealth",
+      "Perception": "{n} Perception",
+      "SkillPenaltyHint": "Each piece of mail or plate gives -10 Stealth. Helmets and coifs hinder Perception (p. 300)",
+      "Practical": "Practical: penalty 10 lower"
     },
     "Class": "Class",
     "Career": "Career",

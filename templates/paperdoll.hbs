@@ -1,7 +1,7 @@
 <div class="pd-root {{#unless editable}}is-readonly{{/unless}}">
   {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
   {{#*inline "pdSlot"}}
-        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if extra}}is-extra{{/if}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
+        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if extra}}is-extra{{/if}} {{#if warn}}is-warned{{/if}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
           <div class="pd-slot-frame" title="{{#if hint}}{{label}}&#10;{{hint}}{{else}}{{label}}{{/if}}">
             {{#if top}}
             <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
@@ -15,6 +15,7 @@
             {{#if layers}}<span class="pd-layers {{#if layersOnHover}}is-hover-only{{/if}}" title="{{localize "WFRPPD.Layers"}}: {{label}}">+{{layers}}</span>{{/if}}
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
             {{#if maim}}<span class="pd-maim {{#if maim.ok}}is-ok{{/if}}" title="{{maim.title}}"><img src="{{maim.img}}" alt=""></span>{{/if}}
+            {{#if warn}}<span class="pd-slot-warn" title="{{warn.title}}"></span>{{/if}}
           </div>
         </div>
 {{/inline}}

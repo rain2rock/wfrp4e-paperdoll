@@ -226,6 +226,69 @@ function shieldValue(item) {
   return Number(label.match(/(\d+)/)?.[1] ?? 1);
 }
 
+/** Есть ли у предмета достоинство или изъян (ключ системы или подпись) */
+function hasProperty(item, key, rx) {
+  const sys = item.system;
+  const props = safe(() => sys.properties, null) ?? {};
+  if (props.qualities?.[key] || props.flaws?.[key]) return true;
+  const labels = [...(safe(() => sys.Qualities, []) ?? []), ...(safe(() => sys.Flaws, []) ?? [])];
+  return labels.some((q) => rx.test(q));
+}
+
+/** Гибкая броня или мягкая кожа - её можно поддеть под другой доспех (стр. 300) */
+function isUnderLayer(item) {
+  return item.system.armorType?.value === "softLeather" || hasProperty(item, "flexible", /flexible|гибк/i);
+}
+
+/**
+ * Штрафы брони к навыкам (стр. 300).
+ * Каждый элемент кольчуги или лат: -10 к скрытности.
+ * Поле «Эффект» предмета (например, «-20 к наблюдательности») читаем как есть.
+ * Достоинство «Практичный» (Up in Arms) снижает каждый штраф на 10.
+ */
+function armourSkillPenalties(item) {
+  const sys = item.system;
+  const out = { stealth: 0, perception: 0 };
+  if (item.type !== "armour") return out;
+  const type = sys.armorType?.value;
+  if (["mail", "plate"].includes(type)) out.stealth = 10;
+  const text = String(sys.penalty?.value ?? "");
+  for (const m of text.matchAll(/[-−–]\s*(\d+)\s*(?:к|to)?\s*([A-Za-zА-Яа-яЁё]+)/g)) {
+    const n = Number(m[1]);
+    if (/stealth|скрыт/i.test(m[2])) out.stealth = Math.max(out.stealth, n);
+    else if (/percep|наблюд|восприят/i.test(m[2])) out.perception = Math.max(out.perception, n);
+  }
+  // Данные без поля «Эффект»: узнаём шлемы и капюшон по названию
+  if (!out.perception && (sys.AP?.head ?? 0) > 0) {
+    if (/great\s*helm|closed|топфхельм|глух|закрыт/i.test(item.name)) out.perception = 20;
+    else if (/helm|coif|шлем|капюшон/i.test(item.name) && type !== "softLeather") out.perception = 10;
+  }
+  if (hasProperty(item, "practical", /practical|практичн/i)) {
+    out.stealth = Math.max(0, out.stealth - 10);
+    out.perception = Math.max(0, out.perception - 10);
+  }
+  return out;
+}
+
+/** Группа боеприпасов для стрелкового оружия (null - боеприпасы не нужны) */
+const AMMO_BY_GROUP = { bow: "bow", longbow: "bow", crossbow: "crossbow", sling: "sling", blackpowder: "BPandEng", engineering: "BPandEng" };
+function weaponAmmoGroup(item) {
+  const sys = item.system;
+  const g = sys.ammunitionGroup?.value;
+  if (g) return g === "none" ? null : g;
+  return AMMO_BY_GROUP[sys.weaponGroup?.value] ?? null;
+}
+function ammoGroupOf(item) {
+  const t = item.system.ammunitionType?.value;
+  if (t) return t;
+  const n = item.name ?? "";
+  if (/sling|пращ/i.test(n)) return "sling";
+  if (/bolt|болт/i.test(n)) return "crossbow";
+  if (/arrow|стрел/i.test(n)) return "bow";
+  if (/shot|powder|bullet|пул|порох|дробь|картеч/i.test(n)) return "BPandEng";
+  return null;
+}
+
 /** Наборы статов для выпадашек под портретом */
 const STAT_SETS = ["physical", "mental", "combat", "defence", "fate"];
 
@@ -512,6 +575,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const armour = equipped("armour");
     const limbs = this._limbState();
     const prosthetics = actor.items.filter((i) => i.system?.isEquipped && prostheticKind(i));
+    const layerClash = this._layerConflicts();
+    /** Значок «нет боеприпасов» на слоте со стрелковым оружием */
+    const ammoWarn = (slot, items) => {
+      const dry = items.filter((w) => this._hasAmmo(w) === false);
+      if (dry.length) slot.warn = { title: [L("WFRPPD.Restr.NoAmmo"), ...dry.map((w) => `- ${w.name}`), L("WFRPPD.Restr.NoAmmoHint")].join("\n") };
+      return slot;
+    };
     const armourSlot = (key) => {
       const items = armour
         .filter((a) => a.system.protects?.[key] && !(key === "head" && isExtraHead(extraSlotOf(a))))
@@ -521,6 +591,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const prost = prosthetics.filter((pr) => pr.flags?.[MODULE_ID]?.limb === key);
       const slot = makeSlot(key, [...items, ...prost], { showAP: true });
       slot.maim = this._maimView(key, limbs);
+      if (layerClash[key]) {
+        slot.warn = {
+          title: [L("WFRPPD.Restr.LayerSlot"), ...layerClash[key].map((a) => `- ${a.name}`), L("WFRPPD.Restr.LayerHint")].join("\n")
+        };
+      }
       return slot;
     };
 
@@ -533,7 +608,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const slot = makeSlot(key, items, { showAP: false });
       slot.extra = true;
       slot.hint = game.i18n.format("WFRPPD.Mutation.ExtraHint", { name: extra.source[key]?.name ?? "" });
-      return slot;
+      return ammoWarn(slot, items);
     };
     const mainItems = weapons.filter((w) => !w.system.offhand?.value);
     const offItems = weapons.filter((w) => w.system.offhand?.value);
@@ -558,7 +633,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           // Двуручное при руке, которой нет: значок и на основной руке (держит, если ГМ разрешил)
           const otherLoc = this._handLoc(key === "main" ? "off" : "main");
           if (!slot.maim && key === "main" && twoHander && limbs[otherLoc].noHand) slot.maim = this._maimView(otherLoc, limbs);
-          return slot;
+          return ammoWarn(slot, key === "main" ? mainItems : offItems);
         }).concat(extra.hands.map(extraSlot))
       }
     ];
@@ -752,6 +827,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           if (!profile.caster) return [];
           const pen = this._castPenalty(profile);
           return [row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} УУ` : "0", pen ? "is-down" : "")];
+        })(),
+        ...(() => {
+          const pen = this._skillPenalties();
+          return [
+            row("WFRPPD.Stats.StealthPenalty", pen.stealth ? `-${pen.stealth}` : "0", pen.stealth ? "is-down" : ""),
+            row("WFRPPD.Stats.PerceptionPenalty", pen.perception ? `-${pen.perception}` : "0", pen.perception ? "is-down" : "")
+          ];
         })()
       ],
       combat: [
@@ -1675,6 +1757,48 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return max;
   }
 
+  /** Надетая броня (плюс примерка ещё одной вещи) */
+  _wornArmour(extra = null) {
+    const worn = this.actor.itemTypes.armour?.filter((a) => a.system.isEquipped) ?? [];
+    return extra && !worn.includes(extra) ? [...worn, extra] : worn;
+  }
+
+  /**
+   * Слои брони: на одной части тела можно сочетать жёсткий доспех
+   * только с гибкой бронёй или мягкой кожей под ним (стр. 300).
+   * Возвращает { loc: [жёсткие вещи] } там, где их больше одной.
+   */
+  _layerConflicts(extra = null) {
+    const out = {};
+    const list = this._wornArmour(extra).filter((a) => !isUnderLayer(a));
+    for (const loc of LOCATIONS) {
+      const rigid = list.filter((a) => (a.system.AP?.[loc] ?? 0) > 0);
+      if (rigid.length > 1) out[loc] = rigid;
+    }
+    return out;
+  }
+
+  /** Суммарные штрафы брони к скрытности и наблюдательности (со всеми надетыми вещами) */
+  _skillPenalties(extra = null) {
+    const sum = { stealth: 0, perception: 0 };
+    for (const a of this._wornArmour(extra)) {
+      const p = armourSkillPenalties(a);
+      sum.stealth += p.stealth;
+      sum.perception += p.perception;
+    }
+    return sum;
+  }
+
+  /** Есть ли у персонажа подходящие боеприпасы (null - этому оружию не нужны) */
+  _hasAmmo(weapon) {
+    if (!safe(() => weapon.system.isRanged)) return null;
+    const group = weaponAmmoGroup(weapon);
+    if (!group) return null;
+    return (this.actor.itemTypes.ammunition ?? []).some(
+      (a) => ammoGroupOf(a) === group && (Number(a.system.quantity?.value ?? 1) || 0) > 0
+    );
+  }
+
   /**
    * Ограничения предмета для слота.
    * forbid - нельзя по правилам (не участвует в BIS),
@@ -1730,6 +1854,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         if (sys.twohanded?.value && (hand.noHand || other.noHand)) forbid.push({ label: L("WFRPPD.Limb.NeedTwoHands") });
       }
+      if (this._hasAmmo(item) === false) {
+        warn.push({ label: L("WFRPPD.Restr.NoAmmo"), hint: L("WFRPPD.Restr.NoAmmoHint") });
+        score -= 200;
+      }
       // Бонусы талантов уже сидят в уроне; здесь только «невидимая» часть (Верный выстрел)
       score += this._weaponBonuses(item, profile).score;
     }
@@ -1742,7 +1870,23 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           score -= delta * 150;
         }
       }
-      if (sys.penalty?.value) warn.push({ label: sys.penalty.value, info: true });
+      // Слои: два жёстких доспеха на одной части тела по правилам не сочетаются
+      if (!sys.isEquipped && !isUnderLayer(item)) {
+        const before = this._layerConflicts();
+        const after = this._layerConflicts(item);
+        const clash = Object.keys(after).filter((loc) => !before[loc]);
+        if (clash.length) {
+          const other = after[clash[0]].find((a) => a !== item);
+          warn.push({ label: F("WFRPPD.Restr.Layer", { name: other?.name ?? "" }), hint: L("WFRPPD.Restr.LayerHint") });
+          score -= 300;
+        }
+      }
+      // Штрафы к навыкам
+      const pen = armourSkillPenalties(item);
+      if (pen.stealth) warn.push({ label: F("WFRPPD.Restr.Stealth", { n: -pen.stealth }), hint: L("WFRPPD.Restr.SkillPenaltyHint"), info: true });
+      if (pen.perception) warn.push({ label: F("WFRPPD.Restr.Perception", { n: -pen.perception }), hint: L("WFRPPD.Restr.SkillPenaltyHint"), info: true });
+      if (hasProperty(item, "practical", /practical|практичн/i)) warn.push({ label: L("WFRPPD.Restr.Practical"), good: true });
+      score -= (pen.stealth + pen.perception) * 2;
     }
 
     for (const cult of profile.cults) {
