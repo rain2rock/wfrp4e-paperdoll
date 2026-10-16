@@ -326,6 +326,11 @@
         "Name": "Interface sounds",
         "Hint": "Coin clink when money is gained or spent."
       }
+    },
+    "Vitals": {
+      "Fortune": "Fortune (rerolls)",
+      "WoundsHint": "Wounds {value} of {max}. At 0 any new wound is a Critical",
+      "FortuneHint": "Fortune {value} of {max}: spend 1 to reroll a test or add +1 SL. Refills to Fate each session"
     }
   }
 }

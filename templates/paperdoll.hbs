@@ -65,9 +65,15 @@
             {{/each}}
           </div>
           {{/if}}
-          <div class="pd-enc is-{{encumbrance.state}}" title="{{encumbrance.hint}}">
-            <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
-            <span>{{localize "WFRPPD.Encumbrance"}} {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
+          <div class="pd-vitals">
+            <div class="pd-vital pd-vital--wounds {{vitals.wounds.state}}" title="{{vitals.wounds.hint}}">
+              <div class="pd-vital-fill" style="width: {{vitals.wounds.pct}}%"></div>
+              <span>{{localize "WFRPPD.Wounds"}} {{vitals.wounds.value}} / {{vitals.wounds.max}}</span>
+            </div>
+            <div class="pd-vital pd-vital--fortune" title="{{vitals.fortune.hint}}">
+              <div class="pd-vital-fill" style="width: {{vitals.fortune.pct}}%"></div>
+              <span>{{localize "WFRPPD.Vitals.Fortune"}} {{vitals.fortune.value}} / {{vitals.fortune.max}}</span>
+            </div>
           </div>
         </div>
 
@@ -106,6 +112,10 @@
     </nav>
 
     {{#if tabBag}}
+    <div class="pd-enc pd-enc--bag is-{{encumbrance.state}}" title="{{encumbrance.hint}}">
+      <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
+      <span>{{localize "WFRPPD.Encumbrance"}} {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
+    </div>
     {{#if bagOverflow}}<div class="pd-bag-warn">{{bagOverflow}}</div>{{/if}}
 
     <div class="pd-filters">

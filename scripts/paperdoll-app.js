@@ -754,8 +754,27 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         state: encState,
         stateLabel: L(`WFRPPD.Enc.${encState}`),
         hint: encHint
-      }
+      },
+      vitals: this._vitals()
     };
+  }
+
+  /** Полоски под моделью: раны и удача (перебросы) */
+  _vitals() {
+    const st = this.actor.system.status ?? {};
+    const F = (k, d) => game.i18n.format(k, d);
+    const bar = (value, max) => {
+      const v = Math.max(0, Number(value) || 0);
+      const m = Math.max(0, Number(max) || 0);
+      return { value: v, max: m, pct: m ? Math.clamp((v / m) * 100, 0, 100) : 0 };
+    };
+    const wounds = bar(st.wounds?.value, st.wounds?.max);
+    wounds.state = !wounds.max ? "" : wounds.value === 0 ? "is-down" : wounds.value / wounds.max <= 0.25 ? "is-low" : "";
+    wounds.hint = F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max });
+    // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
+    const fortune = bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0));
+    fortune.hint = F("WFRPPD.Vitals.FortuneHint", { value: fortune.value, max: fortune.max });
+    return { wounds, fortune };
   }
 
   /* -------------------------------------------- */

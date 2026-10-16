@@ -2028,3 +2028,47 @@
 .wfrp-paperdoll .pd-options { right: auto; left: var(--pd-step); }
 .wfrp-paperdoll .pd-options-menu { right: auto; left: 0; }
 .wfrp-paperdoll .pd-bag-list, .wfrp-paperdoll .pd-ecs { padding-bottom: 10px; }
+
+/* ---------- v0.21: раны и удача под моделью, нагрузка во вкладке «Сумка» ---------- */
+.wfrp-paperdoll .pd-enc.pd-enc--bag {
+  position: relative;
+  left: auto; right: auto; bottom: auto;
+  flex: none;
+  margin: 8px 10px 6px;
+  height: 20px;
+}
+.wfrp-paperdoll .pd-vitals {
+  position: absolute;
+  z-index: 1;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  gap: 3px;
+}
+.wfrp-paperdoll .pd-vital {
+  position: relative;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  cursor: help;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.wfrp-paperdoll .pd-vital-fill { height: 100%; transition: width 0.3s ease; }
+.wfrp-paperdoll .pd-vital--wounds .pd-vital-fill { background: linear-gradient(180deg, #c94a3a 0%, #8e2216 55%, #5e140c 100%); }
+.wfrp-paperdoll .pd-vital--fortune .pd-vital-fill { background: linear-gradient(180deg, #e3b54a 0%, #b07d1c 55%, #6e4c0c 100%); }
+.wfrp-paperdoll .pd-vital--wounds.is-low { animation: pd-vital-pulse 1.6s ease-in-out infinite; }
+.wfrp-paperdoll .pd-vital--wounds.is-down { border-color: #c0392b; }
+@keyframes pd-vital-pulse { 50% { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 8px rgba(201, 74, 58, 0.8); } }
+.wfrp-paperdoll .pd-vital span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f3ead6;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
+}
