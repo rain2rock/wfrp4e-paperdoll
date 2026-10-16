@@ -2009,3 +2009,18 @@
 .wfrp-paperdoll-tooltip .pd-tt-tag.is-quality { color: var(--pd-up); background: rgba(47, 122, 18, 0.08); }
 .wfrp-paperdoll-tooltip .pd-tt-tag.is-flaw { color: var(--pd-bad); background: rgba(163, 32, 20, 0.08); }
 .wfrp-paperdoll-tooltip .pd-tt-val.is-text { background: none; border: none; padding: 0; font-weight: 600; }
+
+/* Шестерёнка опций - своя картинка */
+.wfrp-paperdoll .pd-options-btn, .wfrp-paperdoll .pd-options-btn:hover { width: 30px; height: 30px; }
+.wfrp-paperdoll .pd-options-ico {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: url("../assets/ui/ui-options.png") center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  transition: transform 0.3s ease;
+}
+.wfrp-paperdoll .pd-options-btn:hover .pd-options-ico { transform: rotate(30deg); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)) brightness(1.1); }
+/* Низ списка не уходит под шестерёнку */
+.wfrp-paperdoll .pd-bag-list { padding-bottom: 44px; }
+.wfrp-paperdoll .pd-ecs { padding-bottom: 44px; }
