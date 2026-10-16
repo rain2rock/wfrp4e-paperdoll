@@ -2875,7 +2875,7 @@ function effectTooltip(entry) {
     <div class="pd-tt-name ${entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
     <div class="pd-tt-sub">${esc(kind + state)}</div>
     ${lines}
-    <div class="pd-tt-hint">${esc(entry.hint)} · ${esc(L("WFRPPD.Effects.HintSheet"))}</div>`;
+    <div class="pd-tt-hint">${esc(/ПКМ|RMB/i.test(entry.hint ?? "") ? entry.hint : [entry.hint, L("WFRPPD.Effects.HintSheet")].filter(Boolean).join(" · "))}</div>`;
 }
 
 class PaperdollTooltip {
