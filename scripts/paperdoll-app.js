@@ -2638,7 +2638,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
-  static onOpenSheet() {
+  static onOpenSheet(event) {
+    // Клики по полоскам и ленте эффектов поверх модели лист не открывают
+    if (event?.target?.closest?.(".pd-vitals, .pd-effects")) return;
     this.actor.sheet?.render(true);
   }
 
@@ -2704,7 +2706,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const woundsBar = root.querySelector(".pd-vital--wounds");
     if (woundsBar && this.editable) {
       const change = async (ev, dir) => {
+        // Полоса лежит внутри модели, а клик по модели открывает лист - не пускаем клик дальше
         ev.preventDefault();
+        ev.stopPropagation();
         const w = this.actor.system.status?.wounds ?? {};
         const max = Number(w.max) || 0;
         const now = Number(w.value) || 0;
