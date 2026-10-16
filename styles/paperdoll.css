@@ -2383,3 +2383,39 @@
 .wfrp-paperdoll .pd-vital--wounds.is-wounded .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill-mid.png"); }
 .wfrp-paperdoll .pd-vital--wounds.is-heavy .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill-low.png"); }
 .wfrp-paperdoll .pd-vital--wounds.is-critical .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill.png"); }
+/* Подсказка «текст — значение»: значение справа */
+.wfrp-paperdoll-tooltip .is-kv { display: flex; justify-content: space-between; gap: 16px; }
+.wfrp-paperdoll-tooltip .pd-tip-line.is-kv b { font-weight: 700; color: var(--pd-ink, #1a140e); white-space: nowrap; }
+.wfrp-paperdoll-tooltip .pd-tip-head.is-kv b { white-space: nowrap; }
+
+/* Подсказки: блоки, точки списка, предупреждения, сноска */
+.wfrp-paperdoll-tooltip .pd-tip-section {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(60, 45, 25, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--pd-text-dim);
+}
+.wfrp-paperdoll-tooltip .pd-tip-line.is-sub { position: relative; padding-left: 12px; color: var(--pd-text-2, #3a2e22); }
+.wfrp-paperdoll-tooltip .pd-tip-dot {
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pd-gold, #a07a2a);
+}
+.wfrp-paperdoll-tooltip .pd-tip-line.is-sub.is-kv b { font-weight: 600; color: var(--pd-text-2, #3a2e22); }
+.wfrp-paperdoll-tooltip .pd-tip-line.is-warn { color: var(--pd-bad, #a32014); }
+.wfrp-paperdoll-tooltip .pd-tip-line.is-warn b { color: var(--pd-bad, #a32014); }
+.wfrp-paperdoll-tooltip .pd-tip-note {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(60, 45, 25, 0.2);
+  font-size: 11.5px;
+  color: var(--pd-text-dim);
+}

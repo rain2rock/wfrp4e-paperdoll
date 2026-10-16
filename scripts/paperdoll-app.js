@@ -860,13 +860,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const exp = sys.details?.experience ?? {};
     const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
     const can = free >= cost;
+    // Разметка подсказки: «## » - заголовок блока, «! » - предупреждение, «~ » - мелкая сноска, TAB - значение справа
     const lines = [
       F("WFRPPD.Adv.Step", { from: adv, to: adv + 1, cost }),
-      inCareer === false ? L("WFRPPD.Adv.OutOfCareer") : inCareer ? L("WFRPPD.Adv.InCareer") : "",
-      can ? F("WFRPPD.Adv.Free", { n: free }) : F("WFRPPD.Adv.NotEnough", { n: cost - free }),
+      inCareer === false ? `! ${L("WFRPPD.Adv.OutOfCareer")}` : inCareer ? L("WFRPPD.Adv.InCareer") : "",
+      can ? F("WFRPPD.Adv.Free", { n: free }) : `! ${F("WFRPPD.Adv.NotEnough", { n: cost - free })}`,
       career && inCareer ? F("WFRPPD.Adv.Milestone", { adv, need: career.need }) : "",
-      kind === "char" ? this._charImpact(keyOrItem).join("\n") : "",
-      adv > 0 ? L("WFRPPD.Adv.RefundHint") : ""
+      ...(kind === "char" ? this._charImpact(keyOrItem) : []),
+      adv > 0 ? `~ ${L("WFRPPD.Adv.RefundHint")}` : ""
     ].filter(Boolean);
     return {
       kind,
@@ -900,6 +901,30 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return (map[key] ?? []).filter(Boolean).map(([k, n]) => ({ label: L(k), n }));
   }
 
+  /** Подробно про бонус характеристики: как считается, на что влияет, какие таланты им ограничены */
+  _bonusInfo(key) {
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const c = this.actor.system.characteristics?.[key] ?? {};
+    const value = Number(c.value) || 0;
+    const bonus = Number(c.bonus ?? Math.floor(value / 10));
+    const cfg = game.wfrp4e.config;
+    const name = L(cfg.characteristics?.[key] ?? key);
+    const lines = [
+      `${F("WFRPPD.Bonus.Title", { name })}\t${bonus}`,
+      F("WFRPPD.Bonus.How", { value, bonus }),
+      `## ${L("WFRPPD.Bonus.Affects")}`,
+      ...this._bonusEffects(key).map((e) => `· ${e.label}\t+${e.n} ${L("WFRPPD.Impact.PerBonusShort")}`)
+    ];
+    const uses = game.i18n.has(`WFRPPD.Bonus.Uses.${key}`) ? L(`WFRPPD.Bonus.Uses.${key}`) : "";
+    if (uses) lines.push(...uses.split("\n").map((u) => `· ${u}`));
+    // Таланты, чей предел - этот бонус
+    const capped = (this.actor.itemTypes.talent ?? []).filter((t) => String(t.system.max?.value ?? "").replace(/Bonus$/i, "") === key);
+    const names = [...new Set(capped.map((t) => t.name))];
+    if (names.length) lines.push(`· ${F("WFRPPD.Bonus.Talents", { list: names.join(", "), n: bonus })}`);
+    return lines;
+  }
+
   /** Что изменит +1 к характеристике: навыки на ней и, если сменится десяток, бонус и производные */
   _charImpact(key) {
     const L = (k) => game.i18n.localize(k);
@@ -907,20 +932,27 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const c = this.actor.system.characteristics?.[key] ?? {};
     const value = Number(c.value) || 0;
     const lines = [];
-    const skills = this._skillsOf(key);
+    // Навыки на этой характеристике - каждый своей строкой: было → станет
+    const skills = this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name));
     if (skills.length) {
-      const names = skills.map((sk) => sk.name);
-      lines.push("· " + F("WFRPPD.Impact.Skills", { list: names.slice(0, 8).join(", ") + (names.length > 8 ? ` +${names.length - 8}` : "") }));
+      lines.push(`## ${F("WFRPPD.Impact.SkillsHead", { n: skills.length })}`);
+      for (const sk of skills.slice(0, 10)) {
+        const t = Number(safe(() => sk.system.total?.value, null) ?? 0);
+        lines.push(`· ${sk.name}\t${t} → ${t + 1}`);
+      }
+      if (skills.length > 10) lines.push(`~ ${F("WFRPPD.Impact.More", { n: skills.length - 10 })}`);
     }
+    // Бонус: сменится ли десяток
     const b0 = Math.floor(value / 10);
     const b1 = Math.floor((value + 1) / 10);
+    lines.push(`## ${L("WFRPPD.Impact.BonusHead")}`);
     if (b1 > b0) {
-      lines.push("· " + F("WFRPPD.Impact.Bonus", { from: b0, to: b1 }));
-      for (const e of this._bonusEffects(key)) lines.push(`    ${e.label} +${e.n}`);
+      lines.push(`${L("WFRPPD.Bonus.Title").replace(/:.*$/, "")}\t${b0} → ${b1}`);
+      for (const e of this._bonusEffects(key)) lines.push(`· ${e.label}\t+${e.n}`);
     } else {
-      lines.push("· " + F("WFRPPD.Impact.BonusLater", { n: (b0 + 1) * 10 - value }));
+      lines.push(F("WFRPPD.Impact.BonusLater", { n: (b0 + 1) * 10 - value }));
     }
-    return [L("WFRPPD.Impact.Title"), ...lines];
+    return lines;
   }
 
   /** Максимальный уровень таланта (число или null, если без предела) */
@@ -953,7 +985,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         value: bonus,
         child: true,
         derived: true,
-        hint: effects.length ? effects.map((e) => `${e.label}: +${e.n} ${L("WFRPPD.Impact.PerBonus")}`).join("\n") : ""
+        hint: this._bonusInfo(key).join("\n")
       });
       for (const sk of this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name))) {
         const adv = this._advInfo("skill", sk, career);
@@ -1040,7 +1072,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const spent = Number(exp.spent) || 0;
     const total = Number(exp.total) || 0;
     if (dir > 0 && total - spent < cost) {
-      ui.notifications?.warn(F("WFRPPD.Adv.NotEnough", { n: cost - (total - spent) }));
+      ui.notifications?.warn(F("WFRPPD.Adv.NotEnoughMsg", { n: cost - (total - spent) }));
       return;
     }
     // Вне карьеры - только с одобрения ведущего, переспрашиваем
@@ -1098,7 +1130,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         value: c.value ?? "-",
         cls: mod > 0 ? "is-up" : mod < 0 ? "is-down" : "",
         hint: [
-          c.bonus !== undefined ? `${L("WFRPPD.Stats.Bonus")} ${c.bonus}` : "",
+          c.bonus !== undefined || c.value !== undefined ? this._bonusInfo(key).join("\n") : "",
           mod ? game.i18n.format("WFRPPD.Stats.Modified", { mod: `${mod > 0 ? "+" : "-"}${Math.abs(mod)}` }) : ""
         ]
           .filter(Boolean)
@@ -2933,10 +2965,22 @@ class PaperdollTooltip {
     const lines = String(text ?? "").split("\n").filter((l) => l.trim());
     if (!lines.length) return "";
     const [head, ...rest] = lines;
+    // «текст<TAB>значение» - значение прижато вправо
+    const cell = (l) => {
+      const [a, b] = l.split("\t");
+      return b === undefined ? esc(a.trim()) : `<span>${esc(a.trim())}</span><b>${esc(b.trim())}</b>`;
+    };
     const body = rest
-      .map((l) => `<div class="pd-tip-line ${/^\s{2,}|^[·✓-]\s/.test(l) ? "is-sub" : ""}">${esc(l.trim())}</div>`)
+      .map((l) => {
+        if (l.startsWith("## ")) return `<div class="pd-tip-section">${esc(l.slice(3))}</div>`;
+        if (l.startsWith("! ")) return `<div class="pd-tip-line is-warn ${l.includes("\t") ? "is-kv" : ""}">${cell(l.slice(2))}</div>`;
+        if (l.startsWith("~ ")) return `<div class="pd-tip-note">${esc(l.slice(2))}</div>`;
+        const sub = /^\s{2,}|^[·✓-]\s/.test(l);
+        const text = sub ? l.replace(/^\s*[·✓-]?\s*/, "") : l;
+        return `<div class="pd-tip-line ${sub ? "is-sub" : ""} ${l.includes("\t") ? "is-kv" : ""}">${sub ? '<i class="pd-tip-dot"></i>' : ""}${cell(text)}</div>`;
+      })
       .join("");
-    return `<div class="pd-tip-head">${esc(head)}</div>${body}`;
+    return `<div class="pd-tip-head ${head.includes("\t") ? "is-kv" : ""}">${cell(head)}</div>${body}`;
   }
 
   /**

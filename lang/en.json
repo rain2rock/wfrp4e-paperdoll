@@ -373,18 +373,19 @@
       }
     },
     "Adv": {
-      "Step": "Advance {from} → {to}: {cost} XP",
+      "Step": "Advance {from} → {to}\t{cost} XP",
       "InCareer": "In career",
       "OutOfCareer": "Out of career: double cost and GM approval needed",
-      "Free": "XP available: {n}",
-      "NotEnough": "{n} XP short",
-      "Milestone": "Towards completing the level: {adv} / {need} advances",
+      "Free": "XP available\t{n}",
+      "NotEnough": "XP short\t{n}",
+      "Milestone": "Level milestone\t{adv} / {need}",
       "RefundHint": "Right-click - undo the last advance and refund XP",
       "OutTitle": "Out-of-career advance",
       "OutConfirm": "«{name}» is not in your career. The advance costs {cost} XP (double) and needs GM approval. Spend it?",
       "LogUp": "{name}: advanced to {to}",
       "LogDown": "{name}: advance refunded (to {to})",
-      "GoalHint": "Advances towards the current level milestone"
+      "GoalHint": "Advances towards the current level milestone",
+      "NotEnoughMsg": "{n} XP short"
     },
     "StatsView": {
       "list": "List",
@@ -397,17 +398,39 @@
       "Title": "Affects:",
       "Skills": "skills +1: {list}",
       "Bonus": "bonus {from} → {to}:",
-      "BonusLater": "bonus goes up in {n} advance(s)",
+      "BonusLater": "goes up in {n} advance(s)",
       "BonusRow": "Bonus",
       "PerBonus": "per bonus point",
       "Wounds": "wounds",
       "Damage": "melee damage",
-      "Enc": "carry limit"
+      "Enc": "carry limit",
+      "SkillsHead": "Skills +1 ({n})",
+      "More": "and {n} more",
+      "BonusHead": "Characteristic bonus",
+      "PerBonusShort": "per bonus"
     },
     "Hotkey": {
       "Name": "Open / close equipment",
       "Hint": "Equipment window of the selected token (or your character). Works when enabled in the module settings",
       "NoActor": "Select your token or assign a character to your user"
+    },
+    "Bonus": {
+      "Title": "{name} Bonus",
+      "How": "Bonus = tens of the value: {value} → {bonus}",
+      "Talents": "level cap: {list} (now {n})",
+      "Uses": {
+        "ws": "melee talents (e.g. level caps)",
+        "bs": "shooting talents (e.g. level caps)",
+        "s": "thrown weapons and some bows: Strength-based damage",
+        "t": "subtracted from the damage of every hit (with armour)",
+        "i": "reaction and awareness talents",
+        "ag": "movement-agility talents",
+        "dex": "craft and sleight-of-hand talents",
+        "int": "lore and magic talents",
+        "wp": "range and duration of many spells and prayers",
+        "fel": "how many people you can sway or lead (Charm, Leadership)"
+      },
+      "Affects": "Affects"
     }
   }
 }
