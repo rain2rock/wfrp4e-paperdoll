@@ -112,10 +112,6 @@
     </nav>
 
     {{#if tabBag}}
-    <div class="pd-enc pd-enc--bag is-{{encumbrance.state}}" title="{{encumbrance.hint}}">
-      <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
-      <span>{{localize "WFRPPD.Encumbrance"}} {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
-    </div>
     {{#if bagOverflow}}<div class="pd-bag-warn">{{bagOverflow}}</div>{{/if}}
 
     <div class="pd-filters">
@@ -140,6 +136,10 @@
           <button type="button" class="pd-sortopt {{#if viewList}}is-active{{/if}}" data-action="setView" data-view="list">{{localize "WFRPPD.View.list"}}</button>
         </div>
       </div>
+    </div>
+    <div class="pd-enc pd-enc--bag is-{{encumbrance.state}}" title="{{encumbrance.hint}}">
+      <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
+      <span>{{localize "WFRPPD.Encumbrance"}} {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
     </div>
 
     <div class="pd-bag-list {{#if viewList}}is-list{{/if}}">

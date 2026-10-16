@@ -2072,3 +2072,64 @@
   color: #f3ead6;
   text-shadow: 0 0 2px #000, 0 1px 2px #000;
 }
+
+/* ---------- v0.21.1: все полоски на одной текстуре с краями (border-image), без растягивания концов ---------- */
+.wfrp-paperdoll .pd-enc,
+.wfrp-paperdoll .pd-vital {
+  position: relative;
+  height: 18px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+.wfrp-paperdoll .pd-enc::before,
+.wfrp-paperdoll .pd-vital::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 9px 6px;
+  border-image: url("../assets/ui/bar-enc-bg.png") 18 12 fill / 9px 6px stretch;
+}
+.wfrp-paperdoll .pd-enc-fill,
+.wfrp-paperdoll .pd-vital-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  min-width: 12px;
+  box-sizing: border-box;
+  background: none !important;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 9px 6px;
+  border-image: url("../assets/ui/bar-enc-fill.png") 18 12 fill / 9px 6px stretch;
+}
+.wfrp-paperdoll .pd-enc.is-over .pd-enc-fill { border-image-source: url("../assets/ui/bar-enc-fill-heavy.png"); }
+.wfrp-paperdoll .pd-enc.is-heavy .pd-enc-fill,
+.wfrp-paperdoll .pd-enc.is-max .pd-enc-fill { border-image-source: url("../assets/ui/bar-enc-fill-over.png"); }
+.wfrp-paperdoll .pd-vital--wounds .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill.png"); }
+.wfrp-paperdoll .pd-vital--fortune .pd-vital-fill { border-image-source: url("../assets/ui/bar-fortune-fill.png"); }
+.wfrp-paperdoll .pd-vital-fill[style*="width: 0%"] { display: none; }
+.wfrp-paperdoll .pd-enc span,
+.wfrp-paperdoll .pd-vital span {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f3ead6;
+  text-shadow: 0 0 2px #000, 0 0 2px #000, 0 1px 2px #000;
+}
+.wfrp-paperdoll .pd-enc.pd-enc--bag { margin: 2px 10px 8px; height: 18px; }
+.wfrp-paperdoll .pd-vital--wounds.is-low { animation: none; }
+.wfrp-paperdoll .pd-vital--wounds.is-low .pd-vital-fill { animation: pd-vital-blink 1.6s ease-in-out infinite; }
+@keyframes pd-vital-blink { 50% { filter: brightness(1.35); } }
+.wfrp-paperdoll .pd-vital--wounds.is-down::before { filter: drop-shadow(0 0 3px #c0392b); }
+.wfrp-paperdoll .pd-enc.pd-enc--bag { margin-top: 6px; }
