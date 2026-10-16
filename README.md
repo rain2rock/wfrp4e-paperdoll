@@ -4,10 +4,19 @@
 
 ## Установка
 
-1. Распакуй архив в папку данных Foundry: `Data/modules/wfrp4e-paperdoll/`
-   (внутри должен сразу лежать `module.json`, а не ещё одна папка).
-2. Перезапусти Foundry (или вернись в меню Setup).
-3. Зайди в мир → «Настройки игры» → «Управление модулями» → включи «WFRP4e Paperdoll».
+**Manifest URL** (вставь в Foundry: «Модули» → «Установить модуль» → поле «URL манифеста» внизу):
+
+```
+https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/module.json
+```
+
+Затем зайди в мир → «Настройки игры» → «Управление модулями» → включи «WFRP4e Paperdoll».
+Обновления Foundry подтянет сам по этой же ссылке.
+
+Ссылка `github.com/.../blob/main/module.json` не подойдёт: это страница сайта, а не файл.
+
+Вручную: скачай `module.zip` из [последнего релиза](https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest)
+и распакуй в `Data/modules/wfrp4e-paperdoll/` (внутри сразу должен лежать `module.json`).
 
 ## Как пользоваться
 
