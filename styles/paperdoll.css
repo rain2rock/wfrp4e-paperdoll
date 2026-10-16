@@ -1758,3 +1758,6 @@
   .wfrp-paperdoll .pd-model { height: 300px; min-height: 0; flex: none; }
   .wfrp-paperdoll .pd-side { border-left: none; border-top: 1px solid var(--pd-frame); min-height: 420px; }
 }
+
+/* «При себе»: иконка как у сумок, слева с тем же отступом 12px, что и ячейки ниже */
+.wfrp-paperdoll .pd-bagsec-icon.is-carried { padding: 0; object-fit: contain; }

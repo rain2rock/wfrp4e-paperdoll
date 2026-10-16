@@ -1788,6 +1788,9 @@
   .wfrp-paperdoll .pd-side { border-left: none; border-top: 1px solid var(--pd-frame); min-height: 420px; }
 }
 
+/* «При себе»: иконка как у сумок, слева с тем же отступом 12px, что и ячейки ниже */
+.wfrp-paperdoll .pd-bagsec-icon.is-carried { padding: 0; object-fit: contain; }
+
 </style>
 </head>
 <body>
@@ -3101,11 +3104,14 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     // --- Броня: сверху слой с наибольшим AP на этой локации ---
+    const LAYER = { plate: 4, mail: 3, boiledLeather: 2, softLeather: 1 };
+    const layerRank = (a) => LAYER[a.system.armorType?.value] ?? 0;
     const armour = equipped("armour");
     const armourSlot = (key) => {
       const items = armour
         .filter((a) => a.system.protects?.[key])
-        .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0));
+        // При равном AP сверху то, что носят поверх: латы, потом кольчуга, потом кожа
+        .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0) || layerRank(b) - layerRank(a));
       return makeSlot(key, items, { showAP: true });
     };
 
@@ -3626,7 +3632,8 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         name: c.name,
         img: itemImg(c.img, c.name),
         // Пустые ячейки как в WoW: у сумки столько ячеек, сколько пунктов вмещает
-        cells: emptyCells(Math.max(Math.ceil(cap), items.length) - items.length),
+        // Пустые ячейки = сколько пунктов нагрузки ещё влезет (вместимость сумки - в весе, а не в штуках)
+        cells: emptyCells(Math.floor(cap - used + 1e-9)),
         slotLabel: kind === "worn" ? this._slotLabel(assign.slotOf.get(c.id) ?? "") : L("WFRPPD.Bags.NotWorn"),
         used,
         cap,
