@@ -18,7 +18,7 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: true, injuries: true, prices: false, sounds: true };
+export const PD_OPTIONS = { mutations: true, injuries: true, prices: false, sounds: true, detailedStats: false };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
 
 const setting = (key, fallback) => {
@@ -80,7 +80,7 @@ const ARTICLE_TERMS = {
 };
 
 /** Иконки категорий во вкладке «Характеристики» */
-const STAT_ART = { general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-talents", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
+const STAT_ART = { tree: "stat-body", general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-talents", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /* -------------------------------------------- */
 /*  Конечности: ампутации, переломы, протезы    */
@@ -472,10 +472,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
   static instances = new Map();
 
-  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "fate"], sort: "default", view: "grid" };
+  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "fate"], sort: "default", view: "grid", statsView: "list" };
 
   _saveUiState() {
-    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels], sort: this._sort, view: this._view };
+    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels], sort: this._sort, view: this._view, statsView: this._statsView };
   }
 
   static openFor(actor) {
@@ -508,6 +508,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       setTab: PaperdollApp.onSetTab,
       autoPack: PaperdollApp.onAutoPack,
       unloadBag: PaperdollApp.onUnloadBag,
+      setStatsView: PaperdollApp.onSetStatsView,
       openSheet: PaperdollApp.onOpenSheet,
       setSort: PaperdollApp.onSetSort,
       setView: PaperdollApp.onSetView,
@@ -530,6 +531,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this._filter = PaperdollApp.uiState.filter;
     this._sort = PaperdollApp.uiState.sort ?? "default";
     this._view = PaperdollApp.uiState.view ?? "grid";
+    this._statsView = PaperdollApp.uiState.statsView ?? "list";
     this._tab = PaperdollApp.uiState.tab;
     this._statPanels = [...PaperdollApp.uiState.statPanels];
     this._dragging = null;
@@ -767,6 +769,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       statCategories,
       tabBag: this._tab === "bag",
       tabStats: this._tab === "stats",
+      statsTree: this._statsView === "tree",
       encumbrance: {
         current: encCurrent,
         max: encMax,
@@ -852,6 +855,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       inCareer === false ? L("WFRPPD.Adv.OutOfCareer") : inCareer ? L("WFRPPD.Adv.InCareer") : "",
       can ? F("WFRPPD.Adv.Free", { n: free }) : F("WFRPPD.Adv.NotEnough", { n: cost - free }),
       career && inCareer ? F("WFRPPD.Adv.Milestone", { adv, need: career.need }) : "",
+      kind === "char" ? this._charImpact(keyOrItem).join("\n") : "",
       adv > 0 ? L("WFRPPD.Adv.RefundHint") : ""
     ].filter(Boolean);
     return {
@@ -865,6 +869,95 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       cls: [can && this.editable ? "" : "is-off", career && inCareer && adv >= career.need ? "is-reached" : "", inCareer === false ? "is-out" : ""].join(" ").trim(),
       hint: lines.join("\n")
     };
+  }
+
+  /** Навыки персонажа на этой характеристике */
+  _skillsOf(key) {
+    return (this.actor.itemTypes.skill ?? []).filter((sk) => (sk.system.characteristic?.value ?? "") === key);
+  }
+
+  /** Бонус характеристики и что от него зависит (раны, нагрузка, урон) */
+  _bonusEffects(key) {
+    const L = (k) => game.i18n.localize(k);
+    const halfling = /halfling|полурослик/i.test(String(this.actor.system.details?.species?.value ?? ""));
+    const map = {
+      s: [halfling ? null : ["WFRPPD.Impact.Wounds", 1], ["WFRPPD.Impact.Damage", 1], ["WFRPPD.Impact.Enc", 1]],
+      t: [["WFRPPD.Impact.Wounds", 2], ["WFRPPD.Impact.Enc", 1]],
+      wp: [["WFRPPD.Impact.Wounds", 1]]
+    };
+    return (map[key] ?? []).filter(Boolean).map(([k, n]) => ({ label: L(k), n }));
+  }
+
+  /** Что изменит +1 к характеристике: навыки на ней и, если сменится десяток, бонус и производные */
+  _charImpact(key) {
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const c = this.actor.system.characteristics?.[key] ?? {};
+    const value = Number(c.value) || 0;
+    const lines = [];
+    const skills = this._skillsOf(key);
+    if (skills.length) {
+      const names = skills.map((sk) => sk.name);
+      lines.push(F("WFRPPD.Impact.Skills", { list: names.slice(0, 8).join(", ") + (names.length > 8 ? ` +${names.length - 8}` : "") }));
+    }
+    const b0 = Math.floor(value / 10);
+    const b1 = Math.floor((value + 1) / 10);
+    if (b1 > b0) {
+      lines.push(F("WFRPPD.Impact.Bonus", { from: b0, to: b1 }));
+      for (const e of this._bonusEffects(key)) lines.push(`  ${e.label} +${e.n}`);
+    } else {
+      lines.push(F("WFRPPD.Impact.BonusLater", { n: (b0 + 1) * 10 - value }));
+    }
+    return [L("WFRPPD.Impact.Title"), ...lines];
+  }
+
+  /** Максимальный уровень таланта (число или null, если без предела) */
+  _talentMax(t) {
+    const sys = t.system;
+    const direct = safe(() => sys.Max, null);
+    if (direct !== null && direct !== undefined && direct !== "" && Number.isFinite(Number(direct))) return Number(direct);
+    const v = String(sys.max?.value ?? "").trim();
+    if (!v || v === "none") return null;
+    if (/^\d+$/.test(v)) return Number(v);
+    const ch = this.actor.system.characteristics?.[v.replace(/Bonus$/i, "")];
+    return ch ? Number(ch.bonus ?? Math.floor((Number(ch.value) || 0) / 10)) : null;
+  }
+
+  /** Режим прокачки: характеристика, под ней её бонус с производными и навыки на ней */
+  _advanceTree(charRows) {
+    const F = (k, d) => game.i18n.format(k, d);
+    const L = (k) => game.i18n.localize(k);
+    const career = this._careerInfo();
+    const out = [];
+    for (const r of charRows) {
+      const key = r.key.replace(/^char\./, "");
+      const c = this.actor.system.characteristics?.[key] ?? {};
+      out.push({ ...r, cls: `${r.cls ?? ""} is-parent`.trim() });
+      const bonus = Number(c.bonus ?? Math.floor((Number(c.value) || 0) / 10));
+      const effects = this._bonusEffects(key);
+      out.push({
+        key: `${r.key}.bonus`,
+        label: F("WFRPPD.Impact.BonusRow", { name: r.label }),
+        value: bonus,
+        child: true,
+        derived: true,
+        hint: effects.length ? effects.map((e) => `${e.label}: +${e.n} ${L("WFRPPD.Impact.PerBonus")}`).join("\n") : ""
+      });
+      for (const sk of this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name))) {
+        const adv = this._advInfo("skill", sk, career);
+        if (adv.inCareer === false && adv.adv === 0) continue;
+        out.push({
+          key: sk.name,
+          label: sk.name,
+          value: safe(() => sk.system.total?.value, null) ?? adv.adv,
+          cls: adv.inCareer === false ? "is-outcareer" : "",
+          done: adv.reached,
+          child: true,
+          adv
+        });
+      }
+    }
+    return out;
   }
 
   /** Вехи текущей ступени: что уже закрыто и что осталось */
@@ -980,8 +1073,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const mod = Number(c.modifier) || 0;
       const full = cfg.characteristics?.[key];
       const adv = this._advInfo("char", key, career);
+      // Подробно: начальное + шаги развития + модификатор = итог (опция)
+      const parts = option("detailedStats") && c.initial !== undefined
+        ? { i: Number(c.initial) || 0, a: Number(c.advances) || 0, m: mod }
+        : null;
       return {
         adv,
+        parts,
         done: adv.reached,
         key: `char.${key}`,
         label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
@@ -1086,8 +1184,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Encumbrance", `${Number(enc.current) || 0} / ${Number(enc.max) || 0}`)
         ]
       },
-      { key: "physical", rows: sets.physical },
-      { key: "mental", rows: sets.mental.slice(0, 4) },
+      ...(this._statsView === "tree"
+        ? [{ key: "tree", rows: this._advanceTree([...sets.physical, ...sets.mental.slice(0, 4)]) }]
+        : [{ key: "physical", rows: sets.physical }, { key: "mental", rows: sets.mental.slice(0, 4) }]),
       { key: "combat", rows: sets.combat },
       { key: "defence", rows: sets.defence },
       { key: "fate", rows: sets.fate }
@@ -1121,7 +1220,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       // Навыки карьеры - всегда; остальные - если уже развиты
       .filter(({ adv }) => adv.inCareer !== false || adv.adv > 0)
       .sort((a, b) => (b.adv.inCareer === true) - (a.adv.inCareer === true) || a.sk.name.localeCompare(b.sk.name));
-    if (skills.length) {
+    if (skills.length && this._statsView !== "tree") {
       cats.push({
         key: "skills",
         rows: skills.map(({ sk, adv }) => ({
@@ -1142,14 +1241,16 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         key: "talents",
         rows: talents.map((t) => {
           const lvl = Number(t.system.advances?.value) || 1;
+          const max = this._talentMax(t);
           const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          const head = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });
           return {
             key: t.name,
-            itemId: t.id,
             label: t.name,
-            value: lvl > 1 ? `×${lvl}` : "",
-            cls: "",
-            hint: text ? (text.length > 220 ? `${text.slice(0, 220).trim()}…` : text) : ""
+            value: max ? `${lvl} / ${max}` : String(lvl),
+            cls: max && lvl >= max ? "is-max" : "",
+            done: !!(max && lvl >= max),
+            hint: [head, text ? (text.length > 220 ? `${text.slice(0, 220).trim()}…` : text) : ""].filter(Boolean).join("\n")
           };
         })
       });
@@ -2385,6 +2486,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static onSetFilter(event, target) {
     this._filter = target.dataset.filter ?? "all";
+    this._saveUiState();
+    this.render();
+  }
+
+  static onSetStatsView(event, target) {
+    this._statsView = target.dataset.view === "tree" ? "tree" : "list";
     this._saveUiState();
     this.render();
   }

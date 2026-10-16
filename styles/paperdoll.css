@@ -2267,3 +2267,52 @@
 .wfrp-paperdoll .pd-unload:focus-visible { opacity: 1; }
 .wfrp-paperdoll .pd-unload:hover { background: rgba(60, 45, 25, 0.12); border-color: rgba(60, 45, 25, 0.3); }
 .wfrp-paperdoll .pd-unload:hover img { filter: brightness(0.2); }
+
+/* ---------- v0.23: подробные характеристики, режим прокачки деревом, уровни талантов ---------- */
+.wfrp-paperdoll .pd-parts {
+  font-size: 11px;
+  color: var(--pd-text-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.wfrp-paperdoll .pd-stat .pd-parts { margin-left: auto; margin-right: 4px; }
+.wfrp-paperdoll .pd-ecs-views { display: flex; gap: 4px; margin-bottom: 8px; }
+.wfrp-paperdoll .pd-ecs-view {
+  flex: none;
+  width: auto;
+  height: 22px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--pd-text-dim);
+  background: transparent;
+  border: 1px solid var(--pd-frame);
+  border-radius: 11px;
+  box-shadow: none;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-ecs-view.is-active { color: #1a140e; background: var(--pd-gold); border-color: var(--pd-gold); }
+.wfrp-paperdoll .pd-ecs-row.is-parent { margin-top: 6px; font-weight: 700; }
+.wfrp-paperdoll .pd-ecs-cat--tree .pd-ecs-row.is-parent:first-of-type { margin-top: 0; }
+.wfrp-paperdoll .pd-ecs-row.is-child {
+  position: relative;
+  padding-left: 16px;
+  font-size: 12px;
+}
+.wfrp-paperdoll .pd-ecs-row.is-child::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: -2px;
+  bottom: 50%;
+  width: 7px;
+  border-left: 1px solid rgba(60, 45, 25, 0.3);
+  border-bottom: 1px solid rgba(60, 45, 25, 0.3);
+}
+.wfrp-paperdoll .pd-ecs-row.is-derived { color: var(--pd-text-dim); font-style: italic; }
+.wfrp-paperdoll .pd-ecs-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.wfrp-paperdoll .pd-ecs-row .pd-parts { flex: none; }
+.wfrp-paperdoll .pd-ecs-value.is-max { color: var(--pd-text-dim); }
+.wfrp-paperdoll .pd-parts { font-size: 10.5px; letter-spacing: -0.1px; }
+.wfrp-paperdoll .pd-parts i { font-style: normal; opacity: 0.7; margin-right: 1px; }

@@ -310,7 +310,7 @@ export const CAST = [
       { name: "Gamble", ch: "int", adv: 0 }, { name: "Gossip", ch: "fel", adv: 0 }, { name: "Outdoor Survival", ch: "int", adv: 0 },
       { name: "Charm", ch: "fel", adv: 0 }, { name: "Stealth (Rural)", ch: "ag", adv: 4 }
     ],
-    talents: [{ name: "Strike Mighty Blow" }],
+    talents: [{ name: "Strike Mighty Blow", max: "s" }, { name: "Rapid Reload", advances: 2, max: "none" }, { name: "Marksman", max: "1" }],
     system: {
       characteristics: { ws: ch(32, 10), bs: ch(30, 5), s: ch(33, 5), t: ch(32, 8), i: ch(33), ag: ch(30), dex: ch(28), int: ch(27), wp: ch(30, 10), fel: ch(26) },
       status: stats(15), details: { ...details("Серебро 1"), experience: xp(900, 640) }, settings: { equipPoints: 2 }
@@ -402,7 +402,7 @@ export const CAST = [
       { name: "Language (Battle)", ch: "int", adv: 10 }, { name: "Leadership", ch: "fel", adv: 15 }, { name: "Perception", ch: "i", adv: 15 },
       { name: "Intuition", ch: "i", adv: 14 }, { name: "Heal", ch: "int", adv: 5 }, { name: "Ranged (Blackpowder)", ch: "bs", adv: 10 }
     ],
-    talents: [{ name: "Combat Aware" }],
+    talents: [{ name: "Combat Aware", advances: 2, max: "i" }, { name: "Warrior Born", max: "1" }],
     system: {
       characteristics: { ws: ch(34, 15), bs: ch(30, 15), s: ch(36), t: ch(31, 15), i: ch(32, 12), ag: ch(29), dex: ch(27), int: ch(28), wp: ch(33, 15), fel: ch(25) },
       status: stats(14), details: { ...details("Серебро 1"), experience: xp(2400, 2310) }, settings: { equipPoints: 2 }

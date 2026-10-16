@@ -108,7 +108,8 @@
         "experience": "Experience",
         "career": "Career",
         "skills": "Skills",
-        "talents": "Talents"
+        "talents": "Talents",
+        "tree": "Advancement"
       },
       "Bonus": "Bonus",
       "Move": "Move",
@@ -135,7 +136,11 @@
       "CastPenalty": "Armour casting penalty",
       "Modified": "Modified: {mod} (effects, talents or a sheet edit)",
       "StealthPenalty": "Stealth",
-      "PerceptionPenalty": "Perception"
+      "PerceptionPenalty": "Perception",
+      "PartI": "I",
+      "PartA": "A",
+      "PartM": "M",
+      "PartsHint": "Initial + advances + modifier (effects, talents, sheet edits)"
     },
     "Terms": {
       "gc": "gold crown|gold crowns|gold crowns",
@@ -219,7 +224,9 @@
       "ShortAccurateShot": "Accurate Shot {n}",
       "ShortSureShot": "Sure Shot {n}",
       "ShortAmbidextrous": "Ambidextrous {n}",
-      "ShortDualWielder": "Dual Wielder"
+      "ShortDualWielder": "Dual Wielder",
+      "Level": "Level {lvl} of {max}",
+      "LevelNoMax": "Level {lvl}, no limit"
     },
     "Bags": {
       "Worn": "Bags",
@@ -338,6 +345,10 @@
       "sounds": {
         "Name": "Interface sounds",
         "Hint": "Coin clink when money is gained or spent."
+      },
+      "detailedStats": {
+        "Name": "Detailed characteristics",
+        "Hint": "Show characteristics as «I 35 + A 10 + M 0 = 45»: initial, advances, modifier"
       }
     },
     "Vitals": {
@@ -357,6 +368,22 @@
       "OutConfirm": "«{name}» is not in your career. The advance costs {cost} XP (double) and needs GM approval. Spend it?",
       "LogUp": "{name}: advanced to {to}",
       "LogDown": "{name}: advance refunded (to {to})"
+    },
+    "StatsView": {
+      "list": "List",
+      "tree": "Advance",
+      "treeHint": "Tree: each characteristic with its bonus and the skills based on it"
+    },
+    "Impact": {
+      "Title": "Affects:",
+      "Skills": "skills +1: {list}",
+      "Bonus": "bonus {from} → {to}:",
+      "BonusLater": "bonus goes up in {n} advance(s)",
+      "BonusRow": "Bonus",
+      "PerBonus": "per bonus point",
+      "Wounds": "wounds",
+      "Damage": "melee damage",
+      "Enc": "carry limit"
     }
   }
 }

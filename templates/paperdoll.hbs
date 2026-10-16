@@ -90,6 +90,7 @@
               {{#each rows}}
               <div class="pd-stat" {{#if hint}}title="{{hint}}"{{/if}}>
                 <span class="pd-stat-label">{{label}}</span>
+                {{#if parts}}<span class="pd-parts" title="{{localize "WFRPPD.Stats.PartsHint"}}">{{parts.i}}+{{parts.a}}+{{parts.m}}</span>{{/if}}
                 <span class="pd-stat-value {{cls}}">{{value}}</span>
               </div>
               {{/each}}
@@ -178,12 +179,17 @@
 
     {{else}}
     <div class="pd-ecs">
+      <div class="pd-ecs-views">
+        <button type="button" class="pd-ecs-view {{#unless statsTree}}is-active{{/unless}}" data-action="setStatsView" data-view="list">{{localize "WFRPPD.StatsView.list"}}</button>
+        <button type="button" class="pd-ecs-view {{#if statsTree}}is-active{{/if}}" data-action="setStatsView" data-view="tree" title="{{localize "WFRPPD.StatsView.treeHint"}}">{{localize "WFRPPD.StatsView.tree"}}</button>
+      </div>
       {{#each statCategories}}
       <div class="pd-ecs-cat pd-ecs-cat--{{key}}">
         <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}</div>
         {{#each rows}}
-        <div class="pd-ecs-row" {{#if hint}}title="{{hint}}"{{/if}}>
+        <div class="pd-ecs-row {{#if child}}is-child{{/if}} {{#if derived}}is-derived{{/if}} {{cls}}" {{#if hint}}title="{{hint}}"{{/if}}>
           <span class="pd-ecs-label">{{label}}</span>
+          {{#if parts}}<span class="pd-parts" title="{{localize "WFRPPD.Stats.PartsHint"}}"><i>{{localize "WFRPPD.Stats.PartI"}}</i>{{parts.i}}+<i>{{localize "WFRPPD.Stats.PartA"}}</i>{{parts.a}}+<i>{{localize "WFRPPD.Stats.PartM"}}</i>{{parts.m}}=</span>{{/if}}
           <span class="pd-ecs-value {{cls}}">{{value}}</span>
           {{#if done}}<span class="pd-ecs-check" aria-label="✓">✓</span>{{/if}}
           {{#if adv}}<button type="button" class="pd-adv {{adv.cls}}" data-kind="{{adv.kind}}" data-key="{{adv.key}}" title="{{adv.hint}}" aria-label="+1">+</button>{{/if}}
