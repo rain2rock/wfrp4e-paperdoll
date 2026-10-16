@@ -2064,13 +2064,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       } else if (entry.kind === "effect") {
         const effect = this.actor.effects.get(entry.id);
         await effect?.update({ disabled: !effect.disabled });
-      } else if (entry.kind === "mutation" && game.user?.isGM) {
-        // ГМ: ЛКМ по мутации переключает, что она даёт куколке: лишняя рука -> голова -> ничего -> по названию
+      } else if (entry.kind === "mutation" && game.user?.isGM && ev?.shiftKey) {
+        // ГМ: Shift+ЛКМ по мутации переключает, что она даёт куколке: лишняя рука -> голова -> ничего -> по названию.
+        // Только с Shift: обычный клик слишком легко сделать случайно
         const order = [null, "hand", "head", "none"];
         const item = this.actor.items.get(entry.id);
         const now = item?.flags?.[MODULE_ID]?.grants ?? null;
         const next = order[(order.indexOf(now) + 1) % order.length];
-        await item?.update({ [`flags.${MODULE_ID}.grants`]: next });
+        if (next === null) await item?.unsetFlag?.(MODULE_ID, "grants");
+        else await item?.update({ [`flags.${MODULE_ID}.grants`]: next });
         ui.notifications.info(game.i18n.format("WFRPPD.Mutation.Set", { name: item?.name ?? "", slot: game.i18n.localize(`WFRPPD.Mutation.Grant.${next ?? "auto"}`) }));
       } else {
         this.actor.items.get(entry.id)?.sheet?.render(true);

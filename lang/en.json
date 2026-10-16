@@ -324,7 +324,7 @@
         "none": "nothing",
         "auto": "by name"
       },
-      "GMHint": "LMB (GM) - what it gives: hand / head / nothing / by name · RMB - open",
+      "GMHint": "Shift+LMB (GM) - what it gives the doll: hand / head / nothing / by name · LMB or RMB - open",
       "Set": "«{name}»: {slot}",
       "ExtraHint": "Slot from the «{name}» mutation. The system does not know about extra limbs: the item is equipped, the module remembers where."
     },

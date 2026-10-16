@@ -279,6 +279,12 @@
       if (!silent) Hooks.call("updateItem", this, changes);
       return this;
     }
+    async unsetFlag(scope, key) {
+      if (this.flags?.[scope]) delete this.flags[scope][key];
+      this.parent.prepare();
+      Hooks.call("updateItem", this, {});
+      return this;
+    }
     async delete() {
       const list = this.parent.items;
       const i = list.indexOf(this);
