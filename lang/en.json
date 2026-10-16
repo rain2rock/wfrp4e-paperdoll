@@ -292,7 +292,7 @@
       "ExtraHint": "Slot from the «{name}» mutation. The system does not know about extra limbs: the item is equipped, the module remembers where."
     },
     "Options": {
-      "Title": "Paperdoll options",
+      "Title": "Options",
       "mutations": {
         "Name": "Track mutations",
         "Hint": "Mutations in the effects strip, extra hands and heads as slots."

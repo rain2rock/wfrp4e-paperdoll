@@ -1886,3 +1886,24 @@
 }
 .wfrp-paperdoll .pd-option:hover { background: rgba(122, 76, 8, 0.12); }
 .wfrp-paperdoll .pd-option input { margin: 0; accent-color: #7a4c08; }
+
+/* ---------- v0.19.1 ---------- */
+/* Сортировка: кнопка той же высоты, что и чипсы фильтров (24px) */
+.wfrp-paperdoll .pd-sortbtn { width: 24px; height: 24px; padding: 3px; }
+.wfrp-paperdoll .pd-sortbtn svg { width: 16px; height: 16px; }
+
+/* Шестерёнка опций - просто иконка, без кружка */
+.wfrp-paperdoll .pd-options-btn,
+.wfrp-paperdoll .pd-options-btn:hover { background: none; border: none; box-shadow: none; padding: 2px; width: 26px; height: 26px; }
+.wfrp-paperdoll .pd-options-btn { color: var(--pd-text-dim); }
+.wfrp-paperdoll .pd-options-btn:hover { color: var(--pd-gold); }
+.wfrp-paperdoll .pd-options-btn svg { width: 22px; height: 22px; }
+
+/* Цена в тултипе: числа с иконками монет под названием */
+.wfrp-paperdoll-tooltip .pd-tt-price { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--pd-text); }
+.wfrp-paperdoll-tooltip .pd-tt-coin { display: inline-flex; align-items: center; gap: 3px; }
+.wfrp-paperdoll-tooltip .pd-tt-coin img { width: 16px; height: 16px; border: none; object-fit: contain; }
+.wfrp-paperdoll-tooltip .pd-coin-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 -2px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.45); }
+.wfrp-paperdoll-tooltip .pd-coin-dot--gc { background: radial-gradient(circle at 35% 30%, #fff3a0, #e0b020 55%, #8a6408); }
+.wfrp-paperdoll-tooltip .pd-coin-dot--ss { background: radial-gradient(circle at 35% 30%, #ffffff, #c8ccd0 55%, #6e7378); }
+.wfrp-paperdoll-tooltip .pd-coin-dot--bp { background: radial-gradient(circle at 35% 30%, #ffd2a0, #c07a38 55%, #6a3a12); }

@@ -2353,6 +2353,7 @@ class PaperdollTooltip {
         <div class="pd-tt-title">
           <div class="pd-tt-name rarity-${rarity}">${esc(item.name)}</div>
           <div class="pd-tt-sub">${esc(sub.join(" · "))}</div>
+          ${this.priceHtml(sys.price, app)}
         </div>
       </div>`);
 
@@ -2420,9 +2421,6 @@ class PaperdollTooltip {
     const footer = [];
     const enc = sys.encumbrance?.total ?? sys.encumbrance?.value;
     if (enc !== undefined && enc !== null) footer.push(`${L("WFRPPD.Tooltip.Enc")}: ${enc}`);
-    // Цену видит только ГМ: игрокам не нужно знать, сколько стоит их добыча
-    const price = game.user?.isGM || option("prices") ? this.formatPrice(sys.price) : "";
-    if (price) footer.push(price);
     if (footer.length) lines.push(`<div class="pd-tt-footer">${esc(footer.join(" · "))}</div>`);
 
     const avail = cfg.availability?.[sys.availability?.value];
@@ -2433,6 +2431,25 @@ class PaperdollTooltip {
     const wearable = !!sys.isEquippable && safe(() => sys.canEquip, true) !== false;
     lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}</div>`);
     return lines.join("");
+  }
+
+  /**
+   * Цена иконками монет под названием: 2 [крона] 5 [шиллинг]. Видит ГМ или игрок с опцией «Показывать цены».
+   * Иконки - картинки монет персонажа (как в шапке), без них - нарисованные кружки.
+   */
+  static priceHtml(price, app = null) {
+    if (!price || !(game.user?.isGM || option("prices"))) return "";
+    const V = { gc: 240, ss: 12, bp: 1 };
+    const coins = app?.actor?.items?.filter?.((i) => i.type === "money") ?? [];
+    const parts = Object.keys(V)
+      .filter((k) => Number(price[k]) > 0)
+      .map((k) => {
+        const coin = coins.find((c) => Number(c.system.coinValue?.value) === V[k]);
+        const title = esc(game.i18n.localize(`WFRPPD.Money.Name.${k}`));
+        const icon = coin?.img ? `<img src="${esc(coin.img)}" alt="">` : `<i class="pd-coin-dot pd-coin-dot--${k}"></i>`;
+        return `<span class="pd-tt-coin" title="${title}">${Number(price[k])}${icon}</span>`;
+      });
+    return parts.length ? `<div class="pd-tt-price">${parts.join("")}</div>` : "";
   }
 
   static formatPrice(price) {
