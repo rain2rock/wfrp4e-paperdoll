@@ -826,7 +826,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     wounds.tier = tier;
     wounds.status = game.i18n.localize(`WFRPPD.Vitals.Tier.${tier}`);
     wounds.state = `is-${tier} ${tier === "dying" ? "is-down" : tier === "critical" ? "is-low" : ""}`.trim();
-    wounds.hint = [wounds.status, F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max })].join("\n");
+    wounds.hint = [wounds.status, F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max }), this.editable ? `~ ${game.i18n.localize("WFRPPD.Vitals.WoundsClick")}` : ""].filter(Boolean).join("\n");
     // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
     const fortune = bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0));
     fortune.hint = F("WFRPPD.Vitals.FortuneHint", { value: fortune.value, max: fortune.max });
@@ -2699,6 +2699,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ev.preventDefault();
         this._openArticle(el.dataset.kind, el.textContent.trim());
       });
+    }
+    // Раны: ЛКМ +1, ПКМ -1, с Shift - по 5 (в пределах 0..максимум)
+    const woundsBar = root.querySelector(".pd-vital--wounds");
+    if (woundsBar && this.editable) {
+      const change = async (ev, dir) => {
+        ev.preventDefault();
+        const w = this.actor.system.status?.wounds ?? {};
+        const max = Number(w.max) || 0;
+        const now = Number(w.value) || 0;
+        const next = Math.clamp(now + dir * (ev.shiftKey ? 5 : 1), 0, max);
+        if (next !== now) await this.actor.update({ "system.status.wounds.value": next });
+      };
+      woundsBar.addEventListener("click", (ev) => change(ev, 1));
+      woundsBar.addEventListener("contextmenu", (ev) => change(ev, -1));
     }
     // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг
     for (const el of root.querySelectorAll(".pd-adv")) {

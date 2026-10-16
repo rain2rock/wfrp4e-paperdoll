@@ -377,7 +377,8 @@
         "heavy": "badly wounded",
         "critical": "barely standing",
         "dying": "at death's door"
-      }
+      },
+      "WoundsClick": "LMB +1 (heal) · RMB -1 (damage) · Shift for 5"
     },
     "Adv": {
       "Step": "Advance {from} → {to}\t{cost} XP",

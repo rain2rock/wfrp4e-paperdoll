@@ -2438,3 +2438,5 @@
 }
 .wfrp-paperdoll .pd-effects-side.is-buffs { justify-content: flex-start; }
 .wfrp-paperdoll .pd-effects-side.is-debuffs { justify-content: flex-end; }
+.wfrp-paperdoll:not(.is-readonly) .pd-vital--wounds { cursor: pointer; }
+.wfrp-paperdoll .pd-vital--wounds:hover::before { filter: brightness(1.15); }
