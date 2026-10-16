@@ -4410,7 +4410,9 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
     // У каждой строки - термины для поиска статьи правил (английские названия из книги + подпись)
-    const withArticle = (r) => ({ ...r, article: [ARTICLE_TERMS[r.key], r.label.replace(/:$/, "")].filter(Boolean).join("|") });
+    // Специализация в скобках статье не нужна: «Lore (Empire)» -> «Lore»
+    const baseName = (t) => String(t ?? "").replace(/:$/, "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+    const withArticle = (r) => ({ ...r, article: [ARTICLE_TERMS[r.key], baseName(r.label)].filter(Boolean).join("|") });
     return cats.map((c) => ({
       ...c,
       rows: c.rows.map(withArticle),
@@ -4501,19 +4503,60 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       terms.add(game.i18n.localize("WFRPPD.Article.Status"));
     }
     if (kind === "species") terms.add(this.actor.system.details?.species?.value ?? "");
-    const match = (name) => [...terms].some((t) => t && name?.toLowerCase().includes(String(t).toLowerCase()));
-    // Сначала журналы мира, потом компендиумы журналов
-    for (const entry of game.journal ?? []) {
-      if (match(entry.name)) return entry.sheet.render(true);
-      const page = entry.pages?.find((pg) => match(pg.name));
-      if (page) return entry.sheet.render(true, { pageId: page.id });
+    // Лучшее совпадение: точное название > начинается с термина > содержит термин.
+    // Ищем по журналам, их страницам и заголовкам внутри страниц (статья навыка - заголовок в главе книги)
+    const list = [...terms].map((t) => norm(t)).filter(Boolean);
+    const score = (name) => {
+      const n = norm(name);
+      if (!n) return 0;
+      let best = 0;
+      for (const t of list) {
+        if (n === t) best = Math.max(best, 3);
+        else if (n.startsWith(`${t} `) || n.startsWith(`${t}(`)) best = Math.max(best, 2);
+        else if (t.length > 3 && n.includes(t)) best = Math.max(best, 1);
+      }
+      return best;
+    };
+    let hit = null;
+    const consider = (s, open) => {
+      if (s > (hit?.s ?? 0)) hit = { s, open };
+    };
+    const scanEntry = (entry) => {
+      consider(score(entry.name), () => entry.sheet.render(true));
+      for (const pg of entry.pages ?? []) {
+        consider(score(pg.name), () => entry.sheet.render(true, { pageId: pg.id }));
+        for (const h of Object.values(safe(() => pg.toc, {}) ?? {})) {
+          consider(score(h.text), () => entry.sheet.render(true, { pageId: pg.id, anchor: h.slug }));
+        }
+      }
+    };
+    for (const entry of game.journal ?? []) scanEntry(entry);
+    if ((hit?.s ?? 0) < 3) {
+      for (const pack of game.packs ?? []) {
+        if (pack.documentName !== "JournalEntry") continue;
+        const index = await pack.getIndex({ fields: ["pages.name"] });
+        for (const e of index) {
+          const pageHit = (e.pages ?? []).some((pg) => score(pg.name) >= 2);
+          if (score(e.name) < 2 && !pageHit) continue;
+          const doc = await pack.getDocument(e._id);
+          if (doc) scanEntry(doc);
+        }
+        if ((hit?.s ?? 0) >= 3) break;
+      }
     }
-    for (const pack of game.packs ?? []) {
-      if (pack.documentName !== "JournalEntry") continue;
-      const index = await pack.getIndex();
-      const hit = index.find((e) => match(e.name));
-      if (hit) return (await pack.getDocument(hit._id))?.sheet.render(true);
+    // Заголовки внутри страниц компендиумов: только книги правил (их немного), один раз за сессию
+    if ((hit?.s ?? 0) < 2) {
+      PaperdollApp._rulebooks ??= (async () => {
+        const out = [];
+        for (const pack of game.packs ?? []) {
+          if (pack.documentName !== "JournalEntry" || !/rule|core|книг|правил/i.test(`${pack.metadata?.label} ${pack.collection}`)) continue;
+          out.push(...(await pack.getDocuments()));
+        }
+        return out;
+      })();
+      for (const doc of await PaperdollApp._rulebooks) scanEntry(doc);
     }
+    if (hit) return hit.open();
     ui.notifications.info(game.i18n.format("WFRPPD.Article.NotFound", { name: text }));
   }
 
