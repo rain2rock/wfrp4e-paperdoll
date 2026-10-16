@@ -770,6 +770,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       tabBag: this._tab === "bag",
       tabStats: this._tab === "stats",
       statsTree: this._statsView === "tree",
+      xpFree: (() => {
+        const e = sys.details?.experience;
+        return e ? (Number(e.total) || 0) - (Number(e.spent) || 0) : null;
+      })(),
       encumbrance: {
         current: encCurrent,
         max: encMax,

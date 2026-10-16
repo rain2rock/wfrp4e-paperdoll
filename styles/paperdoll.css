@@ -2319,3 +2319,6 @@
 /* Прогресс к вехе: только в режиме прокачки */
 .wfrp-paperdoll .pd-goal { display: none; font-size: 10.5px; color: var(--pd-text-dim); opacity: 0.8; font-variant-numeric: tabular-nums; }
 .wfrp-paperdoll .pd-ecs-cat--tree .pd-goal { display: inline; }
+.wfrp-paperdoll .pd-ecs-views { align-items: center; }
+.wfrp-paperdoll .pd-xp-free { margin-left: auto; font-size: 12px; color: var(--pd-text-dim); white-space: nowrap; }
+.wfrp-paperdoll .pd-xp-free b { font-size: 14px; color: var(--pd-gold); }

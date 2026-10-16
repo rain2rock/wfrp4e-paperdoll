@@ -182,6 +182,7 @@
       <div class="pd-ecs-views">
         <button type="button" class="pd-ecs-view {{#unless statsTree}}is-active{{/unless}}" data-action="setStatsView" data-view="list">{{localize "WFRPPD.StatsView.list"}}</button>
         <button type="button" class="pd-ecs-view {{#if statsTree}}is-active{{/if}}" data-action="setStatsView" data-view="tree" title="{{localize "WFRPPD.StatsView.treeHint"}}">{{localize "WFRPPD.StatsView.tree"}}</button>
+        {{#if statsTree}}<span class="pd-xp-free" title="{{localize "WFRPPD.StatsView.xpHint"}}">{{localize "WFRPPD.StatsView.xp"}} <b>{{xpFree}}</b></span>{{/if}}
       </div>
       {{#each statCategories}}
       <div class="pd-ecs-cat pd-ecs-cat--{{key}}">

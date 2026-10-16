@@ -373,7 +373,9 @@
     "StatsView": {
       "list": "List",
       "tree": "Advance",
-      "treeHint": "Tree: each characteristic with its bonus and the skills based on it"
+      "treeHint": "Tree: each characteristic with its bonus and the skills based on it",
+      "xp": "Free XP",
+      "xpHint": "XP you can spend: total minus spent"
     },
     "Impact": {
       "Title": "Affects:",
