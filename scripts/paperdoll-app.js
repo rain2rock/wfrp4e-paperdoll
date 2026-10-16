@@ -18,7 +18,7 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true };
+export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
 
 const setting = (key, fallback) => {
@@ -314,6 +314,29 @@ function skillMatches(name, entry) {
   const any = b.match(/^(.*?)\s*\((any|любой|любая|любое|любые|любого)\)$/);
   if (any) return a === any[1] || a.startsWith(`${any[1]} (`);
   return false;
+}
+
+/**
+ * Бафф или дебафф: по тому, что эффект прибавляет (+/-) к характеристикам и проверкам,
+ * а без чисел - по названию (благословения, молитвы, Ярость - баффы; проклятия, яды - дебаффы).
+ * Возвращает "buff" | "debuff" | null (непонятно).
+ */
+const BUFF_RX = /bless|благослов|prayer|молитв|miracle|чудо|invoke|frenzy|ярост|berserk|берсерк|inspir|воодушев|aura|аур|protect|защит|ward|оберег|courage|смелост|fearless|бесстраш|heal|исцел|regenerat|регенер|haste|ускор|strength of|сила /i;
+const DEBUFF_RX = /curse|прокля|poison|яд|отрав|disease|болезн|fear|страх|terror|ужас|weak|слаб|blind|ослеп|deaf|оглуш|stun|ошелом|fatigue|устал|bleed|кровотеч|hex|сглаз|penalt|штраф/i;
+function effectPolarity(effect) {
+  let sum = 0;
+  for (const ch of effect.changes ?? []) {
+    const n = Number(ch.value);
+    if (!Number.isFinite(n) || n === 0) continue;
+    // ADD (2) и OVERRIDE/UPGRADE считаем по знаку; штрафы в системе иногда пишутся в modifier со знаком минус
+    sum += Math.sign(n);
+  }
+  if (sum > 0) return "buff";
+  if (sum < 0) return "debuff";
+  const name = `${effect.name ?? ""}`;
+  if (DEBUFF_RX.test(name)) return "debuff";
+  if (BUFF_RX.test(name)) return "buff";
+  return null;
 }
 
 /** Наборы статов для выпадашек под портретом */
@@ -1973,18 +1996,47 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         });
         continue;
       }
-      // Эффекты, перенесённые с предметов и талантов, сюда не тащим - это «пассивки»
+      // Эффекты, перенесённые с предметов и талантов, - «пассивки»: только с опцией
       if (effect.parent !== actor || effect.transfer === true && effect.origin) continue;
+      const pol = effectPolarity(effect);
       out.push({
-        kind: "effect",
+        kind: pol === "buff" ? "buff" : "effect",
         id: effect.id,
         name: effect.name,
         img: effect.img,
         disabled: !!effect.disabled,
-        debuff: true,
+        debuff: pol !== "buff",
         lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
         hint: L(effect.disabled ? "WFRPPD.Effects.HintEnable" : "WFRPPD.Effects.HintDisable")
       });
+    }
+
+    // Эффекты с предметов персонажа (таланты, психология, черты, вещи):
+    // временные (Ярость и т. п.) - всегда, постоянные пассивки - только с опцией «Пассивные баффы»
+    const passive = option("passiveBuffs");
+    for (const item of actor.items ?? []) {
+      for (const effect of item.effects ?? []) {
+        if (effect.disabled || effect.isSuppressed) continue;
+        if (effect.transfer === false) continue;
+        const temporary = !!safe(() => effect.isTemporary, false);
+        if (!temporary && !passive) continue;
+        const pol = effectPolarity(effect);
+        if (pol === "debuff" && !temporary) continue;
+        out.push({
+          kind: pol === "debuff" ? "effect" : "buff",
+          id: effect.id,
+          itemId: item.id,
+          passive: !temporary,
+          name: effect.name || item.name,
+          img: effect.img || item.img,
+          debuff: pol === "debuff",
+          lines: [
+            game.i18n.format("WFRPPD.Effects.From", { name: item.name }),
+            effect.description ? plainEnrichers(stripTags(effect.description)) : ""
+          ],
+          hint: L("WFRPPD.Effects.HintItemEffect")
+        });
+      }
     }
 
     const locName = (key) => (cfg.locations?.[key] ? L(cfg.locations[key]) : key);
@@ -2078,7 +2130,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    return out.map((e) => ({ ...e, lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
+    // Сначала баффы, потом остальное; на стыке - разделитель
+    const buffs = out.filter((e) => e.kind === "buff");
+    const rest = out.filter((e) => e.kind !== "buff");
+    if (buffs.length && rest.length) rest[0] = { ...rest[0], groupStart: true };
+    return [...buffs, ...rest].map((e) => ({ ...e, lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
   }
 
   /** ЛКМ по эффекту */
@@ -2097,10 +2153,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         if (ok) await item.delete();
         return;
       }
+      // Эффект с предмета (талант, психология, вещь) - открыть сам предмет
+      if (entry.itemId) {
+        this.actor.items.get(entry.itemId)?.sheet?.render(true);
+        return;
+      }
       if (entry.kind === "condition") {
         if (typeof this.actor.removeCondition === "function") await this.actor.removeCondition(entry.key, 1);
         else await this.actor.effects.get(entry.id)?.delete();
-      } else if (entry.kind === "effect") {
+      } else if (entry.kind === "effect" || entry.kind === "buff") {
         const effect = this.actor.effects.get(entry.id);
         await effect?.update({ disabled: !effect.disabled });
       } else if (entry.kind === "mutation" && game.user?.isGM && ev?.shiftKey) {
@@ -2123,7 +2184,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** ПКМ по эффекту - открыть его лист */
   _onEffectContext(entry) {
-    if (entry.kind === "condition" || entry.kind === "effect") this.actor.effects.get(entry.id)?.sheet?.render(true);
+    if (entry.itemId) this.actor.items.get(entry.itemId)?.sheet?.render(true);
+    else if (["condition", "effect", "buff"].includes(entry.kind)) this.actor.effects.get(entry.id)?.sheet?.render(true);
     else this.actor.items.get(entry.id)?.sheet?.render(true);
   }
 
@@ -2904,7 +2966,7 @@ function effectTooltip(entry) {
   const value = entry.value ? ` ${entry.value}` : "";
   const lines = entry.lines.map((l) => `<div class="pd-tt-text">${esc(l.length > 260 ? `${l.slice(0, 260)}…` : l)}</div>`).join("");
   return `
-    <div class="pd-tt-name ${entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
+    <div class="pd-tt-name ${entry.kind === "buff" ? "is-buff" : entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
     <div class="pd-tt-sub">${esc(kind + state)}</div>
     ${lines}
     <div class="pd-tt-hint">${esc(/ПКМ|RMB/i.test(entry.hint ?? "") ? entry.hint : [entry.hint, L("WFRPPD.Effects.HintSheet")].filter(Boolean).join(" · "))}</div>`;

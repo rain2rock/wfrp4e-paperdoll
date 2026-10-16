@@ -193,7 +193,8 @@
         "injury": "Injury",
         "critical": "Critical wound",
         "disease": "Disease",
-        "mutation": "Mutation"
+        "mutation": "Mutation",
+        "buff": "Buff"
       },
       "Disabled": "disabled",
       "Permanent": "Permanent",
@@ -211,7 +212,9 @@
       "HintSheet": "Right-click for details",
       "HintInjury": "LMB - open · Shift+LMB - delete injury · RMB - details",
       "DeleteConfirm": "Delete the injury «{name}» from the character? This cannot be undone.",
-      "DeleteTitle": "Delete injury"
+      "DeleteTitle": "Delete injury",
+      "From": "Source: {name}",
+      "HintItemEffect": "LMB or RMB - open the source"
     },
     "Talent": {
       "MightyBlow": "+{n} dmg: Strike Mighty Blow",
@@ -357,6 +360,10 @@
       "hotkey": {
         "Name": "Equipment hotkey",
         "Hint": "Open and close the equipment window with a key (I by default). Change the key in Configure Controls → module"
+      },
+      "passiveBuffs": {
+        "Name": "Show passive buffs",
+        "Hint": "Permanent effects of talents, traits and items in the effects strip. Temporary buffs (blessings, Frenzy) always show"
       }
     },
     "Vitals": {

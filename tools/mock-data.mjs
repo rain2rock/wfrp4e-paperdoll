@@ -181,10 +181,16 @@ export const TEST_EFFECTS = {
       description: "<p>Теряешь 1 пункт здоровья в конце каждого раунда за каждый уровень. При 0 здоровья - проверка на смерть.</p>" },
     { id: "eff-fatigue", name: "Усталость", statuses: ["fatigued"], value: 1, _icon: "sys:conditions/fatigued.png",
       description: "<p>-10 ко всем проверкам за каждый уровень.</p>" },
+    { id: "eff-bless", name: "Благословение Сигмара", _icon: "core:magic/holy/saint-glass-portrait-halo.webp", img: icon("✨", "#7a6a20"), changes: [{ key: "system.characteristics.wp.modifier", value: "10" }],
+      description: "<p>+10 к проверкам Силы воли до конца сцены.</p>" },
     { id: "eff-swamp", name: "Проклятая топь", _icon: "core:magic/unholy/silhouette-robe-evil-glow.webp",
       description: "<p>Пока персонаж в топях Драквальда: -10 к Хладнокровию и Стойкости. Выключить, когда персонаж покинет территорию.</p>" }
   ],
   items: [
+    { id: "psy-frenzy", name: "Ярость", type: "psychology", _icon: "core:magic/fire/flame-burning-skull-orange.webp", system: {},
+      effects: [{ id: "fx-frenzy", name: "Ярость", img: icon("🔥", "#7a2a10"), temporary: true, changes: [{ key: "system.characteristics.ws.modifier", value: "10" }], description: "<p>+1 атака, иммунитет к психологии, нельзя отступать.</p>" }] },
+    { id: "tal-hardy", name: "Закалка", type: "talent", _icon: "core:magic/life/heart-shadow-red.webp", system: { advances: { value: 1 } },
+      effects: [{ id: "fx-hardy", name: "Закалка", img: icon("❤️", "#5a1a1a"), changes: [{ key: "system.status.wounds.bonus", value: "4" }], description: "<p>+БВ к ранам.</p>" }] },
     { id: "inj-arm", name: "Лёгкий перелом руки", type: "injury", _icon: "icons:injuries/broken-arm.png",
       system: { location: { value: "lArm", key: "lArm" }, penalty: { value: "-20 к проверкам этой рукой" }, duration: { value: "5", active: true, permanent: false } } },
     { id: "crit-cut", name: "Глубокий порез", type: "critical", _icon: "icons:injuries/tornbody.png",

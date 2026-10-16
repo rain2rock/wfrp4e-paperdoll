@@ -259,6 +259,8 @@
       this.type = data.type;
       this.system = makeSystem(this, data.system ?? {});
       this.flags = structuredClone(data.flags ?? {});
+      // Эффекты на самом предмете (таланты, психология): переносятся на персонажа
+      this.effects = (data.effects ?? []).map((e) => new FakeEffect(this, { transfer: true, ...e }));
     }
     get actor() {
       return this.parent;
@@ -304,6 +306,10 @@
       this.statuses = new Set(data.statuses ?? []);
       this.disabled = !!data.disabled;
       this.conditionValue = data.value ?? null;
+      this.changes = data.changes ?? [];
+      this.isTemporary = !!data.temporary;
+      this.transfer = data.transfer ?? undefined;
+      this.origin = data.origin ?? null;
     }
     get sheet() {
       return { render: () => toast(`ПКМ: в Foundry тут откроется эффект «${this.name}»`, "info") };

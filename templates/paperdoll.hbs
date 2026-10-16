@@ -58,7 +58,7 @@
           {{#if effects.length}}
           <div class="pd-effects">
             {{#each effects}}
-            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
+            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}} {{#if passive}}is-passive{{/if}} {{#if groupStart}}is-group-start{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
               <img src="{{img}}" alt="">
               {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
             </button>

@@ -2419,3 +2419,10 @@
   font-size: 11.5px;
   color: var(--pd-text-dim);
 }
+
+/* ---------- v0.28: баффы отдельно от дебаффов ---------- */
+.wfrp-paperdoll .pd-effect--buff { border-color: #c9a227; box-shadow: 0 0 6px rgba(201, 162, 39, 0.6); }
+.wfrp-paperdoll .pd-effect--buff::before { background-image: url("../assets/ui/frame-rarity-epic.png"); }
+.wfrp-paperdoll .pd-effect.is-passive { opacity: 0.75; }
+.wfrp-paperdoll .pd-effect.is-group-start { margin-left: 10px; }
+.wfrp-paperdoll-tooltip .pd-tt-name.is-buff { color: var(--pd-up); }
