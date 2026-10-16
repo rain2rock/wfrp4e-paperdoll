@@ -2336,3 +2336,23 @@
   font-size: 13px !important;
   box-sizing: border-box;
 }
+
+/* Портрет и иконка карьеры - ровно размера слота (Foundry считает размеры с рамкой, box-sizing: border-box) */
+.wfrp-paperdoll .pd-hero-portrait,
+.wfrp-paperdoll .pd-hero-career {
+  box-sizing: border-box;
+  flex: 0 0 var(--pd-slot);
+  width: var(--pd-slot);
+  height: var(--pd-slot);
+}
+.wfrp-paperdoll .pd-hero-portrait img,
+.wfrp-paperdoll .pd-hero-career img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center top;
+}
+/* Модель: лицо обычно в верхней трети кадра - не прижимаем к самому верху */
+.wfrp-paperdoll .pd-model img { object-position: center 20%; }
