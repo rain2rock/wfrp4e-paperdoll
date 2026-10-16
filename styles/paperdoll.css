@@ -2441,3 +2441,6 @@
 .wfrp-paperdoll:not(.is-readonly) .pd-vital--wounds { cursor: pointer; }
 .wfrp-paperdoll .pd-vital--wounds:hover::before { filter: brightness(1.15); }
 .wfrp-paperdoll .pd-model { cursor: default; }
+/* Иконка «выгрузить» - цветная стрелка, без затемнения */
+.wfrp-paperdoll .pd-unload img,
+.wfrp-paperdoll .pd-unload:hover img { filter: none; }

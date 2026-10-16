@@ -2470,6 +2470,9 @@
 .wfrp-paperdoll:not(.is-readonly) .pd-vital--wounds { cursor: pointer; }
 .wfrp-paperdoll .pd-vital--wounds:hover::before { filter: brightness(1.15); }
 .wfrp-paperdoll .pd-model { cursor: default; }
+/* Иконка «выгрузить» - цветная стрелка, без затемнения */
+.wfrp-paperdoll .pd-unload img,
+.wfrp-paperdoll .pd-unload:hover img { filter: none; }
 
 </style>
 </head>
@@ -4238,7 +4241,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         tabStats: uiArt("ui-tab-stats"),
         carried: uiArt("ui-carried"),
         pack: uiArt("ui-pack"),
-        unload: uiArt("ui-unequip-all")
+        unload: uiArt("ui-delta-down")
       },
       effects: this._effectsCache = this._effectsView(),
       groups,

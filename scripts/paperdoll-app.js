@@ -770,7 +770,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         tabStats: uiArt("ui-tab-stats"),
         carried: uiArt("ui-carried"),
         pack: uiArt("ui-pack"),
-        unload: uiArt("ui-unequip-all")
+        unload: uiArt("ui-delta-down")
       },
       effects: this._effectsCache = this._effectsView(),
       groups,
