@@ -1244,12 +1244,21 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
     // Таланты персонажа: уровень, если взят несколько раз; в подсказке - начало описания
-    const talents = [...(this.actor.itemTypes.talent ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    // Система хранит каждый взятый уровень таланта отдельным предметом с тем же названием:
+    // складываем их в одну строку, уровень = сумма шагов (как в листе персонажа)
+    const byName = new Map();
+    for (const t of this.actor.itemTypes.talent ?? []) {
+      const k = norm(t.name);
+      const g = byName.get(k);
+      const n = Number(t.system.advances?.value) || 1;
+      if (g) g.lvl += n;
+      else byName.set(k, { t, lvl: n });
+    }
+    const talents = [...byName.values()].sort((a, b) => a.t.name.localeCompare(b.t.name));
     if (talents.length) {
       cats.push({
         key: "talents",
-        rows: talents.map((t) => {
-          const lvl = Number(t.system.advances?.value) || 1;
+        rows: talents.map(({ t, lvl }) => {
           const max = this._talentMax(t);
           const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
           const head = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });

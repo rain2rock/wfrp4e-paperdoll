@@ -310,7 +310,7 @@ export const CAST = [
       { name: "Gamble", ch: "int", adv: 0 }, { name: "Gossip", ch: "fel", adv: 0 }, { name: "Outdoor Survival", ch: "int", adv: 0 },
       { name: "Charm", ch: "fel", adv: 0 }, { name: "Stealth (Rural)", ch: "ag", adv: 4 }
     ],
-    talents: [{ name: "Strike Mighty Blow", max: "s" }, { name: "Rapid Reload", advances: 2, max: "none" }, { name: "Marksman", max: "1" }],
+    talents: [{ name: "Strike Mighty Blow", max: "s" }, { name: "Rapid Reload", advances: 2, max: "none" }, { name: "Marksman", max: "1" }, { name: "Strong-minded", max: "5" }, { name: "Strong-minded", max: "5" }],
     system: {
       characteristics: { ws: ch(32, 10), bs: ch(30, 5), s: ch(33, 5), t: ch(32, 8), i: ch(33), ag: ch(30), dex: ch(28), int: ch(27), wp: ch(30, 10), fel: ch(26) },
       status: stats(15), details: { ...details("Серебро 1"), experience: xp(900, 640) }, settings: { equipPoints: 2 }
