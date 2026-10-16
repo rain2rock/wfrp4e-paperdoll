@@ -194,3 +194,82 @@ export const TEST_EFFECTS = {
         symptoms: { value: "Лихорадка, Слабость" } } }
   ]
 };
+
+/**
+ * Чистый персонаж для мока (флаг --blank): скромное снаряжение без перевеса и пара сумок.
+ * Иконки: _icon - ссылка на иконку (свою из assets/icons или из папок --icons), img - эмодзи на случай сборки без них.
+ */
+const own = (rel) => `icons:equipment/${rel}`;
+export const blankActor = {
+  id: "blank",
+  name: "Новый персонаж",
+  img: portrait,
+  career: null,
+  skills: ["Melee (Basic)"],
+  talents: [],
+  system: {
+    characteristics: {
+      ws: ch(35), bs: ch(30), s: ch(33), t: ch(34), i: ch(32),
+      ag: ch(31), dex: ch(30), int: ch(29), wp: ch(31), fel: ch(30)
+    },
+    status: {
+      wounds: { value: 12, max: 12 },
+      criticalWounds: { value: 0, max: 3 },
+      advantage: { value: 0 },
+      fate: { value: 2 }, fortune: { value: 2 },
+      resilience: { value: 1 }, resolve: { value: 1 },
+      corruption: { value: 0, max: 6 }, sin: { value: 0 },
+      encumbrance: { current: 0, max: 0 }
+    },
+    details: {
+      species: { value: "human" },
+      status: { value: "Медь 3" },
+      move: { value: 4, walk: "8", run: "16" },
+      experience: { total: 0, spent: 0, current: 0 }
+    },
+    settings: { equipPoints: 2 }
+  },
+  items: [
+    // Надето
+    { id: "b-axe", name: "Топор", type: "weapon", _icon: own("weapons/axe.png"), img: icon("🪓", "#5a6a7a"),
+      system: weapon({ equipped: { value: true }, damage: { value: "SB+4" }, encumbrance: { value: 1 }, price: { gc: 1 } }) },
+    { id: "b-dagger", name: "Кинжал", type: "weapon", _icon: own("weapons/dagger.png"), img: icon("🗡️", "#5a6a7a"),
+      system: weapon({ equipped: { value: true }, offhand: { value: true }, damage: { value: "SB+2" }, reach: { value: "vshort" }, price: { ss: 16 } }) },
+    { id: "b-cap", name: "Кожаная шапка", type: "armour", _icon: own("armour/leather-skullcap.png"), img: icon("🪖", "#5a4030"),
+      system: armour({ head: 1 }, { equipped: { value: true }, _flaws: ["Частичное"], price: { ss: 8 } }) },
+    { id: "b-jerkin", name: "Кожаный жилет", type: "armour", _icon: own("armour/leather-jerkin.png"), img: icon("🦺", "#7a5230"),
+      system: armour({ body: 1 }, { equipped: { value: true }, encumbrance: { value: 1 }, price: { gc: 1 } }) },
+    { id: "b-legs", name: "Кожаные поножи", type: "armour", _icon: own("armour/leather-leggings.png"), img: icon("👖", "#6a4a2a"),
+      system: armour({ rLeg: 1, lLeg: 1 }, { equipped: { value: true }, encumbrance: { value: 1 }, price: { gc: 1 } }) },
+    { id: "b-clothes", name: "Одежда", type: "trapping", _icon: own("clothing_and_accessories/clothing.png"), img: icon("👕", "#5a5040"),
+      system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 }, price: { ss: 12 } }) },
+    { id: "b-cloak", name: "Плащ", type: "trapping", _icon: own("clothing_and_accessories/cloak.png"), img: icon("🧥", "#4a3a2a"),
+      system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 }, price: { ss: 10 } }) },
+    { id: "b-boots", name: "Сапоги", type: "trapping", _icon: own("clothing_and_accessories/boots.png"), img: icon("🥾", "#5a4030"),
+      system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, price: { ss: 15 } }) },
+    // Сумки
+    { id: "b-backpack", name: "Рюкзак", type: "container", _icon: own("packs_and_containers/backpack.png"), img: icon("🎒", "#6a5530"),
+      flags: { "wfrp4e-paperdoll": { bagSlot: "bag1" } },
+      system: base({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 4 }, carries: { value: 4 } }) },
+    { id: "b-sling", name: "Наплечная сумка", type: "container", _icon: own("packs_and_containers/sling-bag.png"), img: icon("👜", "#6a5530"),
+      flags: { "wfrp4e-paperdoll": { bagSlot: "bag2" } },
+      system: base({ equipped: { value: true }, encumbrance: { value: 0 }, price: { ss: 1 }, carries: { value: 2 } }) },
+    // В рюкзаке
+    { id: "b-blanket", name: "Одеяло", type: "trapping", _icon: own("miscellaneous_trappings/blanket.png"), img: icon("🛏️", "#6a5a4a"),
+      system: trapping({ location: { value: "b-backpack" }, encumbrance: { value: 1 }, price: { ss: 8 } }) },
+    { id: "b-rope", name: "Верёвка, 10 ярдов", type: "trapping", _icon: own("miscellaneous_trappings/rope-10-yards.png"), img: icon("🪢", "#7a6a4a"),
+      system: trapping({ location: { value: "b-backpack" }, encumbrance: { value: 1 }, price: { ss: 4 } }) },
+    { id: "b-rations", name: "Паёк на день", type: "trapping", _icon: own("food_drink_and_lodging/rations-1-day.png"), img: icon("🍞", "#7a6a3a"),
+      system: trapping({ location: { value: "b-backpack" }, quantity: { value: 3 }, price: { ss: 1 } }) },
+    // В наплечной сумке
+    { id: "b-tinder", name: "Огниво", type: "trapping", _icon: own("miscellaneous_trappings/tinderbox.png"), img: icon("🔥", "#7a4a2a"),
+      system: trapping({ location: { value: "b-sling" }, price: { ss: 1 } }) },
+    { id: "b-bandage", name: "Бинты", type: "trapping", _icon: own("miscellaneous_trappings/bandage.png"), img: icon("🩹", "#a09080"),
+      system: trapping({ location: { value: "b-sling" }, quantity: { value: 3 }, price: { bp: 2 } }) },
+    // При себе
+    { id: "b-water", name: "Бурдюк", type: "trapping", _icon: own("packs_and_containers/waterskin.png"), img: icon("🫗", "#4a6a7a"),
+      system: trapping({ price: { bp: 8 } }) },
+    { id: "b-lantern", name: "Фонарь", type: "trapping", _icon: own("miscellaneous_trappings/lantern.png"), img: icon("🏮", "#8a6a2a"),
+      system: trapping({ encumbrance: { value: 1 }, price: { ss: 5 } }) }
+  ]
+};

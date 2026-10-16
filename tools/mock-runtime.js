@@ -332,7 +332,7 @@
       const actor = this;
       Object.defineProperties(this.system, {
         currentCareer: {
-          get: () => ({
+          get: () => actor.career && ({
             name: actor.career.name,
             img: actor.career.img,
             system: { level: { value: actor.career.level }, class: { value: actor.career.class } }

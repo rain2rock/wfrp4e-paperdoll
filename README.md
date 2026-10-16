@@ -96,6 +96,7 @@ npm run mock                                   # демо-персонаж + т�
 node tools/build-mock.mjs --snapshot tools/snapshot.json --out mock-hugo.html   # свой персонаж
 node tools/build-mock.mjs --profile ulric --loot          # проверить ограничения: mage | metal | ulric | duelist
 node tools/build-mock.mjs --loot --effects                # тестовые состояния, травма, крит, болезнь
+node tools/build-mock.mjs --blank --out mock-blank.html   # чистый персонаж: скромное снаряжение без перевеса и две сумки
 
 # с настоящими иконками: папка icons из wfrp4e-core и папка icons из Foundry
 node tools/build-mock.mjs --snapshot tools/snapshot.json \

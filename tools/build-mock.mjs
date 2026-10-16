@@ -9,6 +9,7 @@
  *                          подменить навыки, таланты и бога (проверка ограничений)
  *   --effects              добавить тестовые состояния, эффект местности, травму, крит и болезнь
  *   --loot                 добавить тестовый лут (tools/mock-loot.mjs): все слоты и все редкости
+ *   --blank                чистый персонаж: скромное снаряжение без перевеса и пара сумок
  *   --icons-system DIR     иконки самой системы WFRP4e (static/icons из её репо) - для состояний
  *   --icons DIR --icons-core DIR
  *                          настоящие иконки: DIR с иконками wfrp4e-core и DIR со стандартными
@@ -25,7 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import crypto from "node:crypto";
-import { actorData as demoActor, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
+import { actorData as demoActor, blankActor, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT, COINS } from "./mock-loot.mjs";
 import { ownIconFor } from "../scripts/icon-rules.js";
@@ -37,7 +38,7 @@ const args = Object.fromEntries(
 );
 
 // ---------- Персонаж ----------
-let actor = demoActor;
+let actor = "blank" in args ? structuredClone(blankActor) : demoActor;
 if (args.snapshot) actor = fromSnapshot(JSON.parse(fs.readFileSync(args.snapshot, "utf8")));
 if (args.profile) {
   const pr = PROFILES[args.profile];
