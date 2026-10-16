@@ -99,6 +99,9 @@
 
 ## Пересобрать мок
 
+Проверка мока как пользователь: `node tools/qa-mock.mjs $PWD/mock-qa.html` (см. шапку файла).
+
+
 ```bash
 npm install
 npm run mock                                   # демо-персонаж + тестовый лут (--loot)

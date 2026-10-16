@@ -1,6 +1,7 @@
+*.zip
 .DS_Store
 Thumbs.db
-*.zip
+mock-*.html
+mock-qa.html
 node_modules/
 tools/snapshot*.json
-mock-*.html

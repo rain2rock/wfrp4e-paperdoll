@@ -325,11 +325,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }, 50);
 
     const isMine = (doc) => doc?.parent?.uuid === this.actor.uuid;
+    // Эффект на самом персонаже или на его предмете
+    const effectMine = (e) => isMine(e) || e?.parent?.parent?.uuid === this.actor.uuid;
     this._hooks = [
       ["createItem", Hooks.on("createItem", (item) => isMine(item) && this._debouncedRender())],
       ["updateItem", Hooks.on("updateItem", (item) => isMine(item) && this._debouncedRender())],
       ["deleteItem", Hooks.on("deleteItem", (item) => isMine(item) && this._debouncedRender())],
       ["updateActor", Hooks.on("updateActor", (a) => a.uuid === this.actor.uuid && this._debouncedRender())],
+      // Состояния и эффекты - отдельные документы: без этих хуков лента эффектов не обновлялась бы
+      ["createActiveEffect", Hooks.on("createActiveEffect", (e) => effectMine(e) && this._debouncedRender())],
+      ["updateActiveEffect", Hooks.on("updateActiveEffect", (e) => effectMine(e) && this._debouncedRender())],
+      ["deleteActiveEffect", Hooks.on("deleteActiveEffect", (e) => effectMine(e) && this._debouncedRender())],
       ["deleteActor", Hooks.on("deleteActor", (a) => a.uuid === this.actor.uuid && this.close())]
     ];
   }
@@ -1062,8 +1068,16 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (containerId) {
       const container = this.actor.items.get(containerId);
       if (!container) return;
+      // Сумку в сумку не кладём
+      if (item.type === "container") {
+        ui.notifications.warn(game.i18n.format("WFRPPD.Bags.NoNesting", { item: item.name }));
+        return;
+      }
       const { used, cap } = this._bagLoad(container);
-      const weight = Number(item.system.encumbrance?.total ?? item.system.encumbrance?.value) || 0;
+      // Надетая вещь в сумке снимется и потеряет скидку «надето -1»: считаем полный вес
+      const weight = item.system.isEquipped
+        ? (Number(item.system.encumbrance?.value) || 0) * (Number(item.system.quantity?.value) || 1)
+        : Number(item.system.encumbrance?.total ?? item.system.encumbrance?.value) || 0;
       if (cap > 0 && used + weight > cap) {
         ui.notifications.warn(
           game.i18n.format("WFRPPD.Bags.Full", { bag: container.name, used, cap, weight })
@@ -1639,11 +1653,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     // Меню сортировки закрывается кликом мимо него
-    root.addEventListener("pointerdown", (ev) => {
-      if (!this._sortOpen || ev.target.closest?.(".pd-sort")) return;
-      this._sortOpen = false;
-      root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
-    });
+    // Корневой элемент окна живёт между перерисовками - вешаем один раз
+    if (!this._sortCloserBound) {
+      this._sortCloserBound = true;
+      root.addEventListener("pointerdown", (ev) => {
+        if (!this._sortOpen || ev.target.closest?.(".pd-sort")) return;
+        this._sortOpen = false;
+        root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
+      });
+    }
 
     // Подзаголовок: клик по карьере, виду, статусу - статья
     for (const el of root.querySelectorAll(".pd-hero-part")) {

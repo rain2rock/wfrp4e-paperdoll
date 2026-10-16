@@ -204,7 +204,8 @@
       "AndMore": "and {n} more",
       "FreeSlot": "Not worn",
       "SwapHint": "Click to change the bag",
-      "LooseShort": "load"
+      "LooseShort": "load",
+      "NoNesting": "«{item}» is a bag and cannot go inside another bag."
     },
     "Layers": "Armour layers",
     "Settings": {

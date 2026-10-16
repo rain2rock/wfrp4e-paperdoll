@@ -296,13 +296,14 @@
     }
     async update(changes) {
       Object.assign(this, changes);
-      Hooks.call("updateActor", this.parent, {});
+      // Как в Foundry: эффект - свой документ, у актёра updateActor не вызывается
+      Hooks.call("updateActiveEffect", this, changes);
       return this;
     }
     async delete() {
       const list = this.parent.effects;
       list.splice(list.indexOf(this), 1);
-      Hooks.call("updateActor", this.parent, {});
+      Hooks.call("deleteActiveEffect", this);
     }
   }
 

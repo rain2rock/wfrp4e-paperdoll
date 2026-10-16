@@ -204,7 +204,8 @@
       "AndMore": "и ещё {n}",
       "FreeSlot": "Не надета",
       "SwapHint": "Нажми, чтобы сменить сумку",
-      "LooseShort": "вес"
+      "LooseShort": "вес",
+      "NoNesting": "«{item}» - это сумка, её нельзя положить в другую сумку."
     },
     "Layers": "Слоёв брони",
     "Settings": {
