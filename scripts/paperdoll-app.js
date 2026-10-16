@@ -80,7 +80,7 @@ const ARTICLE_TERMS = {
 };
 
 /** Иконки категорий во вкладке «Характеристики» */
-const STAT_ART = { general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-fate", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
+const STAT_ART = { general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-talents", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /* -------------------------------------------- */
 /*  Конечности: ампутации, переломы, протезы    */
