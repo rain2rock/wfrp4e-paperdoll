@@ -393,7 +393,22 @@
         "critical": "barely standing",
         "dying": "at death's door"
       },
-      "WoundsClick": "LMB +1 (heal) · RMB -1 (damage) · Shift for 5"
+      "WoundsClick": "LMB +1 (heal) · RMB -1 (damage) · Shift for 5",
+      "SecondPick": "What to show",
+      "Second": {
+        "fortune": "Fortune",
+        "resolve": "Resolve",
+        "corruption": "Corruption",
+        "advantage": "Advantage",
+        "xp": "Experience"
+      },
+      "SecondHint": {
+        "fortune": "Fortune {value} of {max}: spend 1 to reroll a test or add +1 SL. Refills up to Fate each session",
+        "resolve": "Resolve {value} of {max}: spend 1 to ignore psychology or conditions (except Unconscious) until the end of next round. Refills up to Resilience when acting on your Motivation",
+        "corruption": "Corruption {value} of {max}: exceeding the limit triggers a mutation test",
+        "advantage": "Advantage {value} of {max}: +10 to combat tests each",
+        "xp": "Free experience {value} of {max} earned"
+      }
     },
     "Adv": {
       "Step": "Advance {from} → {to}\t{cost} XP",

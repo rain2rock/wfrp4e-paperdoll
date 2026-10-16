@@ -1,7 +1,7 @@
 <div class="pd-root {{#unless editable}}is-readonly{{/unless}}">
   {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
   {{#*inline "pdSlot"}}
-        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if extra}}is-extra{{/if}} {{#if warn}}is-warned{{/if}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
+        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if extra}}is-extra{{/if}} {{#if warn}}is-warned{{/if}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}{{#if maim.partial}}is-patched{{else}}is-maimed{{/if}}{{/if}}{{/if}}" data-slot="{{key}}">
           <div class="pd-slot-frame" {{#unless top}}title="{{#if hint}}{{label}}&#10;{{hint}}{{else}}{{label}}{{/if}}"{{/unless}}>
             {{#if top}}
             <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
@@ -14,7 +14,7 @@
             {{/if}}
             {{#if layers}}<span class="pd-layers {{#if layersOnHover}}is-hover-only{{/if}}" title="{{localize "WFRPPD.Layers"}}: {{label}}">+{{layers}}</span>{{/if}}
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
-            {{#if maim}}<span class="pd-maim {{#if maim.ok}}is-ok{{/if}}" title="{{maim.title}}"><img src="{{maim.img}}" alt=""></span>{{/if}}
+            {{#if maim}}<span class="pd-maim {{#if maim.ok}}is-ok{{/if}} {{#if maim.partial}}is-partial{{/if}}" data-maim="{{maim.loc}}"><img src="{{maim.img}}" alt=""></span>{{/if}}
             {{#if warn}}<span class="pd-slot-warn" title="{{warn.title}}"></span>{{/if}}
           </div>
         </div>
@@ -81,9 +81,16 @@
               <div class="pd-vital-fill" style="width: {{vitals.wounds.pct}}%"></div>
               <span>{{localize "WFRPPD.Wounds"}} {{vitals.wounds.value}} / {{vitals.wounds.max}} · {{vitals.wounds.status}}</span>
             </div>
-            <div class="pd-vital pd-vital--fortune" title="{{vitals.fortune.hint}}">
-              <div class="pd-vital-fill" style="width: {{vitals.fortune.pct}}%"></div>
-              <span>{{localize "WFRPPD.Vitals.Fortune"}} {{vitals.fortune.value}} / {{vitals.fortune.max}}</span>
+            <div class="pd-vital pd-vital--second pd-vital--{{vitals.second.kind}}" title="{{vitals.second.hint}}">
+              <div class="pd-vital-fill" style="width: {{vitals.second.pct}}%"></div>
+              <span>{{vitals.second.label}} {{vitals.second.value}} / {{vitals.second.max}}</span>
+              <button type="button" class="pd-vital-opts" data-action="toggleBarMenu" title="{{localize "WFRPPD.Vitals.SecondPick"}}" aria-label="{{localize "WFRPPD.Vitals.SecondPick"}}"><img src="{{art.options}}" alt=""></button>
+              <div class="pd-sortmenu pd-barmenu {{#if barMenuOpen}}is-open{{/if}}">
+                <div class="pd-sortmenu-title">{{localize "WFRPPD.Vitals.SecondPick"}}</div>
+                {{#each vitals.second.options}}
+                <button type="button" class="pd-sortopt {{#if active}}is-active{{/if}}" data-action="setSecondBar" data-bar="{{key}}">{{label}}</button>
+                {{/each}}
+              </div>
             </div>
           </div>
         </div>
@@ -199,10 +206,13 @@
       <div class="pd-ecs-cat pd-ecs-cat--{{key}}">
         <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}</div>
         {{#each rows}}
-        <div class="pd-ecs-row {{#if child}}is-child{{/if}} {{#if derived}}is-derived{{/if}} {{cls}}" {{#if hint}}title="{{hint}}"{{/if}}>
+        <div class="pd-ecs-row {{#if child}}is-child{{/if}} {{#if derived}}is-derived{{/if}} {{cls}}">
+          {{!-- подсказка - только над текстом и числом, а не над всей строкой --}}
+          <span class="pd-ecs-main" {{#if hint}}title="{{hint}}"{{/if}}>
           <span class="pd-ecs-label">{{label}}</span>
           {{#if parts}}<span class="pd-parts" title="{{localize "WFRPPD.Stats.PartsHint"}}"><i>{{localize "WFRPPD.Stats.PartI"}}</i>{{parts.i}}+<i>{{localize "WFRPPD.Stats.PartA"}}</i>{{parts.a}}+<i>{{localize "WFRPPD.Stats.PartM"}}</i>{{parts.m}}=</span>{{/if}}
           <span class="pd-ecs-value {{cls}}">{{value}}</span>
+          </span>
           {{#if done}}<span class="pd-ecs-check" aria-label="✓">✓</span>{{/if}}
           {{#if adv.goal}}<span class="pd-goal" title="{{localize "WFRPPD.Adv.GoalHint"}}">{{adv.goal}}</span>{{/if}}
           {{#if adv}}<button type="button" class="pd-adv {{adv.cls}}" data-kind="{{adv.kind}}" data-key="{{adv.key}}" title="{{adv.hint}}" aria-label="+1">+</button>{{/if}}

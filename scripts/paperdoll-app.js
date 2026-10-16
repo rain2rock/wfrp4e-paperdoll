@@ -87,6 +87,8 @@ const ARTICLE_TERMS = {
 };
 
 /** Иконки категорий во вкладке «Характеристики» */
+/** Что можно показать второй полосой под моделью */
+const SECOND_BARS = ["fortune", "resolve", "corruption", "advantage", "xp"];
 const STAT_ART = { tree: "stat-body", general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-talents", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /* -------------------------------------------- */
@@ -543,7 +545,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       openSheet: PaperdollApp.onOpenSheet,
       setSort: PaperdollApp.onSetSort,
       setView: PaperdollApp.onSetView,
-      toggleSortMenu: PaperdollApp.onToggleSortMenu
+      toggleSortMenu: PaperdollApp.onToggleSortMenu,
+      toggleBarMenu: PaperdollApp.onToggleBarMenu,
+      setSecondBar: PaperdollApp.onSetSecondBar
     }
   };
 
@@ -777,7 +781,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         tabStats: uiArt("ui-tab-stats"),
         carried: uiArt("ui-carried"),
         pack: uiArt("ui-pack"),
-        unload: uiArt("ui-delta-down")
+        unload: uiArt("ui-delta-down"),
+        options: uiArt("ui-options")
       },
       effects: this._effectsCache = this._effectsView(),
       groups,
@@ -813,7 +818,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         stateLabel: L(`WFRPPD.Enc.${encState}`),
         hint: encHint
       },
-      vitals: this._vitals()
+      vitals: this._vitals(),
+      barMenuOpen: !!this._barMenuOpen
     };
   }
 
@@ -834,10 +840,25 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     wounds.status = game.i18n.localize(`WFRPPD.Vitals.Tier.${tier}`);
     wounds.state = `is-${tier} ${tier === "dying" ? "is-down" : tier === "critical" ? "is-low" : ""}`.trim();
     wounds.hint = [wounds.status, F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max }), this.editable ? `~ ${game.i18n.localize("WFRPPD.Vitals.WoundsClick")}` : ""].filter(Boolean).join("\n");
-    // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
-    const fortune = bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0));
-    fortune.hint = F("WFRPPD.Vitals.FortuneHint", { value: fortune.value, max: fortune.max });
-    return { wounds, fortune };
+    // Вторая полоса: что показывать, выбирает игрок (шестерёнка при наведении)
+    const kind = SECOND_BARS.includes(setting("secondBar", "fortune")) ? setting("secondBar", "fortune") : "fortune";
+    const exp = this.actor.system.details?.experience ?? {};
+    const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
+    const src = {
+      // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
+      fortune: () => bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0)),
+      // Решимость восполняется до значения упорства
+      resolve: () => bar(st.resolve?.value, Math.max(Number(st.resilience?.value) || 0, Number(st.resolve?.value) || 0)),
+      corruption: () => bar(st.corruption?.value, st.corruption?.max),
+      advantage: () => bar(st.advantage?.value, Number(st.advantage?.max) || 10),
+      xp: () => bar(free, exp.total)
+    };
+    const second = src[kind]();
+    second.kind = kind;
+    second.label = game.i18n.localize(`WFRPPD.Vitals.Second.${kind}`);
+    second.hint = F(`WFRPPD.Vitals.SecondHint.${kind}`, { value: second.value, max: second.max });
+    second.options = SECOND_BARS.map((k) => ({ key: k, label: game.i18n.localize(`WFRPPD.Vitals.Second.${k}`), active: k === kind }));
+    return { wounds, second };
   }
 
   /* -------------------------------------------- */
@@ -1337,7 +1358,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
             value: max ? `${lvl} / ${max}` : String(lvl),
             cls: max && lvl >= max ? "is-max" : "",
             done: !!(max && lvl >= max),
-            hint: [head, text ? `» ${text.length > 220 ? `${text.slice(0, 220).trim()}…` : text}` : ""].filter(Boolean).join("\n")
+            hint: [head, text ? `» ${text.length > 400 ? `${text.slice(0, 400).trim()}…` : text}` : ""].filter(Boolean).join("\n")
           };
         })
       });
@@ -1605,11 +1626,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     } else if (st.lost) lines.push(L(prostheticKind(st.prosthetic ?? {}) === "leg" ? "WFRPPD.Limb.LegProsthesisHint" : "WFRPPD.Limb.NoLegHint"));
     else if (st.disabled) lines.push(L("WFRPPD.Limb.LegDisabledHint"));
     if (st.disabled) lines.push(L("WFRPPD.Limb.TempHint"));
-    return {
+    const view = {
+      loc,
       img: itemImg(st.prosthetic && !st.marvel ? st.prosthetic.img : top.img, st.prosthetic && !st.marvel ? st.prosthetic.name : top.name),
+      // В подсказке - крупно сама травма
+      bigImg: itemImg(top.img, top.name),
+      name: top.name,
+      lines,
+      prostheticName: st.prosthetic?.name ?? "",
       ok: st.marvel,
-      title: lines.join("\n")
+      // Обычный протез (деревянная нога, крюк): заменено, но штрафы остаются
+      partial: !!st.prosthetic && !st.marvel
     };
+    (this._maimCache ??= {})[loc] = view;
+    return view;
   }
 
   _matchesFilter(item, filter) {
@@ -2607,9 +2637,24 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
+  static onToggleBarMenu(event) {
+    event?.stopPropagation?.();
+    this._barMenuOpen = !this._barMenuOpen;
+    this.element.querySelector(".pd-barmenu")?.classList.toggle("is-open", this._barMenuOpen);
+  }
+
+  static async onSetSecondBar(event, target) {
+    event?.stopPropagation?.();
+    this._barMenuOpen = false;
+    try {
+      await game.settings.set(MODULE_ID, "secondBar", target.dataset.bar ?? "fortune");
+    } catch {}
+    this.render();
+  }
+
   static onToggleSortMenu() {
     this._sortOpen = !this._sortOpen;
-    this.element.querySelector(".pd-sortmenu")?.classList.toggle("is-open", this._sortOpen);
+    this.element.querySelector(".pd-sortmenu:not(.pd-barmenu)")?.classList.toggle("is-open", this._sortOpen);
   }
 
   static onSetFilter(event, target) {
@@ -2698,7 +2743,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       root.addEventListener("pointerdown", (ev) => {
         if (this._sortOpen && !ev.target.closest?.(".pd-sort")) {
           this._sortOpen = false;
-          root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
+          root.querySelector(".pd-sortmenu:not(.pd-barmenu)")?.classList.remove("is-open");
+        }
+        if (this._barMenuOpen && !ev.target.closest?.(".pd-barmenu, .pd-vital-opts")) {
+          this._barMenuOpen = false;
+          root.querySelector(".pd-barmenu")?.classList.remove("is-open");
         }
       });
     }
@@ -2783,6 +2832,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this._saveUiState();
         this.render();
       });
+    }
+
+    // Значок травмы на слоте: подсказка с крупной картинкой
+    for (const el of root.querySelectorAll(".pd-maim[data-maim]")) {
+      const view = this._maimCache?.[el.dataset.maim];
+      if (!view) continue;
+      // Значок лежит внутри слота: его подсказка не должна уступать подсказке слота
+      el.addEventListener("pointerover", (ev) => ev.stopPropagation());
+      el.addEventListener("pointerenter", (ev) => PaperdollTooltip.showHtml(maimTooltip(view), ev));
+      el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+      el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
     }
 
     // Лента эффектов
@@ -2990,11 +3050,32 @@ function effectTooltip(entry) {
   const state = entry.disabled ? ` · ${L("WFRPPD.Effects.Disabled")}` : "";
   const value = entry.value ? ` ${entry.value}` : "";
   const lines = entry.lines.map((l) => `<div class="pd-tt-text pd-tr">${esc(l.length > 260 ? `${l.slice(0, 260)}…` : l)}</div>`).join("");
+  // Шапка как у вещей: крупная иконка в рамке своего типа, рядом название и тип
   return `
-    <div class="pd-tt-name ${entry.kind === "buff" ? "is-buff" : entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
-    <div class="pd-tt-sub">${esc(kind + state)}</div>
+    <div class="pd-tt-head">
+      ${entry.img ? `<div class="pd-tt-icon pd-tt-fx fx-${esc(entry.kind)}"><img src="${esc(entry.img)}" alt=""></div>` : ""}
+      <div class="pd-tt-title">
+        <div class="pd-tt-name ${entry.kind === "buff" ? "is-buff" : entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
+        <div class="pd-tt-sub">${esc(kind + state)}</div>
+      </div>
+    </div>
     ${lines}
     <div class="pd-tt-hint">${esc(/ПКМ|RMB/i.test(entry.hint ?? "") ? entry.hint : [entry.hint, L("WFRPPD.Effects.HintSheet")].filter(Boolean).join(" · "))}</div>`;
+}
+
+/** Подсказка значка травмы на слоте: крупная картинка травмы, что с конечностью и чем заменена */
+function maimTooltip(view) {
+  const L = (k) => game.i18n.localize(k);
+  const [head, ...rest] = view.lines;
+  return `
+    <div class="pd-tt-head">
+      <div class="pd-tt-icon pd-tt-fx fx-injury"><img src="${esc(view.bigImg)}" alt=""></div>
+      <div class="pd-tt-title">
+        <div class="pd-tt-name is-debuff">${esc(view.name)}</div>
+        <div class="pd-tt-sub">${esc(L("WFRPPD.Effects.Kind.injury"))}${view.ok ? "" : view.partial ? ` · ${esc(view.prostheticName)}` : ""}</div>
+      </div>
+    </div>
+    ${[head, ...rest].map((l) => `<div class="pd-tt-text pd-tr">${esc(l)}</div>`).join("")}`;
 }
 
 class PaperdollTooltip {

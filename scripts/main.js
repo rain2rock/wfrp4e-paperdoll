@@ -27,6 +27,14 @@ Hooks.once("init", () => {
     });
   }
 
+  // Вторая полоса под моделью (выбирается шестерёнкой на самой полосе)
+  game.settings.register(MODULE_ID, "secondBar", {
+    scope: "client",
+    config: false,
+    type: String,
+    default: "fortune"
+  });
+
   // Машинный перевод английских текстов в подсказках
   game.settings.register(MODULE_ID, "translateText", {
     name: "WFRPPD.Options.translateText.Name",
