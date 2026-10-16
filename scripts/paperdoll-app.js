@@ -18,7 +18,7 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false };
+export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
 
 const setting = (key, fallback) => {

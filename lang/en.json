@@ -353,6 +353,10 @@
       "tokenDblClick": {
         "Name": "Token double-click opens the equipment",
         "Hint": "Opens the equipment window instead of the character sheet. Alt + double-click opens the usual sheet"
+      },
+      "hotkey": {
+        "Name": "Equipment hotkey",
+        "Hint": "Open and close the equipment window with a key (I by default). Change the key in Configure Controls → module"
       }
     },
     "Vitals": {
@@ -399,6 +403,11 @@
       "Wounds": "wounds",
       "Damage": "melee damage",
       "Enc": "carry limit"
+    },
+    "Hotkey": {
+      "Name": "Open / close equipment",
+      "Hint": "Equipment window of the selected token (or your character). Works when enabled in the module settings",
+      "NoActor": "Select your token or assign a character to your user"
     }
   }
 }

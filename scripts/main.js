@@ -27,6 +27,28 @@ Hooks.once("init", () => {
     });
   }
 
+  // Горячая клавиша (по умолчанию I): открыть / закрыть снаряжение.
+  // Клавишу меняют в «Настроить управление» Foundry, включают и выключают - в настройках модуля
+  game.keybindings?.register(MODULE_ID, "toggle", {
+    name: "WFRPPD.Hotkey.Name",
+    hint: "WFRPPD.Hotkey.Hint",
+    editable: [{ key: "KeyI" }],
+    precedence: CONST.KEYBINDING_PRECEDENCE?.NORMAL,
+    onDown: () => {
+      if (!option("hotkey") || game.system.id !== "wfrp4e") return false;
+      const token = canvas?.tokens?.controlled?.find((t) => t.actor?.isOwner);
+      const actor = token?.actor ?? game.user.character;
+      if (!actor || !SUPPORTED_TYPES.includes(actor.type)) {
+        ui.notifications?.info(game.i18n.localize("WFRPPD.Hotkey.NoActor"));
+        return true;
+      }
+      const open = PaperdollApp.instances?.get(actor.uuid);
+      if (open?.rendered) open.close();
+      else PaperdollApp.openFor(actor);
+      return true;
+    }
+  });
+
   // Доступ из макросов: game.modules.get("wfrp4e-paperdoll").api.open(actor)
   game.modules.get(MODULE_ID).api = {
     open: (actor) => PaperdollApp.openFor(actor)
