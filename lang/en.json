@@ -367,7 +367,8 @@
       "OutTitle": "Out-of-career advance",
       "OutConfirm": "«{name}» is not in your career. The advance costs {cost} XP (double) and needs GM approval. Spend it?",
       "LogUp": "{name}: advanced to {to}",
-      "LogDown": "{name}: advance refunded (to {to})"
+      "LogDown": "{name}: advance refunded (to {to})",
+      "GoalHint": "Advances towards the current level milestone"
     },
     "StatsView": {
       "list": "List",

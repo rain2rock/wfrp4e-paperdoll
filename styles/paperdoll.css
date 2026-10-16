@@ -2316,3 +2316,6 @@
 .wfrp-paperdoll .pd-ecs-value.is-max { color: var(--pd-text-dim); }
 .wfrp-paperdoll .pd-parts { font-size: 10.5px; letter-spacing: -0.1px; }
 .wfrp-paperdoll .pd-parts i { font-style: normal; opacity: 0.7; margin-right: 1px; }
+/* Прогресс к вехе: только в режиме прокачки */
+.wfrp-paperdoll .pd-goal { display: none; font-size: 10.5px; color: var(--pd-text-dim); opacity: 0.8; font-variant-numeric: tabular-nums; }
+.wfrp-paperdoll .pd-ecs-cat--tree .pd-goal { display: inline; }

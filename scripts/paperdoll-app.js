@@ -866,6 +866,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       can: can && this.editable,
       inCareer,
       reached: !!(career && inCareer && adv >= career.need),
+      // Прогресс к вехе ступени (только для того, что в карьере)
+      goal: career && inCareer && adv < career.need ? `${adv}/${career.need}` : null,
       cls: [can && this.editable ? "" : "is-off", career && inCareer && adv >= career.need ? "is-reached" : "", inCareer === false ? "is-out" : ""].join(" ").trim(),
       hint: lines.join("\n")
     };
@@ -1213,7 +1215,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         hint: career.levels.map((l) => `${l.current ? "▶" : l.past ? "✓" : "·"} ${l.n}. ${l.name ?? "?"}`).join("\n"),
         levels: career.levels
       };
-      cats.push({ key: "career", rows: [levelRow, ...ms.rows] });
+      const careerCat = { key: "career", rows: [levelRow, ...ms.rows] };
+      // В режиме прокачки вехи - сверху: к ним и качаемся
+      if (this._statsView === "tree") cats.unshift(careerCat);
+      else cats.push(careerCat);
     }
     const skills = (this.actor.itemTypes.skill ?? [])
       .map((sk) => ({ sk, adv: this._advInfo("skill", sk, career) }))
