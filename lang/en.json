@@ -331,8 +331,8 @@
     "Options": {
       "Title": "Options",
       "mutations": {
-        "Name": "Track mutations",
-        "Hint": "Mutations in the effects strip, extra hands and heads as slots."
+        "Name": "Mutations add slots",
+        "Hint": "Extra arms and heads from mutations become extra doll slots. Mutations always show in the effects strip"
       },
       "injuries": {
         "Name": "Track limb injuries",

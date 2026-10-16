@@ -18,7 +18,7 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: true, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false };
+export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
 
 const setting = (key, fallback) => {
@@ -130,7 +130,8 @@ const isExtraHand = (slot) => EXTRA_HANDS.includes(slot);
 const isExtraHead = (slot) => EXTRA_HEADS.includes(slot);
 const isExtraSlot = (slot) => isExtraHand(slot) || isExtraHead(slot);
 /** В каком дополнительном слоте вещь (флаг модуля) */
-const extraSlotOf = (item) => item?.flags?.[MODULE_ID]?.extraSlot ?? null;
+// Опция «Мутации дают слоты» выключена - флаг игнорируем, вещь видна в обычном слоте
+const extraSlotOf = (item) => (option("mutations") ? item?.flags?.[MODULE_ID]?.extraSlot ?? null : null);
 
 /**
  * Что мутация даёт куколке: "hand" - лишняя рука, "head" - лишняя голова, "none" - ничего (решение ГМ), null - не знаем.
@@ -2018,7 +2019,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     // Мутации: телесные и душевные, в рамке Хаоса. ГМ кликом отмечает, даёт ли мутация лишнюю руку или голову
-    for (const m of option("mutations") ? actor.itemTypes.mutation ?? [] : []) {
+    // Мутации в ленте эффектов - всегда (это дебаффы); опция отвечает только за лишние слоты
+    for (const m of actor.itemTypes.mutation ?? []) {
       const sys = m.system ?? {};
       const type = sys.mutationType?.value;
       const grant = mutationGrant(m);
