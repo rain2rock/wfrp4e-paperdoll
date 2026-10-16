@@ -241,7 +241,9 @@
       "FreeSlot": "Not worn",
       "SwapHint": "Click to change the bag",
       "LooseShort": "load",
-      "NoNesting": "«{item}» is a bag and cannot go inside another bag."
+      "NoNesting": "«{item}» is a bag and cannot go inside another bag.",
+      "Unload": "Unload everything (items move to carried)",
+      "Unloaded": "Unloaded from «{name}»: {n}."
     },
     "Layers": "Armour layers",
     "Settings": {

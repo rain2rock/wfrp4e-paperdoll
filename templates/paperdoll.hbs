@@ -151,6 +151,7 @@
             <span class="pd-bagsec-name">{{name}}</span>
             {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
           </div>
+          {{#if canUnload}}<button type="button" class="pd-unload" data-action="unloadBag" title="{{localize "WFRPPD.Bags.Unload"}}" aria-label="{{localize "WFRPPD.Bags.Unload"}}"><img src="{{@root.art.unload}}" alt=""></button>{{/if}}
           {{#if isLoose}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{localize "WFRPPD.Bags.LooseShort"}} {{looseWeight}}</span>{{/if}}
           {{#if isLoose}}
           <button type="button" class="pd-pack {{#unless canPack}}is-idle{{/unless}}" {{#unless canPack}}disabled{{/unless}} data-action="autoPack" data-tooltip="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">

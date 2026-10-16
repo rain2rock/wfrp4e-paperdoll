@@ -507,6 +507,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       setFilter: PaperdollApp.onSetFilter,
       setTab: PaperdollApp.onSetTab,
       autoPack: PaperdollApp.onAutoPack,
+      unloadBag: PaperdollApp.onUnloadBag,
       openSheet: PaperdollApp.onOpenSheet,
       setSort: PaperdollApp.onSetSort,
       setView: PaperdollApp.onSetView,
@@ -742,7 +743,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         tabBag: uiArt("ui-tab-bag"),
         tabStats: uiArt("ui-tab-stats"),
         carried: uiArt("ui-carried"),
-        pack: uiArt("ui-pack")
+        pack: uiArt("ui-pack"),
+        unload: uiArt("ui-unequip-all")
       },
       effects: this._effectsCache = this._effectsView(),
       groups,
@@ -1250,7 +1252,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Ищем по журналам, их страницам и заголовкам внутри страниц (статья навыка - заголовок в главе книги)
     const list = [...terms].map((t) => norm(t)).filter(Boolean);
     const score = (name) => {
-      const n = norm(name);
+      // «Weapon Skill (WS)» в книге = «Weapon Skill»
+      const n = norm(String(name ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
       if (!n) return 0;
       let best = 0;
       for (const t of list) {
@@ -1572,6 +1575,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         over,
         full: cap > 0 && used >= cap,
         items,
+        canUnload: this.editable && items.length > 0,
         empty: false
       };
     };
@@ -2383,6 +2387,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this._filter = target.dataset.filter ?? "all";
     this._saveUiState();
     this.render();
+  }
+
+  /** Выгрузить всё из сумки: вещи переходят «при себе» */
+  static async onUnloadBag(event, target) {
+    event?.stopPropagation?.();
+    const id = target.closest("[data-container]")?.dataset.container;
+    if (!id || !this.editable) return;
+    const updates = this.actor.items.filter((i) => i.system?.location?.value === id).map((i) => ({ _id: i.id, "system.location.value": "" }));
+    if (!updates.length) return;
+    await this.actor.updateEmbeddedDocuments("Item", updates);
+    ui.notifications?.info(game.i18n.format("WFRPPD.Bags.Unloaded", { n: updates.length, name: this.actor.items.get(id)?.name ?? "" }));
   }
 
   static onAutoPack(event) {
