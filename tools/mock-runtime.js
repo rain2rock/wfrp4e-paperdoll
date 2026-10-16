@@ -451,6 +451,7 @@
 
   window.__PD_makeActor__ = (data) => {
     const actor = new FakeActor(data);
+    (window.__PD_actors ??= []).push(actor);
     window.fromUuid = async (uuid) => actor.items.find((i) => i.uuid === uuid) ?? null;
     return actor;
   };

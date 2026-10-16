@@ -2376,3 +2376,10 @@
 .wfrp-paperdoll-tooltip .pd-tt-hint { font-size: 12px; }
 .wfrp-paperdoll-tooltip.is-tip { font-size: 13.5px; max-width: 320px; }
 .wfrp-paperdoll-tooltip .pd-tip-head { font-size: 14px; }
+
+/* ---------- v0.26: цвет полосы ран по состоянию ---------- */
+.wfrp-paperdoll .pd-vital--wounds.is-full .pd-vital-fill,
+.wfrp-paperdoll .pd-vital--wounds.is-light .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill-high.png"); }
+.wfrp-paperdoll .pd-vital--wounds.is-wounded .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill-mid.png"); }
+.wfrp-paperdoll .pd-vital--wounds.is-heavy .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill-low.png"); }
+.wfrp-paperdoll .pd-vital--wounds.is-critical .pd-vital-fill { border-image-source: url("../assets/ui/bar-hp-fill.png"); }

@@ -358,7 +358,15 @@
     "Vitals": {
       "Fortune": "Fortune (rerolls)",
       "WoundsHint": "Wounds {value} of {max}. At 0 any new wound is a Critical",
-      "FortuneHint": "Fortune {value} of {max}: spend 1 to reroll a test or add +1 SL. Refills to Fate each session"
+      "FortuneHint": "Fortune {value} of {max}: spend 1 to reroll a test or add +1 SL. Refills to Fate each session",
+      "Tier": {
+        "full": "unhurt",
+        "light": "lightly wounded",
+        "wounded": "wounded",
+        "heavy": "badly wounded",
+        "critical": "barely standing",
+        "dying": "at death's door"
+      }
     },
     "Adv": {
       "Step": "Advance {from} → {to}: {cost} XP",

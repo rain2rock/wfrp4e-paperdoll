@@ -797,8 +797,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return { value: v, max: m, pct: m ? Math.clamp((v / m) * 100, 0, 100) : 0 };
     };
     const wounds = bar(st.wounds?.value, st.wounds?.max);
-    wounds.state = !wounds.max ? "" : wounds.value === 0 ? "is-down" : wounds.value / wounds.max <= 0.25 ? "is-low" : "";
-    wounds.hint = F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max });
+    // Цвет и состояние по доле оставшихся ран
+    const r = wounds.max ? wounds.value / wounds.max : 1;
+    const tier = !wounds.max ? "full" : wounds.value === 0 ? "dying" : r <= 0.25 ? "critical" : r <= 0.5 ? "heavy" : r <= 0.75 ? "wounded" : r < 1 ? "light" : "full";
+    wounds.tier = tier;
+    wounds.status = game.i18n.localize(`WFRPPD.Vitals.Tier.${tier}`);
+    wounds.state = `is-${tier} ${tier === "dying" ? "is-down" : tier === "critical" ? "is-low" : ""}`.trim();
+    wounds.hint = [wounds.status, F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max })].join("\n");
     // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
     const fortune = bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0));
     fortune.hint = F("WFRPPD.Vitals.FortuneHint", { value: fortune.value, max: fortune.max });
