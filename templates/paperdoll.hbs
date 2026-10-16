@@ -28,8 +28,8 @@
         <div class="pd-hero-name">{{name}}</div>
         {{#if subtitleParts.length}}<div class="pd-hero-sub">{{#each subtitleParts}}{{#unless @first}} · {{/unless}}<a class="pd-hero-part" data-kind="{{kind}}" title="{{localize "WFRPPD.Article.Open"}}">{{text}}</a>{{/each}}</div>{{/if}}
         {{#if money}}
-        <div class="pd-money">
-          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}} {{#if img}}has-img{{/if}}" data-coin="{{key}}" title="{{title}}. {{@root.money.hint}}&#10;{{localize "WFRPPD.Money.ClickHint"}}">{{#if img}}<img src="{{img}}" alt="">{{/if}}{{value}}</span>{{/each}}
+        <div class="pd-money" title="{{money.hint}}&#10;{{money.rates}}&#10;{{localize "WFRPPD.Money.ClickHint"}}">
+          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}} {{#if img}}has-img{{/if}}" data-coin="{{key}}" title="{{title}}&#10;{{@root.money.hint}}&#10;{{@root.money.rates}}&#10;{{localize "WFRPPD.Money.ClickHint"}}">{{#if img}}<img src="{{img}}" alt="">{{/if}}{{value}}</span>{{/each}}
         </div>
         {{/if}}
       </div>
@@ -108,11 +108,13 @@
     {{#if bagOverflow}}<div class="pd-bag-warn">{{bagOverflow}}</div>{{/if}}
 
     <div class="pd-filters">
+      <div class="pd-filter-chips">
       {{#each filters}}
       <button type="button" class="pd-filter {{#if active}}is-active{{/if}}" data-action="setFilter" data-filter="{{key}}">
         {{label}} <span class="pd-filter-count">{{count}}</span>
       </button>
       {{/each}}
+      </div>
       <div class="pd-sort">
         <button type="button" class="pd-sortbtn" data-action="toggleSortMenu" title="{{localize "WFRPPD.Sort.Title"}}" aria-label="{{localize "WFRPPD.Sort.Title"}}">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -138,7 +140,7 @@
             <span class="pd-bagsec-name">{{name}}</span>
             {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
           </div>
-          {{#if isLoose}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{looseWeight}}</span>{{/if}}
+          {{#if isLoose}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{localize "WFRPPD.Bags.LooseShort"}} {{looseWeight}}</span>{{/if}}
           {{#if isLoose}}
           <button type="button" class="pd-pack {{#unless canPack}}is-idle{{/unless}}" {{#unless canPack}}disabled{{/unless}} data-action="autoPack" data-tooltip="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">
             <img src="{{@root.art.pack}}" alt="">

@@ -56,7 +56,9 @@
       "Total": "Total: {sum}",
       "Title": "Money",
       "NoCoin": "The character has no «{coin}» coins.",
-      "ClickHint": "LMB - add, RMB - remove, Shift - by 10"
+      "ClickHint": "LMB - add, RMB - remove, Shift - by 10. Change is made automatically.",
+      "Rates": "1 Gold Crown = 20 Silver Shillings = 240 Brass Pennies. 1 Shilling = 12 Pennies.",
+      "NotEnough": "Not enough money."
     },
     "Warn": {
       "WrongSlot": "\"{item}\" can't go into the \"{slot}\" slot.",
@@ -194,14 +196,15 @@
       "Overflow": "More than three bags worn, not in slots: {names}",
       "Pack": "Pack",
       "PackHint": "Move the heaviest carried items into worn bags while there is room. Two-handed and polearm weapons stay out",
-      "LooseHint": "Encumbrance from items outside bags",
+      "LooseHint": "Encumbrance of items outside bags",
       "NoBags": "No bags worn",
       "PackNothing": "Nothing to pack: heavy items are already in bags or don't fit",
       "Packed": "Packed {n} items, encumbrance down by {w}.",
       "PackSkipped": "Didn't fit: {names}.",
       "AndMore": "and {n} more",
       "FreeSlot": "Not worn",
-      "SwapHint": "Click to change the bag"
+      "SwapHint": "Click to change the bag",
+      "LooseShort": "load"
     },
     "Layers": "Armour layers",
     "Settings": {

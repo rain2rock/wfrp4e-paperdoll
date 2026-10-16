@@ -358,7 +358,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     /** Слот в стиле WoW: одна иконка сверху, остальные слои считаем */
     const makeSlot = (key, items, { showAP = false, ghost = null } = {}) => {
-      const views = items.map((i) => view(i));
+      // Сверху - самая редкая вещь; при равной редкости порядок как был (для брони - по AP и слою)
+      const rare = (i) => RARITY_RANK[i.system.availability?.value] ?? 0;
+      const views = [...items].sort((a, b) => rare(b) - rare(a)).map((i) => view(i));
       if (!views.length && ghost) views.push(view(ghost, { ghost: true }));
       return {
         key,
@@ -688,18 +690,34 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Номинал монеты в медных пенни */
   static COIN_VALUE = { gc: 240, ss: 12, bp: 1 };
 
-  /** ЛКМ по монете - +1, ПКМ - -1, с Shift - по 10 */
+  /**
+   * ЛКМ по монете - +1, ПКМ - -1, с Shift - по 10.
+   * Деньги сразу разменяны по номиналам: 12 п = 1 сш, 20 сш = 1 зк. Не хватает мелочи на трату - разменивается крупная монета.
+   */
   async _changeMoney(key, delta) {
     if (!this.editable) return;
-    const value = PaperdollApp.COIN_VALUE[key];
-    const coin = this.actor.items.find((i) => i.type === "money" && Number(i.system.coinValue?.value) === value);
-    if (!coin) {
-      ui.notifications.warn(game.i18n.format("WFRPPD.Money.NoCoin", { coin: game.i18n.localize(`WFRPPD.Money.Name.${key}`) }));
+    const V = PaperdollApp.COIN_VALUE;
+    const coins = {};
+    for (const k of Object.keys(V)) coins[k] = this.actor.items.find((i) => i.type === "money" && Number(i.system.coinValue?.value) === V[k]);
+    const missing = Object.keys(V).filter((k) => !coins[k]);
+    if (missing.length) {
+      ui.notifications.warn(game.i18n.format("WFRPPD.Money.NoCoin", { coin: missing.map((k) => game.i18n.localize(`WFRPPD.Money.Name.${k}`)).join(", ") }));
       return;
     }
-    const qty = Number(coin.system.quantity?.value) || 0;
-    const next = Math.max(0, qty + delta);
-    if (next !== qty) await coin.update({ "system.quantity.value": next });
+    const qty = (k) => Number(coins[k].system.quantity?.value) || 0;
+    let total = Object.keys(V).reduce((n, k) => n + qty(k) * V[k], 0) + delta * V[key];
+    if (total < 0) {
+      ui.notifications.warn(game.i18n.localize("WFRPPD.Money.NotEnough"));
+      return;
+    }
+    const next = { gc: Math.floor(total / V.gc) };
+    total -= next.gc * V.gc;
+    next.ss = Math.floor(total / V.ss);
+    next.bp = total - next.ss * V.ss;
+    const updates = Object.keys(V)
+      .filter((k) => next[k] !== qty(k))
+      .map((k) => ({ _id: coins[k].id, "system.quantity.value": next[k] }));
+    if (updates.length) await this.actor.updateEmbeddedDocuments("Item", updates);
   }
 
   /**
@@ -758,7 +776,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const sum = [gc && `${gc} ${L("WFRPPD.Money.gc")}`, ss && `${ss} ${L("WFRPPD.Money.ss")}`, (bp || !total) && `${bp} ${L("WFRPPD.Money.bp")}`]
       .filter(Boolean)
       .join(" ");
-    return { parts, hint: game.i18n.format("WFRPPD.Money.Total", { sum }) };
+    return { parts, hint: game.i18n.format("WFRPPD.Money.Total", { sum }), rates: game.i18n.localize("WFRPPD.Money.Rates") };
   }
 
   _itemView(item, editable, extra = {}) {

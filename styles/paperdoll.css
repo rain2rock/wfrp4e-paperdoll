@@ -1761,3 +1761,9 @@
 
 /* «При себе»: иконка как у сумок, слева с тем же отступом 12px, что и ячейки ниже */
 .wfrp-paperdoll .pd-bagsec-icon.is-carried { padding: 0; object-fit: contain; }
+
+/* Фильтры переносятся сами, иконка сортировки всегда справа в первой строке */
+.wfrp-paperdoll .pd-filters { flex-wrap: nowrap; align-items: flex-start; }
+.wfrp-paperdoll .pd-filter-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.wfrp-paperdoll .pd-sort { flex: none; }
+.wfrp-paperdoll .pd-money { cursor: help; }
