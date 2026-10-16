@@ -1454,16 +1454,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    // Кнопки быстрой смены (стрелочка справа от иконки)
+    // Быстрая смена: клик по слоту открывает список (стрелочек больше нет)
     PaperdollFlyout.close();
-    for (const btn of root.querySelectorAll(".pd-swap")) {
-      btn.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        PaperdollTooltip.hide();
-        if (PaperdollFlyout.isOpenFor(this, btn.dataset.slot)) PaperdollFlyout.close();
-        else PaperdollFlyout.open(this, btn.dataset.slot, btn);
-      });
+    if (this.editable) {
+      for (const frame of root.querySelectorAll(".pd-slot-frame")) {
+        const slot = frame.closest(".pd-slot")?.dataset.slot;
+        if (!slot) continue;
+        frame.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          PaperdollTooltip.hide();
+          if (PaperdollFlyout.isOpenFor(this, slot)) PaperdollFlyout.close();
+          else PaperdollFlyout.open(this, slot, frame);
+        });
+      }
     }
 
     // Слоты куколки
@@ -1946,7 +1950,7 @@ class PaperdollFlyout {
     }
 
     this._onDocPointer = (ev) => {
-      if (el.contains(ev.target) || ev.target.closest?.(".pd-swap")) return;
+      if (el.contains(ev.target) || ev.target.closest?.(".pd-slot-frame")) return;
       this.close();
     };
     this._onKey = (ev) => {

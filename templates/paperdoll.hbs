@@ -2,7 +2,7 @@
   {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
   {{#*inline "pdSlot"}}
         <div class="pd-slot {{#unless top}}is-empty{{/unless}}" data-slot="{{key}}">
-          <div class="pd-slot-frame">
+          <div class="pd-slot-frame" {{#if @root.editable}}title="{{label}}"{{/if}}>
             {{#if top}}
             <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
                  draggable="{{#if top.draggable}}true{{else}}false{{/if}}">
@@ -15,11 +15,6 @@
             {{#if layers}}<span class="pd-layers {{#if layersOnHover}}is-hover-only{{/if}}" title="{{localize "WFRPPD.Layers"}}: {{label}}">+{{layers}}</span>{{/if}}
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
           </div>
-          {{#if @root.editable}}
-          <button type="button" class="pd-swap" data-slot="{{key}}" title="{{localize "WFRPPD.Swap"}}: {{label}}">
-            <img src="{{@root.art.swap}}" alt="">
-          </button>
-          {{/if}}
         </div>
 {{/inline}}
 

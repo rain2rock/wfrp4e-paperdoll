@@ -1416,3 +1416,9 @@
 .wfrp-paperdoll-tooltip .pd-tt-icon.rarity-exotic::after { background-image: url("../assets/ui/frame-rarity-exotic.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-title { min-width: 0; }
 .wfrp-paperdoll-tooltip .pd-tt-head .pd-tt-sub { margin-bottom: 0; }
+
+/* Смена по клику на слот: стрелочек нет, слот сам - кнопка */
+.wfrp-paperdoll .pd-swap { display: none; }
+.wfrp-paperdoll .pd-root:not(.is-readonly) .pd-slot-frame { cursor: pointer; }
+.wfrp-paperdoll .pd-slot-frame.is-open { filter: brightness(1.12); box-shadow: 0 0 0 2px var(--pd-gold-soft); }
+.wfrp-paperdoll .pd-bagbar-slots { gap: 8px; }
