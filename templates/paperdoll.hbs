@@ -2,7 +2,7 @@
   {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
   {{#*inline "pdSlot"}}
         <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if extra}}is-extra{{/if}} {{#if warn}}is-warned{{/if}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
-          <div class="pd-slot-frame" title="{{#if hint}}{{label}}&#10;{{hint}}{{else}}{{label}}{{/if}}">
+          <div class="pd-slot-frame" {{#unless top}}title="{{#if hint}}{{label}}&#10;{{hint}}{{else}}{{label}}{{/if}}"{{/unless}}>
             {{#if top}}
             <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
                  draggable="{{#if top.draggable}}true{{else}}false{{/if}}">
@@ -10,7 +10,7 @@
               {{#if top.qty}}<span class="pd-qty">{{top.qty}}</span>{{/if}}
             </div>
             {{else}}
-            <div class="pd-slot-placeholder" title="{{label}}"><img src="{{art}}" alt=""></div>
+            <div class="pd-slot-placeholder"><img src="{{art}}" alt=""></div>
             {{/if}}
             {{#if layers}}<span class="pd-layers {{#if layersOnHover}}is-hover-only{{/if}}" title="{{localize "WFRPPD.Layers"}}: {{label}}">+{{layers}}</span>{{/if}}
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
@@ -155,7 +155,7 @@
           {{#if canUnload}}<button type="button" class="pd-unload" data-action="unloadBag" title="{{localize "WFRPPD.Bags.Unload"}}" aria-label="{{localize "WFRPPD.Bags.Unload"}}"><img src="{{@root.art.unload}}" alt=""></button>{{/if}}
           {{#if isLoose}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{localize "WFRPPD.Bags.LooseShort"}} {{looseWeight}}</span>{{/if}}
           {{#if isLoose}}
-          <button type="button" class="pd-pack {{#unless canPack}}is-idle{{/unless}}" {{#unless canPack}}disabled{{/unless}} data-action="autoPack" data-tooltip="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">
+          <button type="button" class="pd-pack {{#unless canPack}}is-idle{{/unless}}" {{#unless canPack}}disabled{{/unless}} data-action="autoPack" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">
             <img src="{{@root.art.pack}}" alt="">
           </button>
           {{/if}}
