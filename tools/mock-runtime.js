@@ -326,7 +326,28 @@
       this.system = structuredClone(data.system);
       // Навыки и таланты - обычные предметы актёра, как в Foundry
       const extra = [
-        ...(data.skills ?? []).map((name, i) => ({ id: `skill-${i}`, name, type: "skill", system: {} })),
+        ...(data.skills ?? []).map((sk, i) => ({
+          id: `skill-${i}`,
+          name: sk.name ?? sk,
+          type: "skill",
+          system: { characteristic: { value: sk.ch ?? "ws" }, advances: { value: sk.adv ?? 0 }, total: { value: 0 } }
+        })),
+        // Ступени карьеры - отдельные предметы, как в системе
+        ...(data.careers ?? []).map((c, i) => ({
+          id: `career-${i}`,
+          name: c.name,
+          type: "career",
+          system: {
+            careergroup: { value: c.group },
+            level: { value: c.level },
+            current: { value: !!c.current },
+            complete: { value: !!c.complete },
+            class: { value: c.class ?? "" },
+            characteristics: Object.fromEntries((c.chars ?? []).map((k) => [k, true])),
+            skills: c.skills ?? [],
+            talents: c.talents ?? []
+          }
+        })),
         ...(data.talents ?? []).map((t, i) => ({ id: `talent-${i}`, name: t.name ?? t, type: "talent", system: { advances: { value: t.advances ?? 1 } } })),
         ...(data.spells ?? []).map((name, i) => ({ id: `spell-${i}`, name, type: "spell", system: {} }))
       ];
@@ -341,7 +362,7 @@
       const actor = this;
       Object.defineProperties(this.system, {
         currentCareer: {
-          get: () => actor.career && ({
+          get: () => actor.items.find((i) => i.type === "career" && i.system.current?.value) ?? (actor.career && {
             name: actor.career.name,
             img: actor.career.img,
             system: { level: { value: actor.career.level }, class: { value: actor.career.class } }
@@ -369,6 +390,13 @@
       if (left > 0 && effect.conditionValue) await effect.update({ conditionValue: left });
       else await effect.delete();
     }
+    /** Как Actor.update: точечные пути, пересчёт, хук */
+    async update(changes) {
+      for (const [k, v] of Object.entries(flatten(changes))) setPath(this, k, v);
+      this.prepare();
+      Hooks.call("updateActor", this, changes);
+      return this;
+    }
     async updateEmbeddedDocuments(type, updates) {
       for (const u of updates) {
         const { _id, ...rest } = u;
@@ -384,6 +412,14 @@
         c.bonus ??= Math.floor(c.value / 10);
         if (c.initial !== undefined) c.bonus = Math.floor(c.value / 10);
       }
+      // Навыки: характеристика + шаги развития; опыт: доступно = всего - потрачено
+      for (const i of this.items ?? []) {
+        if (i.type !== "skill") continue;
+        const ch = s.characteristics[i.system.characteristic?.value ?? "ws"];
+        i.system.total = { value: (ch?.value ?? 0) + (Number(i.system.advances?.value) || 0) };
+      }
+      const xp = s.details?.experience;
+      if (xp) xp.current = (Number(xp.total) || 0) - (Number(xp.spent) || 0);
       s.status.armour = {};
       for (const l of LOCS) s.status.armour[l] = { value: 0 };
       let enc = 0;

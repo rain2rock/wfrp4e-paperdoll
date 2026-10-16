@@ -80,7 +80,7 @@ const ARTICLE_TERMS = {
 };
 
 /** Иконки категорий во вкладке «Характеристики» */
-const STAT_ART = { general: "stat-general", experience: "stat-experience", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
+const STAT_ART = { general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /* -------------------------------------------- */
 /*  Конечности: ампутации, переломы, протезы    */
@@ -287,6 +287,32 @@ function ammoGroupOf(item) {
   if (/arrow|стрел/i.test(n)) return "bow";
   if (/shot|powder|bullet|пул|порох|дробь|картеч/i.test(n)) return "BPandEng";
   return null;
+}
+
+/**
+ * Стоимость шага развития (книга, стр. 47): зависит от уже сделанных шагов.
+ * Шаги 0-4 стоят по первой цене, 5-9 по второй и т. д. Вне карьеры - вдвое дороже.
+ */
+const XP_TABLE = {
+  characteristic: [25, 30, 40, 50, 70, 90, 120, 150, 190, 230, 280, 330, 390, 450, 520],
+  skill: [10, 15, 20, 30, 40, 60, 80, 110, 140, 180, 220, 270, 320, 380, 440]
+};
+function advanceCost(advances, type) {
+  const table = safe(() => game.wfrp4e.config.xpCost?.[type], null) ?? XP_TABLE[type];
+  const i = Math.min(Math.floor(Math.max(0, Number(advances) || 0) / 5), table.length - 1);
+  return table[i];
+}
+
+/** Навык из списка карьеры: точное совпадение или «Ближний бой (любое)» для любой специализации */
+const norm = (s) => String(s ?? "").toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+function skillMatches(name, entry) {
+  const a = norm(name);
+  const b = norm(entry);
+  if (!b) return false;
+  if (a === b) return true;
+  const any = b.match(/^(.*?)\s*\((any|любой|любая|любое|любые|любого)\)$/);
+  if (any) return a === any[1] || a.startsWith(`${any[1]} (`);
+  return false;
 }
 
 /** Наборы статов для выпадашек под портретом */
@@ -778,6 +804,167 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /* -------------------------------------------- */
+  /*  Опыт: карьера, вехи, шаги развития          */
+  /* -------------------------------------------- */
+
+  /**
+   * Текущая ступень карьеры и что на ней доступно (книга, стр. 47-48).
+   * Навыки: этой ступени и всех предыдущих ступеней той же карьеры.
+   * Характеристики: отмеченные на ступенях до текущей включительно. Таланты: только этой ступени.
+   */
+  _careerInfo() {
+    const actor = this.actor;
+    const careers = actor.itemTypes.career ?? [];
+    const cur = careers.find((c) => c.system.current?.value) ?? safe(() => actor.system.currentCareer, null);
+    if (!cur?.system || !Array.isArray(cur.system.skills)) return null;
+    const group = cur.system.careergroup?.value ?? cur.name;
+    const level = Number(cur.system.level?.value) || 1;
+    const path = careers.filter((c) => (c.system.careergroup?.value ?? c.name) === group);
+    const upTo = path.filter((c) => (Number(c.system.level?.value) || 1) <= level);
+    if (!upTo.includes(cur)) upTo.push(cur);
+    const skills = [...new Set(upTo.flatMap((c) => c.system.skills ?? []))];
+    const chars = new Set();
+    for (const c of upTo) for (const [k, v] of Object.entries(c.system.characteristics ?? {})) if (v === true || v?.value) chars.add(k);
+    const levels = [1, 2, 3, 4].map((n) => {
+      const it = path.find((c) => Number(c.system.level?.value) === n);
+      return { n, name: it?.name ?? null, current: n === level, past: n < level, complete: !!it?.system.complete?.value };
+    });
+    return { item: cur, group, level, need: level * 5, skills, chars, talents: cur.system.talents ?? [], levels };
+  }
+
+  /** Входит ли навык или характеристика в карьеру (null - карьера неизвестна) */
+  _inCareer(kind, keyOrItem, career = this._careerInfo()) {
+    if (!career) return null;
+    if (kind === "char") return career.chars.has(keyOrItem);
+    return career.skills.some((e) => skillMatches(keyOrItem.name, e));
+  }
+
+  /** Данные для кнопки «+» у навыка или характеристики */
+  _advInfo(kind, keyOrItem, career = this._careerInfo()) {
+    const F = (k, d) => game.i18n.format(k, d);
+    const L = (k) => game.i18n.localize(k);
+    const sys = this.actor.system;
+    const adv = kind === "char"
+      ? Number(sys.characteristics?.[keyOrItem]?.advances) || 0
+      : Number(keyOrItem.system.advances?.value) || 0;
+    const inCareer = this._inCareer(kind, keyOrItem, career);
+    const mult = inCareer === false ? 2 : 1;
+    const cost = advanceCost(adv, kind === "char" ? "characteristic" : "skill") * mult;
+    const exp = sys.details?.experience ?? {};
+    const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
+    const can = free >= cost;
+    const lines = [
+      F("WFRPPD.Adv.Step", { from: adv, to: adv + 1, cost }),
+      inCareer === false ? L("WFRPPD.Adv.OutOfCareer") : inCareer ? L("WFRPPD.Adv.InCareer") : "",
+      can ? F("WFRPPD.Adv.Free", { n: free }) : F("WFRPPD.Adv.NotEnough", { n: cost - free }),
+      career && inCareer ? F("WFRPPD.Adv.Milestone", { adv, need: career.need }) : "",
+      adv > 0 ? L("WFRPPD.Adv.RefundHint") : ""
+    ].filter(Boolean);
+    return {
+      kind,
+      key: kind === "char" ? keyOrItem : keyOrItem.id,
+      adv,
+      cost,
+      can: can && this.editable,
+      inCareer,
+      reached: !!(career && inCareer && adv >= career.need),
+      cls: [can && this.editable ? "" : "is-off", career && inCareer && adv >= career.need ? "is-reached" : "", inCareer === false ? "is-out" : ""].join(" ").trim(),
+      hint: lines.join("\n")
+    };
+  }
+
+  /** Вехи текущей ступени: что уже закрыто и что осталось */
+  _milestones(career) {
+    if (!career) return null;
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const cfg = game.wfrp4e.config;
+    const sys = this.actor.system;
+    const need = career.need;
+    const chars = [...career.chars].map((k) => ({
+      label: L(cfg.characteristics?.[k] ?? k),
+      adv: Number(sys.characteristics?.[k]?.advances) || 0
+    }));
+    const charsDone = chars.filter((c) => c.adv >= need);
+    const skills = (this.actor.itemTypes.skill ?? [])
+      .filter((sk) => career.skills.some((e) => skillMatches(sk.name, e)))
+      .map((sk) => ({ label: sk.name, adv: Number(sk.system.advances?.value) || 0 }));
+    const skillsDone = skills.filter((x) => x.adv >= need);
+    const talents = (this.actor.itemTypes.talent ?? []).filter((t) => career.talents.some((e) => skillMatches(t.name, e)));
+    const list = (arr) => arr.map((x) => `${x.adv >= need ? "✓" : "·"} ${x.label} ${x.adv}/${need}`).join("\n");
+    const rows = [
+      {
+        key: "Career.Chars",
+        label: L("WFRPPD.Career.Chars"),
+        value: `${charsDone.length} / ${chars.length}`,
+        cls: charsDone.length >= chars.length ? "is-done" : "is-todo",
+        hint: [F("WFRPPD.Career.CharsHint", { need }), list(chars)].join("\n")
+      },
+      {
+        key: "Career.Skills",
+        label: L("WFRPPD.Career.Skills"),
+        value: `${Math.min(skillsDone.length, 8)} / 8`,
+        cls: skillsDone.length >= 8 ? "is-done" : "is-todo",
+        hint: [F("WFRPPD.Career.SkillsHint", { need }), list(skills)].join("\n")
+      },
+      {
+        key: "Career.Talent",
+        label: L("WFRPPD.Career.Talent"),
+        value: `${Math.min(talents.length, 1)} / 1`,
+        cls: talents.length ? "is-done" : "is-todo",
+        hint: [L("WFRPPD.Career.TalentHint"), ...career.talents.map((t) => `${talents.some((x) => skillMatches(x.name, t)) ? "✓" : "·"} ${t}`)].join("\n")
+      }
+    ];
+    const done = rows.every((r) => r.cls === "is-done") || !!career.item.system.complete?.value;
+    return { rows, done };
+  }
+
+  /** Шаг развития за опыт: +1 (dir = 1) или вернуть последний шаг (dir = -1) */
+  async _advance(kind, key, dir = 1) {
+    if (!this.editable) return;
+    const actor = this.actor;
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const item = kind === "skill" ? actor.items.get(key) : null;
+    if (kind === "skill" && !item) return;
+    const name = item ? item.name : L(game.wfrp4e.config.characteristics?.[key] ?? key);
+    const adv = item ? Number(item.system.advances?.value) || 0 : Number(actor.system.characteristics?.[key]?.advances) || 0;
+    if (dir < 0 && adv <= 0) return;
+    const career = this._careerInfo();
+    const inCareer = this._inCareer(kind === "skill" ? "skill" : "char", item ?? key, career);
+    const type = kind === "skill" ? "skill" : "characteristic";
+    const cost = advanceCost(dir > 0 ? adv : adv - 1, type) * (inCareer === false ? 2 : 1);
+    const exp = actor.system.details?.experience ?? {};
+    const spent = Number(exp.spent) || 0;
+    const total = Number(exp.total) || 0;
+    if (dir > 0 && total - spent < cost) {
+      ui.notifications?.warn(F("WFRPPD.Adv.NotEnough", { n: cost - (total - spent) }));
+      return;
+    }
+    // Вне карьеры - только с одобрения ведущего, переспрашиваем
+    if (dir > 0 && inCareer === false) {
+      const Dialog = foundry.applications?.api?.DialogV2;
+      const ok = Dialog
+        ? await Dialog.confirm({ window: { title: L("WFRPPD.Adv.OutTitle") }, content: `<p>${F("WFRPPD.Adv.OutConfirm", { name, cost })}</p>` })
+        : true;
+      if (!ok) return;
+    }
+    const newSpent = spent + dir * cost;
+    const reason = F(dir > 0 ? "WFRPPD.Adv.LogUp" : "WFRPPD.Adv.LogDown", { name, to: adv + dir });
+    const update = { "system.details.experience.spent": newSpent };
+    // Журнал опыта системы, если он есть
+    const log = safe(() => actor.system.addToExpLog?.(dir * cost, reason, newSpent, total), null) ?? safe(() => actor._addToExpLog?.(dir * cost, reason, newSpent, total), null);
+    if (Array.isArray(log)) update["system.details.experience.log"] = log;
+    if (item) {
+      await item.update({ "system.advances.value": adv + dir });
+      await actor.update(update);
+    } else {
+      update[`system.characteristics.${key}.advances`] = adv + dir;
+      await actor.update(update);
+    }
+  }
+
+  /* -------------------------------------------- */
   /*  Статы в стиле WoW / ECS                     */
   /* -------------------------------------------- */
 
@@ -790,11 +977,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const st = sys.status ?? {};
     const det = sys.details ?? {};
 
+    const career = this._careerInfo();
     const charRow = (key) => {
       const c = chars[key] ?? {};
       const mod = Number(c.modifier) || 0;
       const full = cfg.characteristics?.[key];
       return {
+        adv: this._advInfo("char", key, career),
         key: `char.${key}`,
         label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
         value: c.value ?? "-",
@@ -913,6 +1102,37 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Stats.ExpCurrent", exp.current)
         ]
       });
+    // Карьера: вехи текущей ступени и навыки с кнопкой «+»
+    const career = this._careerInfo();
+    const ms = this._milestones(career);
+    if (career && ms) {
+      const levelRow = {
+        key: "Career.Level",
+        label: career.item.name,
+        value: game.i18n.format("WFRPPD.Career.LevelValue", { n: career.level }),
+        cls: ms.done ? "is-done" : "",
+        hint: career.levels.map((l) => `${l.current ? "▶" : l.past ? "✓" : "·"} ${l.n}. ${l.name ?? "?"}`).join("\n"),
+        levels: career.levels
+      };
+      cats.push({ key: "career", rows: [levelRow, ...ms.rows] });
+    }
+    const skills = (this.actor.itemTypes.skill ?? [])
+      .map((sk) => ({ sk, adv: this._advInfo("skill", sk, career) }))
+      // Навыки карьеры - всегда; остальные - если уже развиты
+      .filter(({ adv }) => adv.inCareer !== false || adv.adv > 0)
+      .sort((a, b) => (b.adv.inCareer === true) - (a.adv.inCareer === true) || a.sk.name.localeCompare(b.sk.name));
+    if (skills.length) {
+      cats.push({
+        key: "skills",
+        rows: skills.map(({ sk, adv }) => ({
+          key: sk.name,
+          label: sk.name,
+          value: safe(() => sk.system.total?.value, null) ?? adv.adv,
+          cls: [adv.inCareer === false ? "is-outcareer" : "", adv.reached ? "is-done" : ""].join(" ").trim(),
+          adv
+        }))
+      });
+    }
     // У каждой строки - термины для поиска статьи правил (английские названия из книги + подпись)
     const withArticle = (r) => ({ ...r, article: [ARTICLE_TERMS[r.key], r.label.replace(/:$/, "")].filter(Boolean).join("|") });
     return cats.map((c) => ({
@@ -2195,6 +2415,19 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
         this._openArticle(el.dataset.kind, el.textContent.trim());
+      });
+    }
+    // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг
+    for (const el of root.querySelectorAll(".pd-adv")) {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this._advance(el.dataset.kind, el.dataset.key, 1);
+      });
+      el.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this._advance(el.dataset.kind, el.dataset.key, -1);
       });
     }
     // Вкладка «Характеристики»: значок справа от строки открывает статью правил

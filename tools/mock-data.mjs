@@ -282,6 +282,19 @@ const stats = (wounds, s, t) => ({
 });
 const details = (status) => ({ species: { value: "human" }, status: { value: status }, move: { value: 4, walk: "8", run: "16" }, experience: { total: 300, spent: 250, current: 50 } });
 const inBag = (id) => ({ location: { value: id } });
+const xp = (total, spent) => ({ total, spent, current: total - spent });
+/** Карьера солдата из книги: ступени 1-3 (навыки на английском, как в системе) */
+const SOLDIER = [
+  { name: "Рекрут", group: "Солдат", level: 1, chars: ["ws", "t", "wp"],
+    skills: ["Athletics", "Climb", "Cool", "Dodge", "Endurance", "Language (Battle)", "Melee (Basic)", "Play (Drum)"],
+    talents: ["Diceman", "Marksman", "Strong Back", "Warrior Born"] },
+  { name: "Солдат", group: "Солдат", level: 2, chars: ["ws", "t", "wp", "bs"],
+    skills: ["Consume Alcohol", "Gamble", "Gossip", "Melee (Any)", "Ranged (Any)", "Outdoor Survival"],
+    talents: ["Diceman", "Etiquette (Soldiers)", "Rapid Reload", "Strike Mighty Blow"] },
+  { name: "Сержант", group: "Солдат", level: 3, chars: ["ws", "t", "wp", "bs", "i"],
+    skills: ["Heal", "Intuition", "Leadership", "Perception"],
+    talents: ["Combat Aware", "Enclosed Fighter", "Unshakable", "Warleader"] }
+];
 
 export const CAST = [
   {
@@ -289,11 +302,18 @@ export const CAST = [
     name: "Наёмник Ульрих",
     img: portrait,
     career: { name: "Наёмник", level: 2, class: "Воины" },
-    skills: ["Melee (Basic)", "Melee (Polearm)", "Ranged (Crossbow)"],
+    careers: [{ ...SOLDIER[0], complete: true }, { ...SOLDIER[1], current: true }],
+    skills: [
+      { name: "Melee (Basic)", ch: "ws", adv: 10 }, { name: "Melee (Polearm)", ch: "ws", adv: 8 }, { name: "Ranged (Crossbow)", ch: "bs", adv: 5 },
+      { name: "Athletics", ch: "ag", adv: 10 }, { name: "Climb", ch: "s", adv: 5 }, { name: "Cool", ch: "wp", adv: 10 }, { name: "Dodge", ch: "ag", adv: 10 },
+      { name: "Endurance", ch: "t", adv: 10 }, { name: "Language (Battle)", ch: "int", adv: 5 }, { name: "Consume Alcohol", ch: "t", adv: 3 },
+      { name: "Gamble", ch: "int", adv: 0 }, { name: "Gossip", ch: "fel", adv: 0 }, { name: "Outdoor Survival", ch: "int", adv: 0 },
+      { name: "Charm", ch: "fel", adv: 0 }, { name: "Stealth (Rural)", ch: "ag", adv: 4 }
+    ],
     talents: [{ name: "Strike Mighty Blow" }],
     system: {
-      characteristics: { ws: ch(42, 5), bs: ch(35), s: ch(38, 5), t: ch(40), i: ch(33), ag: ch(30), dex: ch(28), int: ch(27), wp: ch(34), fel: ch(26) },
-      status: stats(15), details: details("Серебро 1"), settings: { equipPoints: 2 }
+      characteristics: { ws: ch(32, 10), bs: ch(30, 5), s: ch(33, 5), t: ch(32, 8), i: ch(33), ag: ch(30), dex: ch(28), int: ch(27), wp: ch(30, 10), fel: ch(26) },
+      status: stats(15), details: { ...details("Серебро 1"), experience: xp(900, 640) }, settings: { equipPoints: 2 }
     },
     items: [
       { id: "m-halberd", name: "Алебарда", type: "weapon", _icon: own("weapons/halberd.png"), img: icon("🪓", "#5a6a7a"),
@@ -375,11 +395,17 @@ export const CAST = [
     name: "Ветеран Гюнтер",
     img: portrait,
     career: { name: "Солдат", level: 3, class: "Воины" },
-    skills: ["Melee (Basic)", "Melee (Parry)"],
-    talents: [],
+    careers: [{ ...SOLDIER[0], complete: true }, { ...SOLDIER[1], complete: true }, { ...SOLDIER[2], current: true }],
+    skills: [
+      { name: "Melee (Basic)", ch: "ws", adv: 15 }, { name: "Melee (Parry)", ch: "ws", adv: 12 }, { name: "Athletics", ch: "ag", adv: 10 },
+      { name: "Cool", ch: "wp", adv: 15 }, { name: "Dodge", ch: "ag", adv: 15 }, { name: "Endurance", ch: "t", adv: 15 },
+      { name: "Language (Battle)", ch: "int", adv: 10 }, { name: "Leadership", ch: "fel", adv: 15 }, { name: "Perception", ch: "i", adv: 15 },
+      { name: "Intuition", ch: "i", adv: 14 }, { name: "Heal", ch: "int", adv: 5 }, { name: "Ranged (Blackpowder)", ch: "bs", adv: 10 }
+    ],
+    talents: [{ name: "Combat Aware" }],
     system: {
-      characteristics: { ws: ch(44, 5), bs: ch(30), s: ch(36), t: ch(41, 5), i: ch(32), ag: ch(29), dex: ch(27), int: ch(28), wp: ch(38), fel: ch(25) },
-      status: stats(14), details: details("Серебро 1"), settings: { equipPoints: 2 }
+      characteristics: { ws: ch(34, 15), bs: ch(30, 15), s: ch(36), t: ch(31, 15), i: ch(32, 12), ag: ch(29), dex: ch(27), int: ch(28), wp: ch(33, 15), fel: ch(25) },
+      status: stats(14), details: { ...details("Серебро 1"), experience: xp(2400, 2310) }, settings: { equipPoints: 2 }
     },
     items: [
       // Травмы: левой кисти нет (на культе крюк), правая нога сломана

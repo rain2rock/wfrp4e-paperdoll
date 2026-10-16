@@ -105,7 +105,9 @@
         "defence": "Defence",
         "fate": "Fate",
         "general": "General",
-        "experience": "Experience"
+        "experience": "Experience",
+        "career": "Career",
+        "skills": "Skills"
       },
       "Bonus": "Bonus",
       "Move": "Move",
@@ -166,7 +168,15 @@
       "Practical": "Practical: penalty 10 lower"
     },
     "Class": "Class",
-    "Career": "Career",
+    "Career": {
+      "LevelValue": "level {n}",
+      "Chars": "Characteristics",
+      "Skills": "Skills",
+      "Talent": "Talent",
+      "CharsHint": "Each career characteristic: at least {need} advances",
+      "SkillsHint": "At least 8 career skills: at least {need} advances",
+      "TalentHint": "At least 1 talent of this level"
+    },
     "Gods": {
       "Ulric": "Ulric"
     },
@@ -331,6 +341,19 @@
       "Fortune": "Fortune (rerolls)",
       "WoundsHint": "Wounds {value} of {max}. At 0 any new wound is a Critical",
       "FortuneHint": "Fortune {value} of {max}: spend 1 to reroll a test or add +1 SL. Refills to Fate each session"
+    },
+    "Adv": {
+      "Step": "Advance {from} → {to}: {cost} XP",
+      "InCareer": "In career",
+      "OutOfCareer": "Out of career: double cost and GM approval needed",
+      "Free": "XP available: {n}",
+      "NotEnough": "{n} XP short",
+      "Milestone": "Towards completing the level: {adv} / {need} advances",
+      "RefundHint": "Right-click - undo the last advance and refund XP",
+      "OutTitle": "Out-of-career advance",
+      "OutConfirm": "«{name}» is not in your career. The advance costs {cost} XP (double) and needs GM approval. Spend it?",
+      "LogUp": "{name}: advanced to {to}",
+      "LogDown": "{name}: advance refunded (to {to})"
     }
   }
 }
