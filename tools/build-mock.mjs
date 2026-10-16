@@ -184,7 +184,7 @@ const require = createRequire(import.meta.url);
 const handlebars = fs.readFileSync(require.resolve("handlebars/dist/handlebars.min.js"), "utf8");
 const lang = JSON.parse(read("lang/ru.json"));
 const css = read("styles/paperdoll.css").replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
-const appSrc = [read("scripts/icon-index.js"), read("scripts/icon-rules.js").replace(/^export /gm, ""), read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "")].join("\n");
+const appSrc = [read("scripts/icon-index.js"), read("scripts/icon-rules.js").replace(/^export /gm, ""), read("scripts/glossary-ru.js").replace(/^export /gm, ""), read("scripts/translate.js").replace(/^export /gm, ""), read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "")].join("\n");
 const template = read("templates/paperdoll.hbs");
 const runtime = read("tools/mock-runtime.js");
 const tplPath = "modules/wfrp4e-paperdoll/templates/paperdoll.hbs";

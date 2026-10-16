@@ -2444,3 +2444,7 @@
 /* Иконка «выгрузить» - цветная стрелка, без затемнения */
 .wfrp-paperdoll .pd-unload img,
 .wfrp-paperdoll .pd-unload:hover img { filter: none; }
+
+/* v0.30: перевод описаний */
+.wfrp-paperdoll-tooltip .is-translating { opacity: 0.55; }
+.wfrp-paperdoll-tooltip .pd-tip-line.is-desc { font-style: italic; opacity: 0.85; margin-top: 4px; }

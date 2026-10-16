@@ -364,6 +364,21 @@
       "passiveBuffs": {
         "Name": "Show passive buffs",
         "Hint": "Permanent effects of talents, traits and items in the effects strip. Temporary buffs (blessings, Frenzy) always show"
+      },
+      "translateTerms": {
+        "Name": "Translate game terms",
+        "Hint": "Show characteristic, skill, talent and condition names in Russian per the rulebook (Russian client, English data)."
+      },
+      "translateText": {
+        "Name": "Translate descriptions",
+        "Hint": "Machine-translate English texts in tooltips. Chrome uses the built-in browser translator (local, not always available). Google is an unofficial free endpoint: texts are sent to Google and it may stop working. Results are cached.",
+        "off": "Off",
+        "chrome": "Chrome translator",
+        "google": "Google Translate"
+      },
+      "translateDescOnly": {
+        "Name": "Translate only descriptions and flavour text",
+        "Hint": "Names, terms and rules stay as they are; only item, effect and talent descriptions are translated."
       }
     },
     "Vitals": {

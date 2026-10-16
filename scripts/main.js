@@ -27,6 +27,31 @@ Hooks.once("init", () => {
     });
   }
 
+  // Машинный перевод английских текстов в подсказках
+  game.settings.register(MODULE_ID, "translateText", {
+    name: "WFRPPD.Options.translateText.Name",
+    hint: "WFRPPD.Options.translateText.Hint",
+    scope: "client",
+    config: true,
+    type: String,
+    choices: {
+      off: "WFRPPD.Options.translateText.off",
+      chrome: "WFRPPD.Options.translateText.chrome",
+      google: "WFRPPD.Options.translateText.google"
+    },
+    default: "off",
+    onChange: rerender
+  });
+  game.settings.register(MODULE_ID, "translateDescOnly", {
+    name: "WFRPPD.Options.translateDescOnly.Name",
+    hint: "WFRPPD.Options.translateDescOnly.Hint",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: rerender
+  });
+
   // Горячая клавиша (по умолчанию I): открыть / закрыть снаряжение.
   // Клавишу меняют в «Настроить управление» Foundry, включают и выключают - в настройках модуля
   game.keybindings?.register(MODULE_ID, "toggle", {

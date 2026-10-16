@@ -1,4 +1,6 @@
 import { ICON_OVERRIDES } from "./icon-index.js";
+import { translateTerm } from "./glossary-ru.js";
+import { translateText, cachedTranslation, looksEnglish } from "./translate.js";
 import { ownIconFor } from "./icon-rules.js";
 
 export const MODULE_ID = "wfrp4e-paperdoll";
@@ -18,8 +20,13 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false };
+export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
+/** Игровой термин на русском (опция «Переводить термины», клиент на русском) */
+export const T = (name) =>
+  option("translateTerms") && !setting("translateDescOnly", false) && game.i18n?.lang === "ru" ? translateTerm(name) : name;
+/** Как переводить описания: off | chrome | google */
+const trProvider = () => setting("translateText", "off");
 
 const setting = (key, fallback) => {
   try {
@@ -943,7 +950,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (uses) lines.push(...uses.split("\n").map((u) => `· ${u}`));
     // Таланты, чей предел - этот бонус
     const capped = (this.actor.itemTypes.talent ?? []).filter((t) => String(t.system.max?.value ?? "").replace(/Bonus$/i, "") === key);
-    const names = [...new Set(capped.map((t) => t.name))];
+    const names = [...new Set(capped.map((t) => T(t.name)))];
     if (names.length) lines.push(`· ${F("WFRPPD.Bonus.Talents", { list: names.join(", "), n: bonus })}`);
     return lines;
   }
@@ -961,7 +968,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       lines.push(`## ${F("WFRPPD.Impact.SkillsHead", { n: skills.length })}`);
       for (const sk of skills.slice(0, 10)) {
         const t = Number(safe(() => sk.system.total?.value, null) ?? 0);
-        lines.push(`· ${sk.name}\t${t} → ${t + 1}`);
+        lines.push(`· ${T(sk.name)}\t${t} → ${t + 1}`);
       }
       if (skills.length > 10) lines.push(`~ ${F("WFRPPD.Impact.More", { n: skills.length - 10 })}`);
     }
@@ -1015,7 +1022,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         if (adv.inCareer === false && adv.adv === 0) continue;
         out.push({
           key: sk.name,
-          label: sk.name,
+          label: T(sk.name),
           value: safe(() => sk.system.total?.value, null) ?? adv.adv,
           cls: adv.inCareer === false ? "is-outcareer" : "",
           done: adv.reached,
@@ -1042,7 +1049,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const charsDone = chars.filter((c) => c.adv >= need);
     const skills = (this.actor.itemTypes.skill ?? [])
       .filter((sk) => career.skills.some((e) => skillMatches(sk.name, e)))
-      .map((sk) => ({ label: sk.name, adv: Number(sk.system.advances?.value) || 0 }));
+      .map((sk) => ({ label: T(sk.name), adv: Number(sk.system.advances?.value) || 0 }));
     const skillsDone = skills.filter((x) => x.adv >= need);
     const talents = (this.actor.itemTypes.talent ?? []).filter((t) => career.talents.some((e) => skillMatches(t.name, e)));
     const list = (arr) => arr.map((x) => `${x.adv >= need ? "✓" : "·"} ${x.label} ${x.adv}/${need}`).join("\n");
@@ -1296,7 +1303,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         rows: skills.map(({ sk, adv }) => ({
           key: sk.name,
           itemId: sk.id,
-          label: sk.name,
+          label: T(sk.name),
           value: safe(() => sk.system.total?.value, null) ?? adv.adv,
           cls: adv.inCareer === false ? "is-outcareer" : "",
           done: adv.reached,
@@ -1309,13 +1316,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // складываем их в одну строку, уровень = сумма шагов (как в листе персонажа)
     const byName = new Map();
     for (const t of this.actor.itemTypes.talent ?? []) {
-      const k = norm(t.name);
+      // по переведённому имени: «Hardy» и «Закалка» - один талант
+      const k = norm(T(t.name));
       const g = byName.get(k);
       const n = Number(t.system.advances?.value) || 1;
       if (g) g.lvl += n;
       else byName.set(k, { t, lvl: n });
     }
-    const talents = [...byName.values()].sort((a, b) => a.t.name.localeCompare(b.t.name));
+    const talents = [...byName.values()].sort((a, b) => T(a.t.name).localeCompare(T(b.t.name)));
     if (talents.length) {
       cats.push({
         key: "talents",
@@ -1325,11 +1333,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           const head = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });
           return {
             key: t.name,
-            label: t.name,
+            label: T(t.name),
             value: max ? `${lvl} / ${max}` : String(lvl),
             cls: max && lvl >= max ? "is-max" : "",
             done: !!(max && lvl >= max),
-            hint: [head, text ? (text.length > 220 ? `${text.slice(0, 220).trim()}…` : text) : ""].filter(Boolean).join("\n")
+            hint: [head, text ? `» ${text.length > 220 ? `${text.slice(0, 220).trim()}…` : text}` : ""].filter(Boolean).join("\n")
           };
         })
       });
@@ -1987,7 +1995,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           kind: "condition",
           id: effect.id,
           key: condition,
-          name: effect.name || L(cfg.conditions[condition]),
+          name: T(effect.name || L(cfg.conditions[condition])),
           img: effect.img,
           value: value && value > 1 ? value : null,
           debuff: true,
@@ -2981,7 +2989,7 @@ function effectTooltip(entry) {
   const kind = L(`WFRPPD.Effects.Kind.${entry.kind}`);
   const state = entry.disabled ? ` · ${L("WFRPPD.Effects.Disabled")}` : "";
   const value = entry.value ? ` ${entry.value}` : "";
-  const lines = entry.lines.map((l) => `<div class="pd-tt-text">${esc(l.length > 260 ? `${l.slice(0, 260)}…` : l)}</div>`).join("");
+  const lines = entry.lines.map((l) => `<div class="pd-tt-text pd-tr">${esc(l.length > 260 ? `${l.slice(0, 260)}…` : l)}</div>`).join("");
   return `
     <div class="pd-tt-name ${entry.kind === "buff" ? "is-buff" : entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
     <div class="pd-tt-sub">${esc(kind + state)}</div>
@@ -3009,6 +3017,7 @@ class PaperdollTooltip {
     el.innerHTML = html;
     el.classList.add("is-visible");
     this.move(event);
+    this.translate(el, event);
   }
 
   static show(item, event, app = null) {
@@ -3018,6 +3027,38 @@ class PaperdollTooltip {
     el.innerHTML = this.build(item, app);
     el.classList.add("is-visible");
     this.move(event);
+    this.translate(el, event);
+  }
+
+  /**
+   * Машинный перевод английских текстов в подсказке (настройка «Переводить описания»).
+   * Из кэша - сразу, иначе асинхронно, если подсказка ещё на экране.
+   * «Только описания» - переводим лишь описания и художественный текст (.pd-tr).
+   */
+  static translate(el, event) {
+    const provider = trProvider();
+    const lang = game.i18n?.lang ?? "en";
+    if (provider === "off" || lang === "en") return;
+    const sel = setting("translateDescOnly", false) ? ".pd-tr" : ".pd-tr, .pd-tip-line:not(.is-kv), .pd-tip-head:not(.is-kv)";
+    for (const node of el.querySelectorAll(sel)) {
+      const src = node.textContent.trim().replace(/^«|»$/g, "");
+      if (!looksEnglish(src)) continue;
+      const wrap = (t) => (node.classList.contains("pd-tt-desc") ? `«${t}»` : t);
+      const hit = cachedTranslation(src, lang);
+      if (hit) {
+        node.textContent = wrap(hit);
+        node.title = src;
+        continue;
+      }
+      node.classList.add("is-translating");
+      translateText(src, lang, provider).then((out) => {
+        node.classList.remove("is-translating");
+        if (!out || !node.isConnected) return;
+        node.textContent = wrap(out);
+        node.title = src;
+        if (event) this.move(event);
+      });
+    }
   }
 
   static move(event) {
@@ -3054,6 +3095,8 @@ class PaperdollTooltip {
         if (l.startsWith("## ")) return `<div class="pd-tip-section">${esc(l.slice(3))}</div>`;
         if (l.startsWith("! ")) return `<div class="pd-tip-line is-warn ${l.includes("\t") ? "is-kv" : ""}">${cell(l.slice(2))}</div>`;
         if (l.startsWith("~ ")) return `<div class="pd-tip-note">${esc(l.slice(2))}</div>`;
+        // «» » - описание (художественный текст): переводится и в режиме «только описания»
+        if (l.startsWith("» ")) return `<div class="pd-tip-line is-desc pd-tr">${esc(l.slice(2))}</div>`;
         const sub = /^\s{2,}|^[·✓-]\s/.test(l);
         const text = sub ? l.replace(/^\s*[·✓-]?\s*/, "") : l;
         return `<div class="pd-tip-line ${sub ? "is-sub" : ""} ${l.includes("\t") ? "is-kv" : ""}">${sub ? '<i class="pd-tip-dot"></i>' : ""}${cell(text)}</div>`;
@@ -3235,7 +3278,7 @@ class PaperdollTooltip {
       const short = full.length > 300 ? `${full.slice(0, 300).trim()}…` : full;
       // Короткий текст без свойств - это «флейвор», как жёлтая цитата в WoW
       const flavor = !desc.props.length && short.length < 160;
-      lines.push(flavor ? `<div class="pd-tt-desc">«${esc(short)}»</div>` : `<div class="pd-tt-text">${esc(short)}</div>`);
+      lines.push(flavor ? `<div class="pd-tt-desc pd-tr">«${esc(short)}»</div>` : `<div class="pd-tt-text pd-tr">${esc(short)}</div>`);
     }
     if (desc.hasTable) lines.push(`<div class="pd-tt-more">${esc(L("WFRPPD.Tooltip.HasTable"))}</div>`);
 
