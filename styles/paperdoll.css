@@ -1553,3 +1553,32 @@
 }
 .wfrp-paperdoll .pd-ecs-info svg { width: 16px; height: 16px; }
 .wfrp-paperdoll .pd-ecs-info:hover { color: var(--pd-gold); }
+
+/* ---------- v0.15: единая сетка куколки ---------- */
+/* Один шаг 12px: поля окна, промежутки между слотами, моделью, статами и оружием.
+   Колонки слотов ровно по ширине слота, поэтому отступы слева и справа от модели одинаковые. */
+.wfrp-paperdoll { --pd-step: 12px; --pd-slot: 66px; }
+.wfrp-paperdoll .pd-hero { padding: var(--pd-step); gap: var(--pd-step); }
+.wfrp-paperdoll .pd-doll {
+  grid-template-columns: var(--pd-slot) 1fr var(--pd-slot);
+  gap: var(--pd-step);
+  padding: var(--pd-step);
+}
+.wfrp-paperdoll .pd-group,
+.wfrp-paperdoll .pd-center,
+.wfrp-paperdoll .pd-group--weapons { gap: var(--pd-step); }
+.wfrp-paperdoll .pd-statboxes { gap: var(--pd-step); }
+.wfrp-paperdoll .pd-slot { gap: 0; }
+.wfrp-paperdoll .pd-slot-frame,
+.wfrp-paperdoll .pd-slot:not(.is-empty) .pd-slot-frame {
+  box-sizing: border-box;
+  flex: 0 0 var(--pd-slot);
+  width: var(--pd-slot);
+  height: var(--pd-slot);
+}
+.wfrp-paperdoll .pd-statbox .pd-select { margin: 0 0 4px; }
+
+/* Пустой список смены: «Нечего надеть» с заглушкой */
+.wfrp-paperdoll-flyout .pd-fly-nothing { cursor: default; opacity: 0.75; }
+.wfrp-paperdoll-flyout .pd-fly-nothing:hover { background: none; }
+.wfrp-paperdoll-flyout .pd-fly-nothing .pd-fly-icon img { opacity: 0.6; }

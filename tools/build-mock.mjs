@@ -69,7 +69,7 @@ function emojiIcon(glyph, color) {
 }
 
 // ---------- Иконки ----------
-const CAREER_SLUG = { "флагеллант": "flagellant", "flagellant": "flagellant", "маг": "wizard", "жрец": "priest", "дуэлянт": "duellist" };
+const CAREER_SLUG = { "флагеллант": "flagellant", "flagellant": "flagellant", "маг": "wizard", "наёмник": "soldier", "наемник": "soldier", "жрец": "priest", "дуэлянт": "duellist" };
 const ROOTS = { icons: args.icons, core: args["icons-core"], sys: args["icons-system"] };
 const iconStats = { path: 0, rule: 0, placeholder: 0, emoji: 0 };
 function fileFor(ref) {

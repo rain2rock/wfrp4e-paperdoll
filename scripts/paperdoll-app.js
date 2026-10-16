@@ -406,12 +406,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name, game.i18n.lang));
     const bag = bagAll.filter((i) => this._matchesFilter(i, this._filter)).map((i) => view(i));
     const bagSections = this._bagSections(bagAll, bagAssign, view);
+    // Фильтры: только те, где есть хотя бы одна вещь («Всё» - всегда)
+    const filterCount = (key) => bagAll.filter((i) => this._matchesFilter(i, key)).length;
+    if (this._filter !== "all" && !filterCount(this._filter)) this._filter = "all";
     const filters = BAG_FILTERS.map((key) => ({
       key,
       label: L(`WFRPPD.Filter.${key}`),
       active: key === this._filter,
-      count: bagAll.filter((i) => this._matchesFilter(i, key)).length
-    }));
+      count: filterCount(key)
+    })).filter((f) => f.key === "all" || f.count > 0);
 
     // --- Статы ---
     const sets = this._statSets(mainItems, offItems, weapons);
@@ -2060,6 +2063,14 @@ class PaperdollFlyout {
     if (current.length) {
       html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Current"))}</div>`;
       html += current.map((i) => row(i, "unequip")).join("");
+    }
+    // Совсем пусто: ни надетого, ни подходящего - одна строка «Нечего надеть» с заглушкой слота
+    if (!current.length && !available.length && !worn.length) {
+      html += `
+        <div class="pd-fly-row pd-fly-nothing">
+          <div class="pd-fly-icon"><img src="${uiArt(SLOT_ART[slot] ?? "slot-bag")}" alt=""></div>
+          <div class="pd-fly-text"><div class="pd-fly-name">${esc(L("WFRPPD.Fly.Nothing"))}</div></div>
+        </div>`;
     }
     // Нечего надеть - раздел не показываем вовсе
     if (available.length) {

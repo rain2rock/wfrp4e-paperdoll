@@ -79,7 +79,8 @@
       "ClearHint": "Leave the slot empty ({n})",
       "WornElsewhere": "Worn in other slots",
       "Swap": "swap",
-      "NowCap": "Now: {slot}"
+      "NowCap": "Now: {slot}",
+      "Nothing": "Nothing to equip"
     },
     "StatsTab": "Stats",
     "Level": "lvl",
