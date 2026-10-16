@@ -2528,3 +2528,7 @@
   text-align: center;
 }
 .wfrp-paperdoll .pd-maim { cursor: help; }
+
+/* Прокачка: навыки вне карьеры видны, но приглушены */
+.wfrp-paperdoll .pd-ecs-row.is-child.is-outcareer .pd-ecs-label,
+.wfrp-paperdoll .pd-ecs-row.is-child.is-outcareer .pd-ecs-value { opacity: 0.55; }

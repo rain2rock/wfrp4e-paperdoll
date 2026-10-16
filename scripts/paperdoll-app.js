@@ -1039,8 +1039,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         hint: this._bonusInfo(key).join("\n")
       });
       for (const sk of this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name))) {
+        // Все навыки характеристики, как в подсказке плюса; вне карьеры - приглушены (шаг стоит ×2)
         const adv = this._advInfo("skill", sk, career);
-        if (adv.inCareer === false && adv.adv === 0) continue;
         out.push({
           key: sk.name,
           label: T(sk.name),
