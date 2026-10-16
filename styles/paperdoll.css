@@ -2163,3 +2163,28 @@
 .wfrp-paperdoll .pd-ecs-cat--skills .pd-ecs-label,
 .wfrp-paperdoll .pd-ecs-cat--career .pd-ecs-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wfrp-paperdoll .pd-ecs-row:has(.pd-ecs-value.is-done) .pd-ecs-label::before { content: "✓ "; color: var(--pd-up); }
+
+/* ---------- v0.22.1: «+» справа и только при наведении, тихая галочка закрытой вехи ---------- */
+.wfrp-paperdoll .pd-ecs-row:has(.pd-ecs-value.is-done) .pd-ecs-label::before { content: none; }
+.wfrp-paperdoll .pd-ecs-value.is-done { color: var(--pd-text); font-weight: normal; }
+.wfrp-paperdoll .pd-ecs-value.is-todo { color: var(--pd-text); }
+.wfrp-paperdoll .pd-ecs-check {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--pd-up);
+  opacity: 0.6;
+}
+.wfrp-paperdoll .pd-adv {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.wfrp-paperdoll .pd-ecs-row:hover .pd-adv,
+.wfrp-paperdoll .pd-adv:focus-visible { opacity: 1; pointer-events: auto; }
+/* Без «+» значок статьи сам уходит вправо */
+.wfrp-paperdoll .pd-ecs-row:not(:has(.pd-adv)) .pd-ecs-info { margin-left: auto; }
+.wfrp-paperdoll .pd-ecs-row .pd-ecs-info { margin-left: 2px; }

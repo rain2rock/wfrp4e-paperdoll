@@ -80,7 +80,7 @@ const ARTICLE_TERMS = {
 };
 
 /** Иконки категорий во вкладке «Характеристики» */
-const STAT_ART = { general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
+const STAT_ART = { general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-fate", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /* -------------------------------------------- */
 /*  Конечности: ампутации, переломы, протезы    */
@@ -897,6 +897,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         key: "Career.Chars",
         label: L("WFRPPD.Career.Chars"),
         value: `${charsDone.length} / ${chars.length}`,
+        done: charsDone.length >= chars.length,
         cls: charsDone.length >= chars.length ? "is-done" : "is-todo",
         hint: [F("WFRPPD.Career.CharsHint", { need }), list(chars)].join("\n")
       },
@@ -904,6 +905,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         key: "Career.Skills",
         label: L("WFRPPD.Career.Skills"),
         value: `${Math.min(skillsDone.length, 8)} / 8`,
+        done: skillsDone.length >= 8,
         cls: skillsDone.length >= 8 ? "is-done" : "is-todo",
         hint: [F("WFRPPD.Career.SkillsHint", { need }), list(skills)].join("\n")
       },
@@ -911,6 +913,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         key: "Career.Talent",
         label: L("WFRPPD.Career.Talent"),
         value: `${Math.min(talents.length, 1)} / 1`,
+        done: talents.length > 0,
         cls: talents.length ? "is-done" : "is-todo",
         hint: [L("WFRPPD.Career.TalentHint"), ...career.talents.map((t) => `${talents.some((x) => skillMatches(x.name, t)) ? "✓" : "·"} ${t}`)].join("\n")
       }
@@ -982,8 +985,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const c = chars[key] ?? {};
       const mod = Number(c.modifier) || 0;
       const full = cfg.characteristics?.[key];
+      const adv = this._advInfo("char", key, career);
       return {
-        adv: this._advInfo("char", key, career),
+        adv,
+        done: adv.reached,
         key: `char.${key}`,
         label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
         value: c.value ?? "-",
@@ -1110,7 +1115,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         key: "Career.Level",
         label: career.item.name,
         value: game.i18n.format("WFRPPD.Career.LevelValue", { n: career.level }),
-        cls: ms.done ? "is-done" : "",
+        done: ms.done,
+        cls: "",
         hint: career.levels.map((l) => `${l.current ? "▶" : l.past ? "✓" : "·"} ${l.n}. ${l.name ?? "?"}`).join("\n"),
         levels: career.levels
       };
@@ -1128,9 +1134,28 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           key: sk.name,
           label: sk.name,
           value: safe(() => sk.system.total?.value, null) ?? adv.adv,
-          cls: [adv.inCareer === false ? "is-outcareer" : "", adv.reached ? "is-done" : ""].join(" ").trim(),
+          cls: adv.inCareer === false ? "is-outcareer" : "",
+          done: adv.reached,
           adv
         }))
+      });
+    }
+    // Таланты персонажа: уровень, если взят несколько раз; в подсказке - начало описания
+    const talents = [...(this.actor.itemTypes.talent ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    if (talents.length) {
+      cats.push({
+        key: "talents",
+        rows: talents.map((t) => {
+          const lvl = Number(t.system.advances?.value) || 1;
+          const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          return {
+            key: t.name,
+            label: t.name,
+            value: lvl > 1 ? `×${lvl}` : "",
+            cls: "",
+            hint: text ? (text.length > 220 ? `${text.slice(0, 220).trim()}…` : text) : ""
+          };
+        })
       });
     }
     // У каждой строки - термины для поиска статьи правил (английские названия из книги + подпись)
