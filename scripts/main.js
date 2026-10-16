@@ -1,4 +1,4 @@
-import { PaperdollApp, MODULE_ID, ui } from "./paperdoll-app.js";
+import { PaperdollApp, MODULE_ID, uiArt } from "./paperdoll-app.js";
 
 const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
@@ -36,7 +36,7 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "header-control icon wfrp-paperdoll-open";
-  btn.innerHTML = `<img src="${ui("ui-sheet-button")}" alt="">`;
+  btn.innerHTML = `<img src="${uiArt("ui-sheet-button")}" alt="">`;
   const label = game.i18n.localize("WFRPPD.Open");
   btn.dataset.tooltip = label;
   btn.setAttribute("aria-label", label);

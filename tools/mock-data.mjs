@@ -273,3 +273,93 @@ export const blankActor = {
       system: trapping({ encumbrance: { value: 1 }, price: { ss: 5 } }) }
   ]
 };
+
+/** Тестовые персонажи для переключателя в моке (флаг --cast) */
+const stats = (wounds, s, t) => ({
+  wounds: { value: wounds, max: wounds }, criticalWounds: { value: 0, max: 4 }, advantage: { value: 0 },
+  fate: { value: 1 }, fortune: { value: 1 }, resilience: { value: 2 }, resolve: { value: 2 },
+  corruption: { value: 0, max: 7 }, sin: { value: 0 }, encumbrance: { current: 0, max: 0 }
+});
+const details = (status) => ({ species: { value: "human" }, status: { value: status }, move: { value: 4, walk: "8", run: "16" }, experience: { total: 300, spent: 250, current: 50 } });
+const inBag = (id) => ({ location: { value: id } });
+
+export const CAST = [
+  {
+    id: "merc",
+    name: "Наёмник Ульрих",
+    img: portrait,
+    career: { name: "Наёмник", level: 2, class: "Воины" },
+    skills: ["Melee (Basic)", "Melee (Polearm)", "Ranged (Crossbow)"],
+    talents: [{ name: "Strike Mighty Blow" }],
+    system: {
+      characteristics: { ws: ch(42, 5), bs: ch(35), s: ch(38, 5), t: ch(40), i: ch(33), ag: ch(30), dex: ch(28), int: ch(27), wp: ch(34), fel: ch(26) },
+      status: stats(15), details: details("Серебро 1"), settings: { equipPoints: 2 }
+    },
+    items: [
+      { id: "m-halberd", name: "Алебарда", type: "weapon", _icon: own("weapons/halberd.png"), img: icon("🪓", "#5a6a7a"),
+        system: weapon({ equipped: { value: true }, twohanded: { value: true }, weaponGroup: { value: "polearm" }, reach: { value: "long" }, damage: { value: "SB+4" }, encumbrance: { value: 3 }, _qualities: ["Защитное", "Пробивающее", "Рубящее"], price: { gc: 2 } }) },
+      { id: "m-xbow", name: "Арбалет", type: "weapon", _icon: own("weapons/crossbow.png"), img: icon("🏹", "#5a6a7a"),
+        system: weapon({ weaponGroup: { value: "crossbow" }, damage: { value: "+9" }, _ranged: true, _range: "60", encumbrance: { value: 2 }, availability: { value: "scarce" }, price: { gc: 5 } }) },
+      { id: "m-helm", name: "Открытый шлем", type: "armour", _icon: own("armour/plate-open-helm.png"), img: icon("⛑️", "#7a7a8a"),
+        system: armour({ head: 2 }, { equipped: { value: true }, armorType: { value: "plate" }, encumbrance: { value: 1 }, price: { gc: 2 } }) },
+      { id: "m-mail", name: "Кольчуга", type: "armour", _icon: own("armour/mail-coat.png"), img: icon("🛡️", "#7a7a8a"),
+        system: armour({ body: 2, rArm: 2, lArm: 2, rLeg: 2, lLeg: 2 }, { equipped: { value: true }, armorType: { value: "mail" }, encumbrance: { value: 3 }, availability: { value: "scarce" }, price: { gc: 3 } }) },
+      { id: "m-breast", name: "Латный нагрудник", type: "armour", _icon: own("armour/plate-breastplate.png"), img: icon("🛡️", "#8a8a9a"),
+        system: armour({ body: 2 }, { equipped: { value: true }, armorType: { value: "plate" }, encumbrance: { value: 3 }, availability: { value: "rare" }, price: { gc: 10 } }) },
+      { id: "m-clothes", name: "Одежда", type: "trapping", _icon: own("clothing_and_accessories/clothing.png"), img: icon("👕", "#5a5040"),
+        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 } }) },
+      { id: "m-sack", name: "Большой мешок", type: "container", _icon: own("packs_and_containers/sack-large.png"), img: icon("🎒", "#6a5530"),
+        flags: { "wfrp4e-paperdoll": { bagSlot: "bag1" } }, system: base({ equipped: { value: true }, encumbrance: { value: 1 }, carries: { value: 6 } }) },
+      { id: "m-bolts", name: "Арбалетные болты", type: "ammunition", _icon: own("ammunition/bolt.png"), img: icon("➶", "#5a5a4a"),
+        system: base({ ...inBag("m-sack"), quantity: { value: 12 }, encumbrance: { value: 0 } }) },
+      { id: "m-tent", name: "Палатка", type: "trapping", _icon: own("miscellaneous_trappings/tent.png"), img: icon("⛺", "#6a5a3a"),
+        system: trapping({ ...inBag("m-sack"), encumbrance: { value: 2 } }) },
+      { id: "m-pot", name: "Котелок", type: "trapping", _icon: own("miscellaneous_trappings/cooking-pot.png"), img: icon("🍲", "#5a5a5a"),
+        system: trapping({ ...inBag("m-sack"), encumbrance: { value: 1 } }) },
+      { id: "m-ale", name: "Бочонок эля", type: "trapping", _icon: own("food_drink_and_lodging/ale-keg.png"), img: icon("🍺", "#7a5a2a"),
+        system: trapping({ encumbrance: { value: 2 } }) }
+    ]
+  },
+  {
+    id: "mage",
+    name: "Ученица Магистра Лиза",
+    img: portrait,
+    career: { name: "Маг", level: 1, class: "Учёные" },
+    skills: ["Language (Magick)", "Channelling (Aqshy)", "Melee (Basic)"],
+    talents: [{ name: "Arcane Magic (Fire)" }, { name: "Petty Magic" }],
+    system: {
+      characteristics: { ws: ch(26), bs: ch(28), s: ch(25), t: ch(30), i: ch(38), ag: ch(33), dex: ch(35), int: ch(45, 5), wp: ch(44, 5), fel: ch(36) },
+      status: stats(10), details: details("Серебро 2"), settings: { equipPoints: 2 }
+    },
+    items: [
+      { id: "g-staff", name: "Посох", type: "weapon", _icon: own("weapons/quarter-staff.png"), img: icon("🦯", "#6a4a2a"),
+        system: weapon({ equipped: { value: true }, twohanded: { value: true }, weaponGroup: { value: "polearm" }, reach: { value: "long" }, damage: { value: "SB+4" }, encumbrance: { value: 2 }, _qualities: ["Защитное", "Дробящее"] }) },
+      { id: "g-robes", name: "Мантия Светлого колледжа", type: "trapping", _icon: own("clothing_and_accessories/robes.png"), img: icon("👘", "#8a3a2a"),
+        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 }, availability: { value: "rare" }, price: { gc: 3 } }) },
+      { id: "g-hat", name: "Шляпа", type: "trapping", _icon: own("clothing_and_accessories/hat.png"), img: icon("🎩", "#4a3a5a"),
+        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" } }) },
+      { id: "g-amulet", name: "Амулет огненного камня", type: "trapping", _icon: own("clothing_and_accessories/amulet.png"), img: icon("📿", "#c94a2a"),
+        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, availability: { value: "exotic" }, price: { gc: 25 },
+          description: { value: "<p>Тёплый на ощупь камень в серебряной оправе. Говорят, в нём спит искра Акши.</p>" } }) },
+      { id: "g-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
+        system: armour({ body: 1, rArm: 1, lArm: 1 }, { encumbrance: { value: 1 }, price: { ss: 12 } }) },
+      { id: "g-sling", name: "Наплечная сумка", type: "container", _icon: own("packs_and_containers/sling-bag.png"), img: icon("👜", "#6a5530"),
+        flags: { "wfrp4e-paperdoll": { bagSlot: "bag1" } }, system: base({ equipped: { value: true }, carries: { value: 2 } }) },
+      { id: "g-case", name: "Тубус для свитков", type: "container", _icon: own("packs_and_containers/scroll-case.png"), img: icon("📜", "#6a5530"),
+        flags: { "wfrp4e-paperdoll": { bagSlot: "bag2" } }, system: base({ equipped: { value: true }, carries: { value: 1 } }) },
+      { id: "g-pouch", name: "Кошель с ингредиентами", type: "container", _icon: own("packs_and_containers/pouch.png"), img: icon("👝", "#6a5530"),
+        flags: { "wfrp4e-paperdoll": { bagSlot: "bag3" } }, system: base({ equipped: { value: true }, carries: { value: 1 } }) },
+      { id: "g-grimoire", name: "Гримуар", type: "trapping", _icon: own("book_documents/book-magic.png"), img: icon("📕", "#8a3a2a"),
+        system: trapping({ ...inBag("g-sling"), encumbrance: { value: 1 }, availability: { value: "rare" }, trappingType: { value: "booksAndDocuments" } }) },
+      { id: "g-writing", name: "Письменный набор", type: "trapping", _icon: own("tools_and_kits/writing-kit.png"), img: icon("✒️", "#3a3a5a"),
+        system: trapping({ ...inBag("g-sling") }) },
+      { id: "g-scroll", name: "Свиток с заклинанием", type: "trapping", _icon: own("book_documents/parchmentsheet.png"), img: icon("📜", "#a08050"),
+        system: trapping({ ...inBag("g-case"), availability: { value: "scarce" } }) },
+      { id: "g-salwort", name: "Солянка", type: "trapping", _icon: own("herbs_and_draughts/salwort.png"), img: icon("🌿", "#3a6a2a"),
+        system: trapping({ ...inBag("g-pouch"), quantity: { value: 5 } }) },
+      { id: "g-healing", name: "Целебное зелье", type: "trapping", _icon: own("herbs_and_draughts/healing-draught.png"), img: icon("🧪", "#8a2a2a"),
+        system: trapping({ quantity: { value: 2 }, availability: { value: "scarce" } }) },
+      { id: "g-lens", name: "Лупа", type: "trapping", _icon: own("tools_and_kits/reading-lens.png"), img: icon("🔍", "#5a5a5a"), system: trapping({}) }
+    ]
+  }
+];

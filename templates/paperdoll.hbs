@@ -26,10 +26,10 @@
       </div>
       <div class="pd-hero-text">
         <div class="pd-hero-name">{{name}}</div>
-        {{#if subtitle}}<div class="pd-hero-sub">{{subtitle}}</div>{{/if}}
+        {{#if subtitleParts.length}}<div class="pd-hero-sub">{{#each subtitleParts}}{{#unless @first}} · {{/unless}}<a class="pd-hero-part" data-kind="{{kind}}" title="{{localize "WFRPPD.Article.Open"}}">{{text}}</a>{{/each}}</div>{{/if}}
         {{#if money}}
-        <div class="pd-money" title="{{localize "WFRPPD.Money.Title"}}. {{money.hint}}">
-          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}} {{#if img}}has-img{{/if}}" title="{{title}}">{{#if img}}<img src="{{img}}" alt="">{{/if}}{{value}}</span>{{/each}}
+        <div class="pd-money">
+          {{#each money.parts}}<span class="pd-coin pd-coin--{{key}} {{#if img}}has-img{{/if}}" data-coin="{{key}}" title="{{title}}. {{@root.money.hint}}&#10;{{localize "WFRPPD.Money.ClickHint"}}">{{#if img}}<img src="{{img}}" alt="">{{/if}}{{value}}</span>{{/each}}
         </div>
         {{/if}}
       </div>
@@ -124,7 +124,6 @@
             <span class="pd-bagsec-name">{{name}}</span>
             {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
           </div>
-          {{#if hasCap}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.CapHint"}}">{{used}} / {{cap}}</span>{{/if}}
           {{#if looseWeight}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{looseWeight}}</span>{{/if}}
           {{#if canPack}}
           <button type="button" class="pd-pack" data-action="autoPack" title="{{localize "WFRPPD.Bags.PackHint"}}">
@@ -132,7 +131,6 @@
           </button>
           {{/if}}
         </header>
-        {{#if hasCap}}<div class="pd-bagsec-bar"><div style="width: {{pct}}%"></div></div>{{/if}}
         {{#unless noGrid}}
         <div class="pd-bag-grid">
           {{#each items}}

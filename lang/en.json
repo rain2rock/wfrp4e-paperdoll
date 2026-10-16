@@ -53,7 +53,9 @@
         "bp": "Brass Pennies"
       },
       "Total": "Total: {sum}",
-      "Title": "Money"
+      "Title": "Money",
+      "NoCoin": "The character has no «{coin}» coins.",
+      "ClickHint": "LMB - add, RMB - remove, Shift - by 10"
     },
     "Warn": {
       "WrongSlot": "\"{item}\" can't go into the \"{slot}\" slot.",
@@ -196,7 +198,7 @@
       "Packed": "Packed {n} items, encumbrance down by {w}.",
       "PackSkipped": "Didn't fit: {names}.",
       "AndMore": "and {n} more",
-      "FreeSlot": "Empty - click the icon to wear a bag",
+      "FreeSlot": "Not worn",
       "SwapHint": "Click to change the bag"
     },
     "Layers": "Armour layers",
@@ -205,6 +207,11 @@
         "Name": "Module item icons",
         "Hint": "Replace wfrp4e-core placeholder icons (sack, sword, bow) with the module's drawn icons."
       }
+    },
+    "Article": {
+      "Open": "Open article",
+      "Status": "Status",
+      "NotFound": "No journal article «{name}» found"
     }
   }
 }

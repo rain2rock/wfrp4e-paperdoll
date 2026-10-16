@@ -15,7 +15,7 @@ const LOCATIONS = ["head", "body", "rArm", "lArm", "rLeg", "lLeg"];
 /** Путь к файлу модуля. В моке вместо пути подставляется data URI */
 export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODULE_ID}/assets/${rel}`;
 /** Картинка интерфейса из assets/ui */
-export const ui = (name) => asset(`ui/${name}.png`);
+export const uiArt = (name) => asset(`ui/${name}.png`);
 
 const setting = (key, fallback) => {
   try {
@@ -344,7 +344,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return {
         key,
         label: this._slotLabel(key),
-        art: ui(SLOT_ART[key]),
+        art: uiArt(SLOT_ART[key]),
         top: views[0] ?? null,
         layers: Math.max(0, views.filter((v) => !v.ghost).length - 1),
         // «+N» (сколько ещё вещей под верхней) путает: показываем только при наведении
@@ -412,13 +412,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const level = career?.system?.level?.value;
     const speciesKey = sys.details?.species?.value;
     const species = speciesKey ? L(cfg.species?.[speciesKey] ?? speciesKey) : "";
-    const subtitle = [
-      career ? `${career.name}${level ? ` (${L("WFRPPD.Level")} ${level})` : ""}` : "",
-      species,
-      sys.details?.status?.value ?? ""
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    // Подзаголовок по частям: клик по карьере, виду или статусу открывает статью
+    const statusValue = sys.details?.status?.value ?? "";
+    const subtitleParts = [
+      career && { kind: "career", text: `${career.name}${level ? ` (${L("WFRPPD.Level")} ${level})` : ""}` },
+      species && { kind: "species", text: species },
+      statusValue && { kind: "status", text: statusValue }
+    ].filter(Boolean);
+    const subtitle = subtitleParts.map((part) => part.text).join(" · ");
 
     const enc = sys.status?.encumbrance ?? {};
     const encCurrent = Number(enc.current) || 0;
@@ -445,16 +446,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       img: actor.img,
       name: actor.name,
       subtitle,
+      subtitleParts,
       careerIcon,
       money: this._moneyView(),
       theme: currentTheme(),
       art: {
-        swap: ui("ui-swap-arrow"),
-        caret: ui("ui-caret-down"),
-        tabBag: ui("ui-tab-bag"),
-        tabStats: ui("ui-tab-stats"),
-        carried: ui("ui-carried"),
-        pack: ui("ui-pack")
+        swap: uiArt("ui-swap-arrow"),
+        caret: uiArt("ui-caret-down"),
+        tabBag: uiArt("ui-tab-bag"),
+        tabStats: uiArt("ui-tab-stats"),
+        carried: uiArt("ui-carried"),
+        pack: uiArt("ui-pack")
       },
       effects: this._effectsCache = this._effectsView(),
       groups,
@@ -606,7 +608,57 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Stats.ExpCurrent", exp.current)
         ]
       });
-    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`), art: STAT_ART[c.key] ? ui(STAT_ART[c.key]) : null }));
+    return cats.map((c) => ({ ...c, label: L(`WFRPPD.Stats.Set.${c.key}`), art: STAT_ART[c.key] ? uiArt(STAT_ART[c.key]) : null }));
+  }
+
+/** Номинал монеты в медных пенни */
+  static COIN_VALUE = { gc: 240, ss: 12, bp: 1 };
+
+  /** ЛКМ по монете - +1, ПКМ - -1, с Shift - по 10 */
+  async _changeMoney(key, delta) {
+    if (!this.editable) return;
+    const value = PaperdollApp.COIN_VALUE[key];
+    const coin = this.actor.items.find((i) => i.type === "money" && Number(i.system.coinValue?.value) === value);
+    if (!coin) {
+      ui.notifications.warn(game.i18n.format("WFRPPD.Money.NoCoin", { coin: game.i18n.localize(`WFRPPD.Money.Name.${key}`) }));
+      return;
+    }
+    const qty = Number(coin.system.quantity?.value) || 0;
+    const next = Math.max(0, qty + delta);
+    if (next !== qty) await coin.update({ "system.quantity.value": next });
+  }
+
+  /**
+   * Открыть статью к части подзаголовка: карьера - лист карьеры,
+   * вид и статус - журнал с таким названием (в мире или в компендиумах, например wfrp4e-core).
+   */
+  async _openArticle(kind, text) {
+    if (kind === "career") {
+      const career = safe(() => this.actor.system.currentCareer ?? this.actor.currentCareer);
+      if (career?.sheet) return career.sheet.render(true);
+    }
+    const terms = new Set([text]);
+    if (kind === "status") {
+      // «Brass 0», «Медь 2» -> ищем и по слову тира: Brass / Silver / Gold
+      const tier = String(text).replace(/\s*\d+\s*$/, "").trim();
+      if (tier) terms.add(tier);
+      terms.add(game.i18n.localize("WFRPPD.Article.Status"));
+    }
+    if (kind === "species") terms.add(this.actor.system.details?.species?.value ?? "");
+    const match = (name) => [...terms].some((t) => t && name?.toLowerCase().includes(String(t).toLowerCase()));
+    // Сначала журналы мира, потом компендиумы журналов
+    for (const entry of game.journal ?? []) {
+      if (match(entry.name)) return entry.sheet.render(true);
+      const page = entry.pages?.find((pg) => match(pg.name));
+      if (page) return entry.sheet.render(true, { pageId: page.id });
+    }
+    for (const pack of game.packs ?? []) {
+      if (pack.documentName !== "JournalEntry") continue;
+      const index = await pack.getIndex();
+      const hit = index.find((e) => match(e.name));
+      if (hit) return (await pack.getDocument(hit._id))?.sheet.render(true);
+    }
+    ui.notifications.info(game.i18n.format("WFRPPD.Article.NotFound", { name: text }));
   }
 
   /** Деньги персонажа: монеты по номиналам (1 зк = 20 сш = 240 п) */
@@ -788,7 +840,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
             kind: "free",
             slot: k,
             name: this._slotLabel(k),
-            img: ui("slot-bag"),
+            img: uiArt("slot-bag"),
             slotLabel: L("WFRPPD.Bags.FreeSlot"),
             hasCap: false,
             items: [],
@@ -1462,6 +1514,26 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       el.addEventListener("dragend", () => this._onDragEnd());
     }
 
+    // Подзаголовок: клик по карьере, виду, статусу - статья
+    for (const el of root.querySelectorAll(".pd-hero-part")) {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._openArticle(el.dataset.kind, el.textContent.trim());
+      });
+    }
+    // Монеты: ЛКМ +1, ПКМ -1, с Shift по 10
+    for (const el of root.querySelectorAll(".pd-coin")) {
+      const step = (ev) => (ev.shiftKey ? 10 : 1);
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._changeMoney(el.dataset.coin, step(ev));
+      });
+      el.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        this._changeMoney(el.dataset.coin, -step(ev));
+      });
+    }
+
     // Выпадашки статов под портретом
     for (const select of root.querySelectorAll(".pd-statbox select")) {
       select.addEventListener("change", () => {
@@ -1903,7 +1975,7 @@ class PaperdollFlyout {
       if (!current.length && !d) return "";
       if (!d) return `<span class="pd-fly-delta is-same">=</span>`;
       const unit = L(`WFRPPD.Fly.Unit.${v.unit}`);
-      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}"><img src="${ui(d > 0 ? "ui-delta-up" : "ui-delta-down")}" alt="">${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
+      return `<span class="pd-fly-delta ${d > 0 ? "is-up" : "is-down"}"><img src="${uiArt(d > 0 ? "ui-delta-up" : "ui-delta-down")}" alt="">${d > 0 ? "+" : "-"}${Math.abs(d)} ${esc(unit)}</span>`;
     };
 
     const row = (item, act) => {
@@ -1919,15 +1991,15 @@ class PaperdollFlyout {
         // Для надетой в другом слоте сумки главное - где она сейчас
         meta = game.i18n.format("WFRPPD.Fly.NowCap", { slot: app._slotLabel(where) });
       }
-      const icon = act === "unequip" ? `<img class="pd-fly-act" src="${ui("ui-close")}" alt="" title="${esc(L("WFRPPD.Fly.Unequip"))}">` : "";
+      const icon = act === "unequip" ? `<img class="pd-fly-act" src="${uiArt("ui-close")}" alt="" title="${esc(L("WFRPPD.Fly.Unequip"))}">` : "";
       // BIS только если он один: при равенстве подсвечивать нечего
       const v = val.get(item.id);
       const bis = !isSwap && !v.forbidden && bisCount === 1 && v.score === bestScore && all.length > 1;
       const chips = [
-        ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}"><img src="${ui("ui-forbid")}" alt="">${esc(r.label)}</span>`),
-        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.good ? "is-good" : r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${!r.good && !r.info ? `<img src="${ui("ui-warn")}" alt="">` : ""}${esc(humanizeTerms(r.label))}</span>`)
+        ...v.restr.forbid.map((r) => `<span class="pd-chip is-forbid" title="${esc(r.hint ?? L("WFRPPD.Restr.ForbiddenHint"))}"><img src="${uiArt("ui-forbid")}" alt="">${esc(r.label)}</span>`),
+        ...v.restr.warn.map((r) => `<span class="pd-chip ${r.good ? "is-good" : r.info ? "is-info" : "is-warn"}" ${r.hint ? `title="${esc(r.hint)}"` : ""}>${!r.good && !r.info ? `<img src="${uiArt("ui-warn")}" alt="">` : ""}${esc(humanizeTerms(r.label))}</span>`)
       ].join("");
-      const bisBadge = bis ? `<img class="pd-fly-bis" src="${ui("ui-bis")}" alt="BIS" title="${esc(L("WFRPPD.Fly.BisHint"))}">` : "";
+      const bisBadge = bis ? `<img class="pd-fly-bis" src="${uiArt("ui-bis")}" alt="BIS" title="${esc(L("WFRPPD.Fly.BisHint"))}">` : "";
       const delta = isSwap ? `<span class="pd-fly-delta is-same">${esc(L("WFRPPD.Fly.Swap"))}</span>` : act === "equip" ? deltaChip(item) : "";
       return `
         <div class="pd-fly-row ${bis ? "is-bis" : ""} ${v.forbidden ? "is-forbidden" : ""}" data-item-id="${item.id}" data-act="${act}">
@@ -1957,10 +2029,11 @@ class PaperdollFlyout {
       html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Current"))}</div>`;
       html += current.map((i) => row(i, "unequip")).join("");
     }
-    html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Available"))}</div>`;
-    html += available.length
-      ? available.map((i) => row(i, "equip")).join("")
-      : `<div class="pd-fly-empty">${esc(L("WFRPPD.Fly.Empty"))}</div>`;
+    // Нечего надеть - раздел не показываем вовсе
+    if (available.length) {
+      html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.Available"))}</div>`;
+      html += available.map((i) => row(i, "equip")).join("");
+    }
     if (worn.length) {
       html += `<div class="pd-fly-section">${esc(L("WFRPPD.Fly.WornElsewhere"))}</div>`;
       html += worn.map((i) => row(i, "swap")).join("");
@@ -1969,7 +2042,7 @@ class PaperdollFlyout {
     if (current.length) {
       html += `
         <div class="pd-fly-row pd-fly-clear" data-act="clear">
-          <div class="pd-fly-icon"><img src="${ui("ui-unequip-all")}" alt=""></div>
+          <div class="pd-fly-icon"><img src="${uiArt("ui-unequip-all")}" alt=""></div>
           <div class="pd-fly-text">
             <div class="pd-fly-name">${esc(L("WFRPPD.Fly.Clear"))}</div>
             <div class="pd-fly-meta">${esc(game.i18n.format("WFRPPD.Fly.ClearHint", { n: current.length }))}</div>

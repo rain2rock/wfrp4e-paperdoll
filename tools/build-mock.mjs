@@ -10,6 +10,7 @@
  *   --effects              добавить тестовые состояния, эффект местности, травму, крит и болезнь
  *   --loot                 добавить тестовый лут (tools/mock-loot.mjs): все слоты и все редкости
  *   --blank                чистый персонаж: скромное снаряжение без перевеса и пара сумок
+ *   --cast                 добавить в мок переключатель тестовых персонажей (наёмник, маг)
  *   --icons-system DIR     иконки самой системы WFRP4e (static/icons из её репо) - для состояний
  *   --icons DIR --icons-core DIR
  *                          настоящие иконки: DIR с иконками wfrp4e-core и DIR со стандартными
@@ -26,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import crypto from "node:crypto";
-import { actorData as demoActor, blankActor, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
+import { actorData as demoActor, blankActor, CAST, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT, COINS } from "./mock-loot.mjs";
 import { ownIconFor } from "../scripts/icon-rules.js";
@@ -63,8 +64,6 @@ if ("loot" in args) {
   const loot = structuredClone(LOOT).map((i) => ({ ...i, img: emojiIcon(...(GLYPH[i.type] ?? GLYPH.trapping)) }));
   actor = { ...actor, items: [...actor.items, ...loot] };
 }
-// Деньги: если в слепке их нет, кладём тестовый кошелёк
-if (!actor.items.some((i) => i.type === "money")) actor = { ...actor, items: [...actor.items, ...structuredClone(COINS)] };
 function emojiIcon(glyph, color) {
   return "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><radialGradient id="g" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#0d0b09"/></radialGradient></defs><rect width="64" height="64" fill="url(#g)"/><text x="32" y="44" font-size="34" text-anchor="middle">${glyph}</text></svg>`);
 }
@@ -73,19 +72,6 @@ function emojiIcon(glyph, color) {
 const CAREER_SLUG = { "флагеллант": "flagellant", "flagellant": "flagellant", "маг": "wizard", "жрец": "priest", "дуэлянт": "duellist" };
 const ROOTS = { icons: args.icons, core: args["icons-core"], sys: args["icons-system"] };
 const iconStats = { path: 0, rule: 0, placeholder: 0, emoji: 0 };
-if (ROOTS.icons || ROOTS.core) {
-  actor = { ...actor, items: actor.items.map((i) => ({ ...i, img: resolveIcon(i) })) };
-  actor.effects = (actor.effects ?? []).map((e) => ({ ...e, img: (e._icon && fileFor(e._icon) && dataUri(fileFor(e._icon))) || e.img }));
-  // Иконка карьеры: путь из слепка или icons/careers/<карьера>-0<уровень>.png
-  const c = actor.career ?? {};
-  const slug = CAREER_SLUG[(c.name ?? "").toLowerCase()] ?? (c.name ?? "").toLowerCase().replace(/[^a-z]+/g, "-");
-  const ref = c.img?.startsWith("modules/wfrp4e-core/icons/")
-    ? `icons:${c.img.slice("modules/wfrp4e-core/icons/".length)}`
-    : `icons:careers/${slug}-0${Math.min(4, Math.max(1, c.level ?? 1))}.png`;
-  const f = fileFor(ref);
-  if (f) actor = { ...actor, career: { ...c, img: dataUri(f) } };
-}
-
 function fileFor(ref) {
   const [root, rel] = ref.split(":");
   const dir = ROOTS[root];
@@ -159,16 +145,40 @@ const withOwnIcon = (i) => {
   // Путь как в Foundry: модуль сам подменит его своей иконкой (itemImg)
   return { ...i, img: `modules/wfrp4e-core/icons/${src}` };
 };
-actor = { ...actor, items: actor.items.map(withOwnIcon) };
 
-if (!(ROOTS.icons || ROOTS.core)) {
-  const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"], money: ["🪙", "#6a5a20"] };
-  actor = {
-    ...actor,
-    effects: (actor.effects ?? []).map((e) => ({ ...e, img: e.img ?? emojiIcon(e.statuses?.length ? "🩸" : "☠️", "#5a1a3a") })),
-    items: actor.items.map((i) => (G[i.type] && !i.img ? { ...i, img: emojiIcon(...G[i.type]) } : i))
-  };
+/**
+ * Довести персонажа до мока: кошелёк, иконки из папок, свои иконки модуля, эмодзи-заглушки.
+ * Для основного персонажа и для каждого из --cast.
+ */
+function finishActor(actor) {
+  // Деньги: если их нет, кладём тестовый кошелёк
+  if (!actor.items.some((i) => i.type === "money")) actor = { ...actor, items: [...actor.items, ...structuredClone(COINS)] };
+  if (ROOTS.icons || ROOTS.core) {
+    actor = { ...actor, items: actor.items.map((i) => ({ ...i, img: resolveIcon(i) })) };
+    actor.effects = (actor.effects ?? []).map((e) => ({ ...e, img: (e._icon && fileFor(e._icon) && dataUri(fileFor(e._icon))) || e.img }));
+    // Иконка карьеры: путь из слепка или icons/careers/<карьера>-0<уровень>.png
+    const c = actor.career ?? {};
+    const slug = CAREER_SLUG[(c.name ?? "").toLowerCase()] ?? (c.name ?? "").toLowerCase().replace(/[^a-z]+/g, "-");
+    const ref = c.img?.startsWith("modules/wfrp4e-core/icons/")
+      ? `icons:${c.img.slice("modules/wfrp4e-core/icons/".length)}`
+      : `icons:careers/${slug}-0${Math.min(4, Math.max(1, c.level ?? 1))}.png`;
+    const f = fileFor(ref);
+    if (f) actor = { ...actor, career: { ...c, img: dataUri(f) } };
+  }
+  actor = { ...actor, items: actor.items.map(withOwnIcon) };
+  if (!(ROOTS.icons || ROOTS.core)) {
+    const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"], money: ["🪙", "#6a5a20"] };
+    actor = {
+      ...actor,
+      effects: (actor.effects ?? []).map((e) => ({ ...e, img: e.img ?? emojiIcon(e.statuses?.length ? "🩸" : "☠️", "#5a1a3a") })),
+      items: actor.items.map((i) => (G[i.type] && !i.img ? { ...i, img: emojiIcon(...G[i.type]) } : i))
+    };
+  }
+  return actor;
 }
+actor = finishActor(actor);
+const cast = "cast" in args ? CAST.map((a) => finishActor(structuredClone(a))) : [];
+
 // ---------- Сборка ----------
 const require = createRequire(import.meta.url);
 const handlebars = fs.readFileSync(require.resolve("handlebars/dist/handlebars.min.js"), "utf8");
@@ -216,6 +226,7 @@ ${css}
 <p class="mock-note">Мок окна модуля: работает настоящий код модуля поверх заглушки Foundry. ${ROOTS.icons || ROOTS.core ? "Иконки из wfrp4e-core и стандартного набора Foundry." : "Иконки предметов пока эмодзи."}
 Клик по слоту открывает список быстрой смены. Перетаскивание, двойной клик, вкладка «Характеристики» и выпадашки статов тоже работают.</p>
 <label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
+${cast.length ? `<label class="mock-gm">Персонаж: <select id="mock-cast">${[actor, ...cast].map((a, i) => `<option value="${i}">${a.name}</option>`).join("")}</select></label>` : ""}
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
 <script>${handlebars}</script>
@@ -235,8 +246,14 @@ window.PaperdollApp = PaperdollApp;
 </script>
 <script>
 const PaperdollApp = window.PaperdollApp;
-const actor = window.__PD_makeActor__(${json(actor)});
+const actors = ${json([actor, ...cast])}.map((a) => window.__PD_makeActor__(a));
+let actor = actors[0];
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
+document.getElementById("mock-cast")?.addEventListener("change", async (ev) => {
+  for (const app of [...PaperdollApp.instances.values()]) await app.close();
+  actor = actors[Number(ev.target.value)];
+  open();
+});
 document.getElementById("mock-reopen").addEventListener("click", open);
 document.getElementById("mock-gm").addEventListener("change", (ev) => { game.user.isGM = ev.target.checked; });
 open();
