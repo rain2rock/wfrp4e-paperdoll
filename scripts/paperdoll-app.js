@@ -2523,19 +2523,47 @@ class PaperdollTooltip {
     }
 
     if (item.type === "armour") {
-      const type = cfg.armorTypes?.[sys.armorType?.value];
-      if (type) lines.push(`<div class="pd-tt-row"><span>${esc(L(type))}</span></div>`);
+      // Класс брони таблицей: часть тела слева, значок КБ справа. Парные части с равным КБ - одной строкой
       const current = safe(() => sys.currentAP, sys.AP) ?? {};
-      const parts = LOCATIONS.filter((l) => (sys.AP?.[l] ?? 0) > 0).map((l) => {
-        const max = sys.AP[l];
-        const cur = current[l] ?? max;
-        const val = cur < max ? `${cur}/${max}` : `${max}`;
-        return `${esc(L(cfg.locations[l]))}: <b>${esc(val)}</b>`;
-      });
-      if (parts.length)
-        lines.push(`<div class="pd-tt-stat">${esc(L("WFRPPD.Tooltip.AP"))}<br>${parts.join("<br>")}</div>`);
-      if (sys.penalty?.value)
-        lines.push(`<div class="pd-tt-flaw">${esc(L("WFRPPD.Tooltip.Penalty"))}: ${esc(sys.penalty.value)}</div>`);
+      const cell = (l) => {
+        const max = Number(sys.AP?.[l] ?? 0);
+        const cur = Number(current[l] ?? max);
+        return { max, cur, txt: cur < max ? `${cur}/${max}` : `${max}`, hurt: cur < max };
+      };
+      const rows = [];
+      const add = (label, c) => c.max > 0 && rows.push({ label, ...c });
+      const all = LOCATIONS.map(cell);
+      if (all.every((c) => c.max > 0 && c.txt === all[0].txt)) add(L("WFRPPD.Tooltip.AllBody"), all[0]);
+      else {
+        add(L(cfg.locations.head), cell("head"));
+        add(L(cfg.locations.body), cell("body"));
+        for (const [r, l, both] of [["rArm", "lArm", "WFRPPD.Tooltip.Arms"], ["rLeg", "lLeg", "WFRPPD.Tooltip.Legs"]]) {
+          const a = cell(r);
+          const b = cell(l);
+          if (a.max > 0 && b.max > 0 && a.txt === b.txt) add(L(both), a);
+          else {
+            add(L(cfg.locations[r]), a);
+            add(L(cfg.locations[l]), b);
+          }
+        }
+      }
+      const type = cfg.armorTypes?.[sys.armorType?.value];
+      if (rows.length) {
+        lines.push(`<div class="pd-tt-armour">
+          <div class="pd-tt-armour-head"><span>${esc(L("WFRPPD.Tooltip.AP"))}</span>${type ? `<span>${esc(L(type))}</span>` : ""}</div>
+          ${rows
+            .map((r) => `<div class="pd-tt-ap-row"><span>${esc(r.label)}</span><span class="pd-tt-ap ${r.hurt ? "is-hurt" : ""}">${esc(r.txt)}</span></div>`)
+            .join("")}
+        </div>`);
+      } else if (type) lines.push(`<div class="pd-tt-row"><span>${esc(L(type))}</span></div>`);
+      // Что эта вещь значит по правилам: слои и штрафы к навыкам
+      const notes = [];
+      if (isUnderLayer(item)) notes.push(`<div class="pd-tt-note is-good">${esc(L("WFRPPD.Tooltip.UnderLayer"))}</div>`);
+      const pen = armourSkillPenalties(item);
+      if (pen.stealth) notes.push(`<div class="pd-tt-note is-bad">${esc(game.i18n.format("WFRPPD.Restr.Stealth", { n: -pen.stealth }))}</div>`);
+      if (pen.perception) notes.push(`<div class="pd-tt-note is-bad">${esc(game.i18n.format("WFRPPD.Restr.Perception", { n: -pen.perception }))}</div>`);
+      if (!notes.length && sys.penalty?.value) notes.push(`<div class="pd-tt-note is-bad">${esc(sys.penalty.value)}</div>`);
+      if (notes.length) lines.push(`<div class="pd-tt-notes">${notes.join("")}</div>`);
     }
 
     const qualities = safe(() => sys.Qualities, []) ?? [];

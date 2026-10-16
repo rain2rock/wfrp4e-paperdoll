@@ -40,13 +40,17 @@
       "Damage": "Damage",
       "Reach": "Reach",
       "Range": "Range",
-      "AP": "Armour points:",
+      "AP": "Armour Points (AP)",
       "Penalty": "Penalty",
       "Enc": "Enc",
       "Hint": "Double-click to equip/unequip · Right-click to open",
       "APShort": "AP",
       "HasTable": "Description has a table - right-click to open",
-      "HintOpen": "Right-click to open"
+      "HintOpen": "Right-click to open",
+      "AllBody": "All locations",
+      "Arms": "Arms",
+      "Legs": "Legs",
+      "UnderLayer": "Can be worn under other armour"
     },
     "Money": {
       "gc": "GC",
