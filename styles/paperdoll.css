@@ -1832,3 +1832,57 @@
 .wfrp-paperdoll .pd-slot.is-extra .pd-slot-placeholder img { filter: hue-rotate(250deg) saturate(2); }
 /* Мутация в ленте эффектов: рамка экзотики (фиолетовая) */
 .wfrp-paperdoll .pd-effect--mutation::before { background-image: url("../assets/ui/frame-rarity-exotic.png"); }
+
+/* ---------- v0.19 ---------- */
+/* Цифры AP и «+N» всегда поверх рамки травмы и значков */
+.wfrp-paperdoll .pd-ap,
+.wfrp-paperdoll .pd-layers { z-index: 4; }
+
+/* Травма, которую заменило инженерное чудо: бледная, с зелёной рамкой */
+.wfrp-paperdoll .pd-effect.is-negated img { filter: grayscale(1); opacity: 0.55; }
+.wfrp-paperdoll .pd-effect.is-negated { box-shadow: 0 0 0 2px #2f7a12; }
+
+/* Шестерёнка опций справа внизу окна */
+.wfrp-paperdoll .pd-root { position: relative; }
+.wfrp-paperdoll .pd-options { position: absolute; right: var(--pd-step); bottom: var(--pd-step); z-index: 30; }
+.wfrp-paperdoll .pd-options-btn {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  margin: 0;
+  padding: 5px;
+  line-height: 0;
+  color: var(--pd-text-2);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--pd-frame);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.wfrp-paperdoll .pd-options-btn:hover { color: #f3ead6; background: #7a4c08; border-color: #7a4c08; }
+.wfrp-paperdoll .pd-options-btn svg { width: 18px; height: 18px; }
+.wfrp-paperdoll .pd-options-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 250px;
+  padding: 6px;
+  background: var(--pd-fly-bg);
+  border: 1px solid var(--pd-frame);
+  border-radius: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.wfrp-paperdoll .pd-options-menu.is-open { display: block; }
+.wfrp-paperdoll .pd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  font-size: 12px;
+  color: var(--pd-text);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.wfrp-paperdoll .pd-option:hover { background: rgba(122, 76, 8, 0.12); }
+.wfrp-paperdoll .pd-option input { margin: 0; accent-color: #7a4c08; }

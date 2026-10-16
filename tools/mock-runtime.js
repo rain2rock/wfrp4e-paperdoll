@@ -279,6 +279,13 @@
       if (!silent) Hooks.call("updateItem", this, changes);
       return this;
     }
+    async delete() {
+      const list = this.parent.items;
+      const i = list.indexOf(this);
+      if (i >= 0) list.splice(i, 1);
+      this.parent.prepare();
+      Hooks.call("deleteItem", this);
+    }
   }
 
   class FakeEffect {

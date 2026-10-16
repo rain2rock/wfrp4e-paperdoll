@@ -57,7 +57,7 @@
           {{#if effects.length}}
           <div class="pd-effects">
             {{#each effects}}
-            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
+            <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
               <img src="{{img}}" alt="">
               {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
             </button>
@@ -184,4 +184,19 @@
     {{/if}}
   </section>
 
+  {{!-- Шестерёнка справа внизу: опции куколки --}}
+  <div class="pd-options">
+    <button type="button" class="pd-options-btn" data-action="toggleOptions" title="{{localize "WFRPPD.Options.Title"}}" aria-label="{{localize "WFRPPD.Options.Title"}}">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Zm6.1 3.6.9.7-1.2 2.1-1.1-.4a5 5 0 0 1-1.3.8L11.2 13H8.8l-.2-1a5 5 0 0 1-1.3-.8l-1.1.4L5 9.5l.9-.7a5 5 0 0 1 0-1.6L5 6.5l1.2-2.1 1.1.4a5 5 0 0 1 1.3-.8l.2-1h2.4l.2 1a5 5 0 0 1 1.3.8l1.1-.4 1.2 2.1-.9.7a5 5 0 0 1 0 1.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" transform="translate(-1.8 0)"/></svg>
+    </button>
+    <div class="pd-options-menu {{#if optionsOpen}}is-open{{/if}}">
+      <div class="pd-sortmenu-title">{{localize "WFRPPD.Options.Title"}}</div>
+      {{#each options}}
+      <label class="pd-option" title="{{hint}}">
+        <input type="checkbox" data-option="{{key}}" {{#if value}}checked{{/if}}>
+        <span>{{label}}</span>
+      </label>
+      {{/each}}
+    </div>
+  </div>
 </div>

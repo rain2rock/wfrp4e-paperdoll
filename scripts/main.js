@@ -1,4 +1,4 @@
-import { PaperdollApp, MODULE_ID, uiArt } from "./paperdoll-app.js";
+import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS } from "./paperdoll-app.js";
 
 const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
@@ -13,6 +13,19 @@ Hooks.once("init", () => {
     default: true,
     onChange: rerender
   });
+
+  // Опции куколки (шестерёнка справа внизу окна и настройки модуля), у каждого игрока свои
+  for (const [key, def] of Object.entries(PD_OPTIONS)) {
+    game.settings.register(MODULE_ID, key, {
+      name: `WFRPPD.Options.${key}.Name`,
+      hint: `WFRPPD.Options.${key}.Hint`,
+      scope: "client",
+      config: true,
+      type: Boolean,
+      default: def,
+      onChange: rerender
+    });
+  }
 
   // Доступ из макросов: game.modules.get("wfrp4e-paperdoll").api.open(actor)
   game.modules.get(MODULE_ID).api = {

@@ -17,9 +17,13 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 /** Картинка интерфейса из assets/ui */
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
+/** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
+export const PD_OPTIONS = { mutations: true, injuries: true, prices: false, sounds: true };
+export const option = (key) => setting(key, PD_OPTIONS[key]);
+
 const setting = (key, fallback) => {
   try {
-    return game.settings.get(MODULE_ID, key);
+    return game.settings.get(MODULE_ID, key) ?? fallback;
   } catch {
     return fallback;
   }
@@ -340,6 +344,7 @@ function safe(fn, fallback = null) {
  */
 let coinAudio = null;
 function playCoinSound(gain = true) {
+  if (!option("sounds")) return;
   try {
     const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
     if (!AC) return;
@@ -350,6 +355,8 @@ function playCoinSound(gain = true) {
     try {
       volume = Number(game.settings.get("core", "globalInterfaceVolume") ?? 0.5);
     } catch {}
+    // Звон тихий: четверть от громкости интерфейса
+    volume *= 0.25;
     if (!(volume > 0)) return;
     const hits = gain ? [0, 0.07] : [0];
     for (const t0 of hits) {
@@ -414,7 +421,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       openSheet: PaperdollApp.onOpenSheet,
       setSort: PaperdollApp.onSetSort,
       setView: PaperdollApp.onSetView,
-      toggleSortMenu: PaperdollApp.onToggleSortMenu
+      toggleSortMenu: PaperdollApp.onToggleSortMenu,
+      toggleOptions: PaperdollApp.onToggleOptions
     }
   };
 
@@ -652,6 +660,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         active: key === this._sort
       })),
       viewList: this._view === "list",
+      options: Object.keys(PD_OPTIONS).map((key) => ({
+        key,
+        value: option(key),
+        label: game.i18n.localize(`WFRPPD.Options.${key}.Name`),
+        hint: game.i18n.localize(`WFRPPD.Options.${key}.Hint`)
+      })),
+      optionsOpen: !!this._optionsOpen,
       sortOpen: !!this._sortOpen,
       statPanels,
       statCategories,
@@ -949,6 +964,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Дополнительные слоты от мутаций: { hands: ["hand3"], heads: ["head2"], source: { hand3: mutation } } */
   _extraSlots() {
     const out = { hands: [], heads: [], source: {} };
+    if (!option("mutations")) return out;
     for (const m of this.actor.itemTypes.mutation ?? []) {
       const grant = mutationGrant(m);
       const list = grant === "hand" ? EXTRA_HANDS : grant === "head" ? EXTRA_HEADS : null;
@@ -967,7 +983,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   _limbState() {
     const state = Object.fromEntries(LIMB_LOCS.map((loc) => [loc, { injuries: [], prosthetic: null }]));
-    for (const item of this.actor.items) {
+    // Учёт травм выключен в опциях: конечности считаем целыми
+    for (const item of option("injuries") ? this.actor.items : []) {
       if (item.type === "injury") {
         const kind = injuryLimbKind(item);
         const loc = kind && injuryLimbLoc(item, kind);
@@ -1427,6 +1444,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const locName = (key) => (cfg.locations?.[key] ? L(cfg.locations[key]) : key);
+    // Травма конечности, которую заменило инженерное чудо, больше не действует
+    const limbs = this._limbState();
+    const negated = (injury) => {
+      const kind = injuryLimbKind(injury);
+      const loc = kind && injuryLimbLoc(injury, kind);
+      return !!(loc && limbs[loc]?.marvel);
+    };
     for (const injury of actor.itemTypes.injury ?? []) {
       const sys = injury.system;
       const dur = sys.duration ?? {};
@@ -1440,13 +1464,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         name: injury.name,
         img: itemImg(injury.img, injury.name),
         value: dur.active && Number(dur.value) ? Number(dur.value) : null,
-        debuff: true,
+        debuff: !negated(injury),
+        negated: negated(injury),
         lines: [
           sys.location?.value ? `${L("WFRPPD.Effects.Location")}: ${locName(sys.location.key ?? sys.location.value)}` : "",
           sys.penalty?.value ? `${L("WFRPPD.Effects.Penalty")}: ${sys.penalty.value}` : "",
+          negated(injury) ? L("WFRPPD.Limb.MarvelHint") : "",
           left ?? ""
         ],
-        hint: L("WFRPPD.Effects.HintOpen")
+        hint: L(this.editable ? "WFRPPD.Effects.HintInjury" : "WFRPPD.Effects.HintOpen")
       });
     }
     for (const crit of actor.itemTypes.critical ?? []) {
@@ -1486,7 +1512,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     // Мутации: телесные и душевные, в рамке Хаоса. ГМ кликом отмечает, даёт ли мутация лишнюю руку или голову
-    for (const m of actor.itemTypes.mutation ?? []) {
+    for (const m of option("mutations") ? actor.itemTypes.mutation ?? [] : []) {
       const sys = m.system ?? {};
       const type = sys.mutationType?.value;
       const grant = mutationGrant(m);
@@ -1511,9 +1537,21 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** ЛКМ по эффекту */
-  async _onEffectClick(entry) {
+  async _onEffectClick(entry, ev = null) {
     if (!this.editable) return;
     try {
+      // Shift+ЛКМ по травме - удалить её (с подтверждением): зажило, вылечили, ГМ отменил
+      if (ev?.shiftKey && ["injury", "critical"].includes(entry.kind)) {
+        const item = this.actor.items.get(entry.id);
+        if (!item) return;
+        const content = `<p>${game.i18n.format("WFRPPD.Effects.DeleteConfirm", { name: foundry.utils.escapeHTML?.(item.name) ?? item.name })}</p>`;
+        const Dialog = foundry.applications?.api?.DialogV2;
+        const ok = Dialog
+          ? await Dialog.confirm({ window: { title: game.i18n.localize("WFRPPD.Effects.DeleteTitle") }, content })
+          : true;
+        if (ok) await item.delete();
+        return;
+      }
       if (entry.kind === "condition") {
         if (typeof this.actor.removeCondition === "function") await this.actor.removeCondition(entry.key, 1);
         else await this.actor.effects.get(entry.id)?.delete();
@@ -1891,6 +1929,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
+  static onToggleOptions() {
+    this._optionsOpen = !this._optionsOpen;
+    this.element.querySelector(".pd-options-menu")?.classList.toggle("is-open", this._optionsOpen);
+  }
+
   static onToggleSortMenu() {
     this._sortOpen = !this._sortOpen;
     this.element.querySelector(".pd-sortmenu")?.classList.toggle("is-open", this._sortOpen);
@@ -1961,9 +2004,26 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this._sortCloserBound) {
       this._sortCloserBound = true;
       root.addEventListener("pointerdown", (ev) => {
-        if (!this._sortOpen || ev.target.closest?.(".pd-sort")) return;
-        this._sortOpen = false;
-        root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
+        if (this._sortOpen && !ev.target.closest?.(".pd-sort")) {
+          this._sortOpen = false;
+          root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
+        }
+        if (this._optionsOpen && !ev.target.closest?.(".pd-options")) {
+          this._optionsOpen = false;
+          root.querySelector(".pd-options-menu")?.classList.remove("is-open");
+        }
+      });
+    }
+
+    // Опции куколки: переключатели сохраняются в настройках модуля (у каждого игрока свои)
+    for (const box of root.querySelectorAll(".pd-option input[data-option]")) {
+      box.addEventListener("change", async () => {
+        try {
+          await game.settings.set(MODULE_ID, box.dataset.option, box.checked);
+        } catch (err) {
+          console.warn(`${MODULE_ID} | option failed`, err);
+        }
+        PaperdollApp.renderAll();
       });
     }
 
@@ -2029,7 +2089,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ev.preventDefault();
         ev.stopPropagation();
         PaperdollTooltip.hide();
-        this._onEffectClick(entry);
+        this._onEffectClick(entry, ev);
       });
       el.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
@@ -2339,7 +2399,7 @@ class PaperdollTooltip {
     if (flaws.length) lines.push(`<div class="pd-tt-flaw">${flaws.map(esc).join(", ")}</div>`);
 
     // Цены (и самой вещи, и ингредиентов) видит только ГМ
-    const desc = parseDescription(sys.description?.value, { hidePrices: !game.user?.isGM });
+    const desc = parseDescription(sys.description?.value, { hidePrices: !(game.user?.isGM || option("prices")) });
     if (desc.props.length) {
       const rows = desc.props
         .slice(0, 8)
@@ -2361,7 +2421,7 @@ class PaperdollTooltip {
     const enc = sys.encumbrance?.total ?? sys.encumbrance?.value;
     if (enc !== undefined && enc !== null) footer.push(`${L("WFRPPD.Tooltip.Enc")}: ${enc}`);
     // Цену видит только ГМ: игрокам не нужно знать, сколько стоит их добыча
-    const price = game.user?.isGM ? this.formatPrice(sys.price) : "";
+    const price = game.user?.isGM || option("prices") ? this.formatPrice(sys.price) : "";
     if (price) footer.push(price);
     if (footer.length) lines.push(`<div class="pd-tt-footer">${esc(footer.join(" · "))}</div>`);
 

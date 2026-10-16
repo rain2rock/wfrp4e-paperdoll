@@ -175,7 +175,10 @@
       "HintDisable": "Click to disable (e.g. left the area)",
       "HintEnable": "Click to enable again",
       "HintOpen": "Click to open",
-      "HintSheet": "Right-click for details"
+      "HintSheet": "Right-click for details",
+      "HintInjury": "LMB - open · Shift+LMB - delete injury · RMB - details",
+      "DeleteConfirm": "Delete the injury «{name}» from the character? This cannot be undone.",
+      "DeleteTitle": "Delete injury"
     },
     "Talent": {
       "MightyBlow": "+{n} dmg: Strike Mighty Blow",
@@ -287,6 +290,25 @@
       "GMHint": "LMB (GM) - what it gives: hand / head / nothing / by name · RMB - open",
       "Set": "«{name}»: {slot}",
       "ExtraHint": "Slot from the «{name}» mutation. The system does not know about extra limbs: the item is equipped, the module remembers where."
+    },
+    "Options": {
+      "Title": "Paperdoll options",
+      "mutations": {
+        "Name": "Track mutations",
+        "Hint": "Mutations in the effects strip, extra hands and heads as slots."
+      },
+      "injuries": {
+        "Name": "Track limb injuries",
+        "Hint": "Slot badges, \"no hand\" marks and prosthetics."
+      },
+      "prices": {
+        "Name": "Show item prices",
+        "Hint": "Approximate value in tooltips. The GM always sees prices."
+      },
+      "sounds": {
+        "Name": "Interface sounds",
+        "Hint": "Coin clink when money is gained or spent."
+      }
     }
   }
 }
