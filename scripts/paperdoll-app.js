@@ -834,7 +834,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const emptyCells = (n) => Array.from({ length: Math.max(0, n) }, (_, i) => i);
     const section = (c, kind) => {
       const { inside, used, cap } = this._bagLoad(c);
-      const items = inside.filter(filter).map((i) => view(i));
+      // Фильтр не прячет вещи в сумке, а гасит их: иначе кажется, что в сумке есть место
+      const items = inside.map((i) => ({ ...view(i), dimmed: !filter(i) }));
       const over = cap > 0 && used > cap;
       const slot = kind === "worn" ? assign.slotOf.get(c.id) ?? "" : "";
       return {
@@ -896,9 +897,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         const maxFree = Math.max(0, ...worn.map((c) => { const { used, cap } = this._bagLoad(c); return cap - used; }));
         return loose.some((i) => this._packable(i) && this._weightOf(i) > 0 && this._weightOf(i) <= maxFree);
       })(),
-      items: loose.filter(filter).map((i) => view(i)),
+      items: loose.map((i) => ({ ...view(i), dimmed: !filter(i) })),
       // «При себе» без вместимости: добиваем пустыми ячейками до полного ряда
-      cells: emptyCells((BAG_COLS - (loose.filter(filter).length % BAG_COLS)) % BAG_COLS || (loose.filter(filter).length ? 0 : BAG_COLS)),
+      cells: emptyCells((BAG_COLS - (loose.length % BAG_COLS)) % BAG_COLS || (loose.length ? 0 : BAG_COLS)),
       empty: false
     });
     return sections;

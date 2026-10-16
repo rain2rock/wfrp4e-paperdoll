@@ -1520,7 +1520,7 @@
 .wfrp-paperdoll .pd-tab:not(.is-active) {
   border-style: solid;
   border-width: 3px 3px 0;
-  border-image: url("../assets/ui/tab.png") 8 8 0 8 fill / 3px 3px 0 3px stretch;
+  border-image: url("../assets/ui/tab.png") 8 8 8 8 fill / 3px 3px 0 3px stretch;
   background: none;
 }
 
@@ -1582,3 +1582,38 @@
 .wfrp-paperdoll-flyout .pd-fly-nothing { cursor: default; opacity: 0.75; }
 .wfrp-paperdoll-flyout .pd-fly-nothing:hover { background: none; }
 .wfrp-paperdoll-flyout .pd-fly-nothing .pd-fly-icon img { opacity: 0.6; }
+
+/* ---------- v0.15.1 ---------- */
+
+/* Вкладки: нижняя кромка картинки вкладки срезана (slice 8 снизу при нулевой ширине),
+   под вкладками только общая линия полосы; у активной её закрывает полоска цвета панели */
+.wfrp-paperdoll .pd-tab.is-active {
+  border-image: url("../assets/ui/tab-active.png") 8 8 8 8 / 4px 4px 0 4px stretch;
+  z-index: 1;
+}
+
+/* «Разложить» - только иконка, подпись в подсказке */
+.wfrp-paperdoll .pd-pack {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.wfrp-paperdoll .pd-pack img { width: 16px; height: 16px; }
+.wfrp-paperdoll .pd-bagsec-title { flex: 1; min-width: 0; }
+
+/* Значок статьи - только при наведении на строку */
+.wfrp-paperdoll .pd-ecs-info { opacity: 0; transition: opacity 0.12s; }
+.wfrp-paperdoll .pd-ecs-row:hover .pd-ecs-info,
+.wfrp-paperdoll .pd-ecs-info:focus-visible { opacity: 1; }
+
+/* Полоска нагрузки шире: почти во всю ширину модели */
+.wfrp-paperdoll .pd-enc { left: 4px; right: 4px; bottom: 4px; height: 20px; }
+.wfrp-paperdoll .pd-enc span { font-size: 12px; }
+
+/* Фильтр: вещи, которые не подходят, гаснут, но остаются на месте */
+.wfrp-paperdoll .pd-item.is-dimmed { opacity: 0.3; filter: grayscale(1); }
+.wfrp-paperdoll .pd-item.is-dimmed:hover { opacity: 0.6; }
+.wfrp-paperdoll .pd-ecs-row { gap: 6px; }

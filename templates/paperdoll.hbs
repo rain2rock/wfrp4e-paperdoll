@@ -66,7 +66,7 @@
           {{/if}}
           <div class="pd-enc is-{{encumbrance.state}}" title="{{localize "WFRPPD.Encumbrance"}}">
             <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
-            <span>{{localize "WFRPPD.Encumbrance"}}: {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
+            <span>{{localize "WFRPPD.Encumbrance"}} {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
           </div>
         </div>
 
@@ -82,7 +82,7 @@
             <div class="pd-statlist">
               {{#each rows}}
               <div class="pd-stat" {{#if hint}}title="{{hint}}"{{/if}}>
-                <span class="pd-stat-label">{{label}}:</span>
+                <span class="pd-stat-label">{{label}}</span>
                 <span class="pd-stat-value {{cls}}">{{value}}</span>
               </div>
               {{/each}}
@@ -126,15 +126,15 @@
           </div>
           {{#if looseWeight}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{looseWeight}}</span>{{/if}}
           {{#if canPack}}
-          <button type="button" class="pd-pack" data-action="autoPack" title="{{localize "WFRPPD.Bags.PackHint"}}">
-            <img src="{{@root.art.pack}}" alt=""> {{localize "WFRPPD.Bags.Pack"}}
+          <button type="button" class="pd-pack" data-action="autoPack" data-tooltip="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">
+            <img src="{{@root.art.pack}}" alt="">
           </button>
           {{/if}}
         </header>
         {{#unless noGrid}}
         <div class="pd-bag-grid">
           {{#each items}}
-          <div class="pd-item rarity-{{rarity}} {{#unless equippable}}is-plain{{/unless}}" data-item-id="{{id}}"
+          <div class="pd-item rarity-{{rarity}} {{#unless equippable}}is-plain{{/unless}} {{#if dimmed}}is-dimmed{{/if}}" data-item-id="{{id}}"
                draggable="{{#if draggable}}true{{else}}false{{/if}}">
             <img src="{{img}}" alt="{{name}}">
             {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
@@ -154,7 +154,7 @@
         <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}</div>
         {{#each rows}}
         <div class="pd-ecs-row" {{#if hint}}title="{{hint}}"{{/if}}>
-          <span class="pd-ecs-label">{{label}}:</span>
+          <span class="pd-ecs-label">{{label}}</span>
           <span class="pd-ecs-value {{cls}}">{{value}}</span>
           <button type="button" class="pd-ecs-info" data-article="{{article}}" title="{{localize "WFRPPD.Article.Open"}}">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.2C3.6 2.4 5.6 2.4 8 3.6c2.4-1.2 4.4-1.2 6 0V13c-1.6-.9-3.6-.9-6 .4-2.4-1.3-4.4-1.3-6-.4z M8 3.6V13.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
