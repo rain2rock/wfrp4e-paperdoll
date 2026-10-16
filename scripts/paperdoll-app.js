@@ -259,10 +259,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
   static instances = new Map();
 
-  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "fate"] };
+  static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "fate"], sort: "default", view: "grid" };
 
   _saveUiState() {
-    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels] };
+    PaperdollApp.uiState = { filter: this._filter, tab: this._tab, statPanels: [...this._statPanels], sort: this._sort, view: this._view };
   }
 
   static openFor(actor) {
@@ -294,7 +294,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       setFilter: PaperdollApp.onSetFilter,
       setTab: PaperdollApp.onSetTab,
       autoPack: PaperdollApp.onAutoPack,
-      openSheet: PaperdollApp.onOpenSheet
+      openSheet: PaperdollApp.onOpenSheet,
+      setSort: PaperdollApp.onSetSort,
+      setView: PaperdollApp.onSetView,
+      toggleSortMenu: PaperdollApp.onToggleSortMenu
     }
   };
 
@@ -311,6 +314,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.actor = actor;
     // Выбор вкладки и выпадашек запоминаем между открытиями окна
     this._filter = PaperdollApp.uiState.filter;
+    this._sort = PaperdollApp.uiState.sort ?? "default";
+    this._view = PaperdollApp.uiState.view ?? "grid";
     this._tab = PaperdollApp.uiState.tab;
     this._statPanels = [...PaperdollApp.uiState.statPanels];
     this._dragging = null;
@@ -442,9 +447,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const encCurrent = Number(enc.current) || 0;
     const encMax = Number(enc.max) || 0;
     const encRatio = encMax ? encCurrent / encMax : 0;
+    // Перегруженность по книге: до x2 предела, до x3, больше x3
     let encState = "ok";
-    if (encRatio > 2) encState = "max";
+    if (encRatio > 3) encState = "max";
+    else if (encRatio > 2) encState = "heavy";
     else if (encRatio > 1) encState = "over";
+    const encHint = this._encHint(encState, encCurrent, encMax);
 
     // Иконка карьеры справа в шапке (у карьер WFRP своя картинка на каждый уровень)
     const careerClass = career?.system?.class?.value;
@@ -485,6 +493,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ? game.i18n.format("WFRPPD.Bags.Overflow", { names: bagAssign.overflow.map((i) => i.name).join(", ") })
         : "",
       filters,
+      sortOptions: ["default", "rarity-desc", "rarity-asc", "name-asc", "name-desc"].map((key) => ({
+        key,
+        label: L(`WFRPPD.Sort.${key}`),
+        active: key === this._sort
+      })),
+      viewList: this._view === "list",
+      sortOpen: !!this._sortOpen,
       statPanels,
       statCategories,
       tabBag: this._tab === "bag",
@@ -494,7 +509,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         max: encMax,
         pct: Math.clamp(encRatio * 100, 0, 100),
         state: encState,
-        stateLabel: L(`WFRPPD.Enc.${encState}`)
+        stateLabel: L(`WFRPPD.Enc.${encState}`),
+        hint: encHint
       }
     };
   }
@@ -638,7 +654,35 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }));
   }
 
-/** Номинал монеты в медных пенни */
+/**
+   * Подсказка к полоске нагрузки: что перегруз делает с персонажем прямо сейчас (книга правил, «Перегруженность»).
+   * Вес надетых вещей уже уменьшен на 1, вещи в сумках не считаются - это делает сама система.
+   */
+  _encHint(state, current, max) {
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const sys = this.actor.system;
+    const cfg = game.wfrp4e.config;
+    const move = Number(sys.details?.move?.value) || 0;
+    const ag = Number(sys.characteristics?.ag?.value) || 0;
+    const agName = L(cfg.characteristics?.ag ?? "Ag");
+    const lines = [F("WFRPPD.EncHint.Load", { current, max, x2: max * 2, x3: max * 3 })];
+    if (state === "ok") lines.push(L("WFRPPD.EncHint.Ok"));
+    else if (state === "max") lines.push(L("WFRPPD.EncHint.Max"));
+    else {
+      const heavy = state === "heavy";
+      const newMove = Math.max(heavy ? 2 : 3, move - (heavy ? 2 : 1));
+      const newAg = heavy ? Math.max(10, ag - 20) : ag - 10;
+      lines.push(L(heavy ? "WFRPPD.EncHint.Heavy" : "WFRPPD.EncHint.Over"));
+      lines.push(F("WFRPPD.EncHint.Move", { from: move, to: Math.min(move, newMove) }));
+      lines.push(F("WFRPPD.EncHint.Char", { name: agName, from: ag, to: newAg, d: heavy ? 20 : 10 }));
+      lines.push(L(heavy ? "WFRPPD.EncHint.Fatigue2" : "WFRPPD.EncHint.Fatigue"));
+      lines.push(L("WFRPPD.EncHint.Extra"));
+    }
+    return lines.join("\n");
+  }
+
+  /** Номинал монеты в медных пенни */
   static COIN_VALUE = { gc: 240, ss: 12, bp: 1 };
 
   /** ЛКМ по монете - +1, ПКМ - -1, с Shift - по 10 */
@@ -832,10 +876,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const containers = this.actor.itemTypes.container ?? [];
     const filter = (i) => this._matchesFilter(i, this._filter);
     const emptyCells = (n) => Array.from({ length: Math.max(0, n) }, (_, i) => i);
+    // Сортировка вещей внутри разделов: по редкости или по алфавиту
+    const rank = (i) => RARITY_RANK[i.system.availability?.value] ?? 0;
+    const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
+    const sorters = {
+      "rarity-desc": (a, b) => rank(b) - rank(a) || byName(a, b),
+      "rarity-asc": (a, b) => rank(a) - rank(b) || byName(a, b),
+      "name-asc": byName,
+      "name-desc": (a, b) => byName(b, a)
+    };
+    const sorted = (list) => (sorters[this._sort] ? [...list].sort(sorters[this._sort]) : list);
     const section = (c, kind) => {
       const { inside, used, cap } = this._bagLoad(c);
       // Фильтр не прячет вещи в сумке, а гасит их: иначе кажется, что в сумке есть место
-      const items = inside.map((i) => ({ ...view(i), dimmed: !filter(i) }));
+      const items = sorted(inside).map((i) => ({ ...view(i), dimmed: !filter(i) }));
       const over = cap > 0 && used > cap;
       const slot = kind === "worn" ? assign.slotOf.get(c.id) ?? "" : "";
       return {
@@ -891,13 +945,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       img: null,
       slotLabel: "",
       hasCap: false,
-      looseWeight: Math.round(loose.reduce((n, i) => n + this._weightOf(i), 0) * 100) / 100,
+      looseWeight: String(Math.round(loose.reduce((n, i) => n + this._weightOf(i), 0) * 100) / 100),
       // Кнопка только когда реально есть что и куда положить
       canPack: this.editable && (() => {
         const maxFree = Math.max(0, ...worn.map((c) => { const { used, cap } = this._bagLoad(c); return cap - used; }));
         return loose.some((i) => this._packable(i) && this._weightOf(i) > 0 && this._weightOf(i) <= maxFree);
       })(),
-      items: loose.map((i) => ({ ...view(i), dimmed: !filter(i) })),
+      items: sorted(loose).map((i) => ({ ...view(i), dimmed: !filter(i) })),
+      isLoose: true,
       // «При себе» без вместимости: добиваем пустыми ячейками до полного ряда
       cells: emptyCells((BAG_COLS - (loose.length % BAG_COLS)) % BAG_COLS || (loose.length ? 0 : BAG_COLS)),
       empty: false
@@ -1482,6 +1537,25 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /*  События                                     */
   /* -------------------------------------------- */
 
+  static onSetSort(event, target) {
+    this._sort = target.dataset.sort ?? "default";
+    this._sortOpen = false;
+    this._saveUiState();
+    this.render();
+  }
+
+  static onSetView(event, target) {
+    this._view = target.dataset.view === "list" ? "list" : "grid";
+    this._sortOpen = false;
+    this._saveUiState();
+    this.render();
+  }
+
+  static onToggleSortMenu() {
+    this._sortOpen = !this._sortOpen;
+    this.element.querySelector(".pd-sortmenu")?.classList.toggle("is-open", this._sortOpen);
+  }
+
   static onSetFilter(event, target) {
     this._filter = target.dataset.filter ?? "all";
     this._saveUiState();
@@ -1541,6 +1615,13 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       el.addEventListener("dragstart", (ev) => this._onDragStart(ev, item, el));
       el.addEventListener("dragend", () => this._onDragEnd());
     }
+
+    // Меню сортировки закрывается кликом мимо него
+    root.addEventListener("pointerdown", (ev) => {
+      if (!this._sortOpen || ev.target.closest?.(".pd-sort")) return;
+      this._sortOpen = false;
+      root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
+    });
 
     // Подзаголовок: клик по карьере, виду, статусу - статья
     for (const el of root.querySelectorAll(".pd-hero-part")) {

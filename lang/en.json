@@ -24,9 +24,10 @@
       "other": "Other"
     },
     "Enc": {
-      "ok": "fine",
+      "ok": "normal",
       "over": "encumbered",
-      "max": "overloaded"
+      "heavy": "heavily encumbered",
+      "max": "cannot move"
     },
     "Tooltip": {
       "Equipped": "Equipped",
@@ -213,6 +214,31 @@
       "Open": "Open article",
       "Status": "Status",
       "NotFound": "No journal article «{name}» found"
+    },
+    "EncHint": {
+      "Load": "Load {current} of {max}. Encumbered above {max}, heavily above {x2}, above {x3} the character cannot move.",
+      "Ok": "Not encumbered: no penalties.",
+      "Over": "Encumbered:",
+      "Heavy": "Heavily encumbered:",
+      "Max": "Over three times the limit: the character cannot move.",
+      "Move": "Movement {from} -> {to}",
+      "Char": "{name} {from} -> {to} (-{d})",
+      "Fatigue": "after a day of travel - Fatigued",
+      "Fatigue2": "after a day of travel - Fatigued (2)",
+      "Extra": "gains 1 extra Fatigued when tired for any other reason"
+    },
+    "Sort": {
+      "Title": "Sorting",
+      "default": "As in the sheet",
+      "rarity-desc": "Rarest first",
+      "rarity-asc": "Common first",
+      "name-asc": "Name A-Z",
+      "name-desc": "Name Z-A"
+    },
+    "View": {
+      "Title": "View",
+      "grid": "Cells",
+      "list": "List with names"
     }
   }
 }

@@ -64,7 +64,7 @@
             {{/each}}
           </div>
           {{/if}}
-          <div class="pd-enc is-{{encumbrance.state}}" title="{{localize "WFRPPD.Encumbrance"}}">
+          <div class="pd-enc is-{{encumbrance.state}}" title="{{encumbrance.hint}}">
             <div class="pd-enc-fill" style="width: {{encumbrance.pct}}%"></div>
             <span>{{localize "WFRPPD.Encumbrance"}} {{encumbrance.current}} / {{encumbrance.max}} · {{encumbrance.stateLabel}}</span>
           </div>
@@ -113,9 +113,23 @@
         {{label}} <span class="pd-filter-count">{{count}}</span>
       </button>
       {{/each}}
+      <div class="pd-sort">
+        <button type="button" class="pd-sortbtn" data-action="toggleSortMenu" title="{{localize "WFRPPD.Sort.Title"}}" aria-label="{{localize "WFRPPD.Sort.Title"}}">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="pd-sortmenu {{#if sortOpen}}is-open{{/if}}">
+          <div class="pd-sortmenu-title">{{localize "WFRPPD.Sort.Title"}}</div>
+          {{#each sortOptions}}
+          <button type="button" class="pd-sortopt {{#if active}}is-active{{/if}}" data-action="setSort" data-sort="{{key}}">{{label}}</button>
+          {{/each}}
+          <div class="pd-sortmenu-title">{{localize "WFRPPD.View.Title"}}</div>
+          <button type="button" class="pd-sortopt {{#unless viewList}}is-active{{/unless}}" data-action="setView" data-view="grid">{{localize "WFRPPD.View.grid"}}</button>
+          <button type="button" class="pd-sortopt {{#if viewList}}is-active{{/if}}" data-action="setView" data-view="list">{{localize "WFRPPD.View.list"}}</button>
+        </div>
+      </div>
     </div>
 
-    <div class="pd-bag-list">
+    <div class="pd-bag-list {{#if viewList}}is-list{{/if}}">
       {{#each bagSections}}
       <section class="pd-bagsec pd-bagsec--{{kind}} {{#if over}}is-over{{/if}} {{#if full}}is-full{{/if}}" {{#if noGrid}}data-free-slot="{{slot}}"{{else}}data-container="{{id}}"{{/if}}>
         <header class="pd-bagsec-head">
@@ -124,9 +138,9 @@
             <span class="pd-bagsec-name">{{name}}</span>
             {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
           </div>
-          {{#if looseWeight}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{looseWeight}}</span>{{/if}}
-          {{#if canPack}}
-          <button type="button" class="pd-pack" data-action="autoPack" data-tooltip="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">
+          {{#if isLoose}}<span class="pd-bagsec-cap" title="{{localize "WFRPPD.Bags.LooseHint"}}">{{looseWeight}}</span>{{/if}}
+          {{#if isLoose}}
+          <button type="button" class="pd-pack {{#unless canPack}}is-idle{{/unless}}" {{#unless canPack}}disabled{{/unless}} data-action="autoPack" data-tooltip="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}" aria-label="{{localize "WFRPPD.Bags.Pack"}}" title="{{localize "WFRPPD.Bags.Pack"}}: {{localize "WFRPPD.Bags.PackHint"}}">
             <img src="{{@root.art.pack}}" alt="">
           </button>
           {{/if}}
@@ -138,6 +152,7 @@
                draggable="{{#if draggable}}true{{else}}false{{/if}}">
             <img src="{{img}}" alt="{{name}}">
             {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
+            <span class="pd-item-name rarity-{{rarity}}">{{name}}</span>
           </div>
           {{/each}}
           {{#each cells}}<div class="pd-bag-cell"></div>{{/each}}
