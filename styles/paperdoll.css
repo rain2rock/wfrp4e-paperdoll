@@ -1265,7 +1265,7 @@
 
   --rarity-none: #5f5a52;
   --rarity-common: #2a2119;
-  --rarity-scarce: #2f7a12;
+  --rarity-scarce: #3c6a24;
   --rarity-rare: #1350a8;
   --rarity-exotic: #6a1fa0;
 
@@ -1973,3 +1973,6 @@
 .wfrp-paperdoll-tooltip .pd-tt-notes { margin-top: 6px; display: grid; gap: 2px; font-size: 12px; }
 .wfrp-paperdoll-tooltip .pd-tt-note.is-good { color: var(--pd-up); }
 .wfrp-paperdoll-tooltip .pd-tt-note.is-bad { color: var(--pd-bad); }
+
+/* Полоса нагрузки: текстура растягивается по длине заливки, без шва повтора */
+.wfrp-paperdoll .pd-enc-fill { background-size: 100% 100%; background-repeat: no-repeat; }
