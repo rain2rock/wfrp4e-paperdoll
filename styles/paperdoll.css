@@ -2188,3 +2188,13 @@
 /* Без «+» значок статьи сам уходит вправо */
 .wfrp-paperdoll .pd-ecs-row:not(:has(.pd-adv)) .pd-ecs-info { margin-left: auto; }
 .wfrp-paperdoll .pd-ecs-row .pd-ecs-info { margin-left: 2px; }
+
+/* Тихий серый «+»: на шаг развития хватает опыта */
+.wfrp-paperdoll .pd-ecs-can {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--pd-text-dim);
+  opacity: 0.55;
+}
+.wfrp-paperdoll .pd-ecs-row:hover .pd-ecs-can { opacity: 0; }
