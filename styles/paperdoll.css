@@ -1825,3 +1825,10 @@
 @media (prefers-reduced-motion: reduce) {
   .wfrp-paperdoll .pd-coin img, .wfrp-paperdoll .pd-coin::before, .wfrp-paperdoll .pd-coin-fx { animation-duration: 0.01s !important; }
 }
+
+/* ---------- v0.18: мутации ---------- */
+/* Слот лишней руки или головы - в фиолетовом свечении Хаоса */
+.wfrp-paperdoll .pd-slot.is-extra .pd-slot-frame { box-shadow: 0 0 0 2px rgba(106, 31, 160, 0.55), 0 0 10px rgba(106, 31, 160, 0.45); }
+.wfrp-paperdoll .pd-slot.is-extra .pd-slot-placeholder img { filter: hue-rotate(250deg) saturate(2); }
+/* Мутация в ленте эффектов: рамка экзотики (фиолетовая) */
+.wfrp-paperdoll .pd-effect--mutation::before { background-image: url("../assets/ui/frame-rarity-exotic.png"); }

@@ -54,7 +54,11 @@ const SLOT_ART = {
   bag2: "slot-bag",
   bag3: "slot-bag",
   main: "slot-main",
-  off: "slot-off"
+  off: "slot-off",
+  hand3: "slot-main",
+  hand4: "slot-main",
+  head2: "slot-head",
+  head3: "slot-head"
 };
 
 /** Статьи правил для строк вкладки «Характеристики»: как они называются в журналах wfrp4e-core */
@@ -110,6 +114,32 @@ function injuryLimbLoc(item, kind) {
   const leg = ["foot", "leg"].includes(kind) || /leg|foot|ног|стоп/.test(text);
   if (!side || arm === leg) return null;
   return `${side}${arm ? "Arm" : "Leg"}`;
+}
+
+/* -------------------------------------------- */
+/*  Мутации: лишние руки и головы               */
+/* -------------------------------------------- */
+
+const EXTRA_HANDS = ["hand3", "hand4"];
+const EXTRA_HEADS = ["head2", "head3"];
+const isExtraHand = (slot) => EXTRA_HANDS.includes(slot);
+const isExtraHead = (slot) => EXTRA_HEADS.includes(slot);
+const isExtraSlot = (slot) => isExtraHand(slot) || isExtraHead(slot);
+/** В каком дополнительном слоте вещь (флаг модуля) */
+const extraSlotOf = (item) => item?.flags?.[MODULE_ID]?.extraSlot ?? null;
+
+/**
+ * Что мутация даёт куколке: "hand" - лишняя рука, "head" - лишняя голова, "none" - ничего (решение ГМ), null - не знаем.
+ * В базовой книге таких мутаций нет (есть щупальце - это черта-оружие), они бывают в дополнениях и у ГМ,
+ * поэтому сначала флаг, который ставит ГМ кликом по мутации, потом название.
+ */
+function mutationGrant(item) {
+  const flag = item.flags?.[MODULE_ID]?.grants;
+  if (flag) return flag;
+  const name = String(item.name ?? "").toLowerCase();
+  if (/(extra|additional|third|fourth|second)\s+(arm|hand)s?|(третья|четв\S+|лишн\S+|дополнит\S+|втор\S+)\s+(рук|кист)|многорук/.test(name)) return "hand";
+  if (/(extra|additional|second|two|third)\s+heads?|(втор\S+|лишн\S+|дополнит\S+|треть\S+)\s+голов|двухголов|две головы|многоголов/.test(name)) return "head";
+  return null;
 }
 
 /** Протез: hook - крюк, leg - деревянная нога или стопа, marvel - инженерное чудо */
@@ -476,7 +506,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const prosthetics = actor.items.filter((i) => i.system?.isEquipped && prostheticKind(i));
     const armourSlot = (key) => {
       const items = armour
-        .filter((a) => a.system.protects?.[key])
+        .filter((a) => a.system.protects?.[key] && !(key === "head" && isExtraHead(extraSlotOf(a))))
         // При равном AP сверху то, что носят поверх: латы, потом кольчуга, потом кожа
         .sort((a, b) => (b.system.AP?.[key] ?? 0) - (a.system.AP?.[key] ?? 0) || layerRank(b) - layerRank(a));
       // Протез этой конечности - в её же слот, отдельным слоем (AP не даёт)
@@ -487,7 +517,16 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     // --- Оружие ---
-    const weapons = equipped("weapon");
+    const weapons = equipped("weapon").filter((w) => !isExtraHand(extraSlotOf(w)));
+    // Лишние руки и головы от мутаций
+    const extra = this._extraSlots();
+    const extraSlot = (key) => {
+      const items = actor.items.filter((i) => i.system?.isEquipped && extraSlotOf(i) === key);
+      const slot = makeSlot(key, items, { showAP: false });
+      slot.extra = true;
+      slot.hint = game.i18n.format("WFRPPD.Mutation.ExtraHint", { name: extra.source[key]?.name ?? "" });
+      return slot;
+    };
     const mainItems = weapons.filter((w) => !w.system.offhand?.value);
     const offItems = weapons.filter((w) => w.system.offhand?.value);
     const twoHander = mainItems.find((w) => w.system.twohanded?.value);
@@ -495,7 +534,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const clothing = equipped("trapping").filter((t) => t.system.trappingType?.value === "clothingAccessories");
 
     const groups = [
-      { area: "left", slots: ["head", "body", "rArm", "lArm"].map(armourSlot) },
+      { area: "left", slots: [armourSlot("head"), ...extra.heads.map(extraSlot), ...["body", "rArm", "lArm"].map(armourSlot)] },
       {
         area: "right",
         slots: [armourSlot("rLeg"), armourSlot("lLeg"), makeSlot("accessory", clothing)]
@@ -512,7 +551,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           const otherLoc = this._handLoc(key === "main" ? "off" : "main");
           if (!slot.maim && key === "main" && twoHander && limbs[otherLoc].noHand) slot.maim = this._maimView(otherLoc, limbs);
           return slot;
-        })
+        }).concat(extra.hands.map(extraSlot))
       }
     ];
 
@@ -907,6 +946,21 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
+  /** Дополнительные слоты от мутаций: { hands: ["hand3"], heads: ["head2"], source: { hand3: mutation } } */
+  _extraSlots() {
+    const out = { hands: [], heads: [], source: {} };
+    for (const m of this.actor.itemTypes.mutation ?? []) {
+      const grant = mutationGrant(m);
+      const list = grant === "hand" ? EXTRA_HANDS : grant === "head" ? EXTRA_HEADS : null;
+      const target = grant === "hand" ? out.hands : out.heads;
+      if (!list || target.length >= list.length) continue;
+      const key = list[target.length];
+      target.push(key);
+      out.source[key] = m;
+    }
+    return out;
+  }
+
   /**
    * Состояние конечностей: какие травмы, какой протез надет, работает ли рука или нога.
    * Инженерное чудо отменяет все последствия для своей конечности.
@@ -1000,6 +1054,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!LIMB_LOCS.includes(slot)) return false;
       return pk === "marvel" || (pk === "hook" ? isArmLoc(slot) : !isArmLoc(slot));
     }
+    if (isExtraHand(slot)) return item.type === "weapon";
+    if (isExtraHead(slot)) return item.type === "armour" && !!sys.protects?.head;
     if (LOCATIONS.includes(slot)) return item.type === "armour" && !!sys.protects?.[slot];
     if (slot === "main" || slot === "off") return item.type === "weapon";
     if (slot === "accessory")
@@ -1292,6 +1348,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _isInSlot(item, slot) {
     if (!item.system.isEquipped || !this._canDrop(item, slot)) return false;
     if (prostheticKind(item)) return item.flags?.[MODULE_ID]?.limb === slot;
+    // Вещь в лишней руке или на второй голове - только там
+    if (isExtraSlot(slot) || isExtraSlot(extraSlotOf(item))) return extraSlotOf(item) === slot;
     if (isBagSlot(slot)) return this._bagAssignment().slotOf.get(item.id) === slot;
     if (item.type === "weapon") {
       const off = !!item.system.offhand?.value;
@@ -1308,7 +1366,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Протезы в списке - только для потерянной конечности (перетащить можно куда угодно)
     if (LIMB_LOCS.includes(slot) && !this._limbState()[slot].lost) available = available.filter((i) => !prostheticKind(i));
     // Двуручное во вторую руку не предлагаем - оно всё равно уйдёт в основную
-    if (slot === "off") available = available.filter((i) => !i.system.twohanded?.value);
+    if (slot === "off" || isExtraHand(slot)) available = available.filter((i) => !i.system.twohanded?.value);
     // Сумки, надетые в других слотах, - отдельной группой: выбор такой сумки меняет слоты местами
     let worn = [];
     if (isBagSlot(slot)) {
@@ -1427,6 +1485,28 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
+    // Мутации: телесные и душевные, в рамке Хаоса. ГМ кликом отмечает, даёт ли мутация лишнюю руку или голову
+    for (const m of actor.itemTypes.mutation ?? []) {
+      const sys = m.system ?? {};
+      const type = sys.mutationType?.value;
+      const grant = mutationGrant(m);
+      out.push({
+        kind: "mutation",
+        id: m.id,
+        name: m.name,
+        img: itemImg(m.img, m.name),
+        debuff: true,
+        grant,
+        lines: [
+          type ? L(cfg.mutationTypes?.[type] ?? `WFRPPD.Mutation.Type.${type}`) : "",
+          sys.modifier?.value ?? "",
+          sys.description?.value ? plainEnrichers(stripTags(sys.description.value)) : "",
+          grant === "hand" || grant === "head" ? F("WFRPPD.Mutation.Grants", { slot: L(`WFRPPD.Mutation.Grant.${grant}`) }) : ""
+        ],
+        hint: L(game.user?.isGM ? "WFRPPD.Mutation.GMHint" : "WFRPPD.Effects.HintOpen")
+      });
+    }
+
     return out.map((e) => ({ ...e, lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
   }
 
@@ -1440,6 +1520,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       } else if (entry.kind === "effect") {
         const effect = this.actor.effects.get(entry.id);
         await effect?.update({ disabled: !effect.disabled });
+      } else if (entry.kind === "mutation" && game.user?.isGM) {
+        // ГМ: ЛКМ по мутации переключает, что она даёт куколке: лишняя рука -> голова -> ничего -> по названию
+        const order = [null, "hand", "head", "none"];
+        const item = this.actor.items.get(entry.id);
+        const now = item?.flags?.[MODULE_ID]?.grants ?? null;
+        const next = order[(order.indexOf(now) + 1) % order.length];
+        await item?.update({ [`flags.${MODULE_ID}.grants`]: next });
+        ui.notifications.info(game.i18n.format("WFRPPD.Mutation.Set", { name: item?.name ?? "", slot: game.i18n.localize(`WFRPPD.Mutation.Grant.${next ?? "auto"}`) }));
       } else {
         this.actor.items.get(entry.id)?.sheet?.render(true);
       }
@@ -1669,6 +1757,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Где сейчас надет предмет (для подписи «сейчас: ...») */
   _currentSlotOf(item) {
     if (!item.system.isEquipped) return null;
+    if (extraSlotOf(item)) return extraSlotOf(item);
     if (item.type === "weapon") return item.system.offhand?.value ? "off" : "main";
     if (item.type === "container") return this._bagAssignment().slotOf.get(item.id) ?? null;
     if (prostheticKind(item)) return item.flags?.[MODULE_ID]?.limb ?? null;
@@ -1691,7 +1780,17 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       // Надетая вещь не может лежать в сумке: сначала достаём её
       // (иначе система считает её «в контейнере» - нет AP и нагрузки)
       if (item.system.location?.value) await item.update({ "system.location.value": "" });
-      if (item.type === "weapon") await this._equipWeapon(item, slot);
+      if (isExtraSlot(slot)) {
+        // Лишняя рука или голова: вещь надета, где именно - во флаге модуля (система о третьей руке не знает)
+        const update = { "system.equipped.value": true, [`flags.${MODULE_ID}.extraSlot`]: slot };
+        if (item.type === "weapon") update["system.offhand.value"] = false;
+        await item.update(update);
+      } else if (isExtraSlot(extraSlotOf(item))) {
+        // Из лишней руки - в обычный слот: сначала снимаем флаг
+        await item.update({ [`flags.${MODULE_ID}.extraSlot`]: null });
+        if (item.type === "weapon") await this._equipWeapon(item, slot);
+        else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
+      } else if (item.type === "weapon") await this._equipWeapon(item, slot);
       else if (isBagSlot(slot)) await this._equipBag(item, slot);
       else if (prostheticKind(item)) {
         // Протез на конечность: один на конечность, прежний снимаем
@@ -1713,7 +1812,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     // Как в WoW: то, что мешает, снимается автоматически
     const conflicts = this.actor.itemTypes.weapon.filter((w) => {
-      if (w.id === item.id || !w.system.isEquipped) return false;
+      if (w.id === item.id || !w.system.isEquipped || isExtraHand(extraSlotOf(w))) return false;
       if (twoHanded || w.system.twohanded?.value) return true;
       return !!w.system.offhand?.value === wantOff;
     });
@@ -1748,7 +1847,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     try {
       await this.actor.updateEmbeddedDocuments(
         "Item",
-        current.map((i) => ({ _id: i.id, "system.equipped.value": false }))
+        current.map((i) => ({ _id: i.id, "system.equipped.value": false, ...(extraSlotOf(i) ? { [`flags.${MODULE_ID}.extraSlot`]: null } : {}) }))
       );
     } catch (err) {
       console.warn(`${MODULE_ID} | clear slot failed`, err);
@@ -1761,6 +1860,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (item.type === "container") await this._pinBags();
       const update = { "system.equipped.value": false };
       if (prostheticKind(item)) update[`flags.${MODULE_ID}.limb`] = null;
+      if (extraSlotOf(item)) update[`flags.${MODULE_ID}.extraSlot`] = null;
       await item.update(update);
     } catch (err) {
       console.warn(`${MODULE_ID} | unequip failed`, err);
@@ -1769,7 +1869,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _slotLabel(slot) {
     if (LOCATIONS.includes(slot)) return game.i18n.localize(game.wfrp4e.config.locations[slot]);
-    const map = { main: "Main", off: "Off", accessory: "Accessory", container: "Container", bag1: "Bag1", bag2: "Bag2", bag3: "Bag3" };
+    const map = { main: "Main", off: "Off", accessory: "Accessory", container: "Container", bag1: "Bag1", bag2: "Bag2", bag3: "Bag3", hand3: "Hand3", hand4: "Hand4", head2: "Head2", head3: "Head3" };
     return game.i18n.localize(`WFRPPD.Slot.${map[slot] ?? slot}`);
   }
 

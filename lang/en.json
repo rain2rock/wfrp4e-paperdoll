@@ -14,7 +14,11 @@
       "Container": "Bags & packs",
       "Bag1": "Bag 1",
       "Bag2": "Bag 2",
-      "Bag3": "Bag 3"
+      "Bag3": "Bag 3",
+      "Hand3": "Third hand",
+      "Hand4": "Fourth hand",
+      "Head2": "Second head",
+      "Head3": "Third head"
     },
     "Filter": {
       "all": "All",
@@ -155,7 +159,8 @@
         "effect": "Effect",
         "injury": "Injury",
         "critical": "Critical wound",
-        "disease": "Disease"
+        "disease": "Disease",
+        "mutation": "Mutation"
       },
       "Disabled": "disabled",
       "Permanent": "Permanent",
@@ -266,6 +271,22 @@
       "HandBroken": "arm unusable",
       "NeedTwoHands": "needs two hands",
       "LegDisabledHint": "The leg does not work until the injury heals: Movement is reduced as if it were lost."
+    },
+    "Mutation": {
+      "Type": {
+        "physical": "Physical mutation",
+        "mental": "Mental mutation"
+      },
+      "Grants": "Gives the doll a slot: {slot}",
+      "Grant": {
+        "hand": "extra hand",
+        "head": "extra head",
+        "none": "nothing",
+        "auto": "by name"
+      },
+      "GMHint": "LMB (GM) - what it gives: hand / head / nothing / by name · RMB - open",
+      "Set": "«{name}»: {slot}",
+      "ExtraHint": "Slot from the «{name}» mutation. The system does not know about extra limbs: the item is equipped, the module remembers where."
     }
   }
 }

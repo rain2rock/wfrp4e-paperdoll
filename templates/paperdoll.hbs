@@ -1,8 +1,8 @@
 <div class="pd-root {{#unless editable}}is-readonly{{/unless}}">
   {{!-- Слот куколки: одна разметка для тела, рук и сумок --}}
   {{#*inline "pdSlot"}}
-        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
-          <div class="pd-slot-frame" {{#if @root.editable}}title="{{label}}"{{/if}}>
+        <div class="pd-slot {{#unless top}}is-empty{{/unless}} {{#if extra}}is-extra{{/if}} {{#if maim}}{{#if maim.ok}}is-replaced{{else}}is-maimed{{/if}}{{/if}}" data-slot="{{key}}">
+          <div class="pd-slot-frame" title="{{#if hint}}{{label}}&#10;{{hint}}{{else}}{{label}}{{/if}}">
             {{#if top}}
             <div class="pd-item rarity-{{top.rarity}} {{#if top.ghost}}is-ghost{{/if}}" data-item-id="{{top.id}}"
                  draggable="{{#if top.draggable}}true{{else}}false{{/if}}">

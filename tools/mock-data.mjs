@@ -299,7 +299,8 @@ export const CAST = [
       { id: "m-halberd", name: "Алебарда", type: "weapon", _icon: own("weapons/halberd.png"), img: icon("🪓", "#5a6a7a"),
         system: weapon({ equipped: { value: true }, twohanded: { value: true }, weaponGroup: { value: "polearm" }, reach: { value: "long" }, damage: { value: "SB+4" }, encumbrance: { value: 3 }, _qualities: ["Защитное", "Пробивающее", "Рубящее"], price: { gc: 2 } }) },
       { id: "m-xbow", name: "Арбалет", type: "weapon", _icon: own("weapons/crossbow.png"), img: icon("🏹", "#5a6a7a"),
-        system: weapon({ weaponGroup: { value: "crossbow" }, damage: { value: "+9" }, _ranged: true, _range: "60", encumbrance: { value: 2 }, availability: { value: "scarce" }, price: { gc: 5 } }) },
+        flags: { "wfrp4e-paperdoll": { extraSlot: "hand3" } },
+        system: weapon({ equipped: { value: true }, weaponGroup: { value: "crossbow" }, damage: { value: "+9" }, _ranged: true, _range: "60", encumbrance: { value: 2 }, availability: { value: "scarce" }, price: { gc: 5 } }) },
       { id: "m-helm", name: "Открытый шлем", type: "armour", _icon: own("armour/plate-open-helm.png"), img: icon("⛑️", "#7a7a8a"),
         system: armour({ head: 2 }, { equipped: { value: true }, armorType: { value: "plate" }, encumbrance: { value: 1 }, price: { gc: 2 } }) },
       { id: "m-mail", name: "Кольчуга", type: "armour", _icon: own("armour/mail-coat.png"), img: icon("🛡️", "#7a7a8a"),
@@ -316,6 +317,13 @@ export const CAST = [
         system: trapping({ ...inBag("m-sack"), encumbrance: { value: 2 } }) },
       { id: "m-pot", name: "Котелок", type: "trapping", _icon: own("miscellaneous_trappings/cooking-pot.png"), img: icon("🍲", "#5a5a5a"),
         system: trapping({ ...inBag("m-sack"), encumbrance: { value: 1 } }) },
+      // Мутации: лишняя рука (в ней арбалет), щупальце (черта-оружие, слота не даёт), душевная
+      { id: "m-mut-arm", name: "Третья рука", type: "mutation", img: icon("🖐️", "#5a2a6a"),
+        system: { mutationType: { value: "physical" }, modifier: { value: "" }, description: { value: "<p>Из-под лопатки растёт третья рука, тонкая и цепкая.</p>" } } },
+      { id: "m-mut-tent", name: "Кожистое щупальце", type: "mutation", img: icon("🐙", "#5a2a6a"),
+        system: { mutationType: { value: "physical" }, modifier: { value: "" }, description: { value: "<p>Черта «Щупальце» +[рейтинг силы].</p>" } } },
+      { id: "m-mut-rage", name: "Нечестивая ярость", type: "mutation", img: icon("😡", "#5a2a6a"),
+        system: { mutationType: { value: "mental" }, modifier: { value: "" }, description: { value: "<p>Персонаж подвержен ярости.</p>" } } },
       { id: "m-ale", name: "Бочонок эля", type: "trapping", _icon: own("food_drink_and_lodging/ale-keg.png"), img: icon("🍺", "#7a5a2a"),
         system: trapping({ encumbrance: { value: 2 } }) }
     ]
