@@ -20,7 +20,7 @@ export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODU
 export const uiArt = (name) => asset(`ui/${name}.png`);
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false };
+export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false, showAllSkills: false };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
 /** Игровой термин на русском (опция «Переводить термины», клиент на русском) */
 export const T = (name) =>
@@ -1039,8 +1039,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         hint: this._bonusInfo(key).join("\n")
       });
       for (const sk of this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name))) {
-        // Все навыки характеристики, как в подсказке плюса; вне карьеры - приглушены (шаг стоит ×2)
+        // По умолчанию - навыки карьеры и уже вкачанные; опция «все навыки» - как в подсказке плюса,
+        // вне карьеры приглушены (шаг стоит ×2)
         const adv = this._advInfo("skill", sk, career);
+        if (!option("showAllSkills") && adv.inCareer === false && adv.adv === 0) continue;
         out.push({
           key: sk.name,
           label: T(sk.name),

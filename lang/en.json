@@ -379,6 +379,10 @@
       "translateDescOnly": {
         "Name": "Translate only descriptions and flavour text",
         "Hint": "Names, terms and rules stay as they are; only item, effect and talent descriptions are translated."
+      },
+      "showAllSkills": {
+        "Name": "Show all skills in Advance view",
+        "Hint": "In the Advance view, list every skill of a characteristic, including untrained out-of-career skills (dimmed, cost ×2). Off - only career and already trained skills; the full list is in the + tooltip."
       }
     },
     "Vitals": {
