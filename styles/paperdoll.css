@@ -2363,3 +2363,16 @@
 .wfrp-paperdoll-tooltip .pd-tip-head + .pd-tip-line { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(60, 45, 25, 0.2); }
 .wfrp-paperdoll-tooltip .pd-tip-line { color: var(--pd-text-2, #3a2e22); }
 .wfrp-paperdoll-tooltip .pd-tip-line.is-sub { padding-left: 10px; color: var(--pd-text-dim); }
+
+/* ---------- v0.25.1: текст в подсказках крупнее, особенно описание и флейвор ---------- */
+.wfrp-paperdoll-tooltip { font-size: 14px; line-height: 1.4; }
+.wfrp-paperdoll-tooltip .pd-tt-text { font-size: 14px; line-height: 1.45; }
+.wfrp-paperdoll-tooltip .pd-tt-desc { font-size: 14.5px; line-height: 1.45; }
+.wfrp-paperdoll-tooltip .pd-tt-prop { font-size: 13px; }
+.wfrp-paperdoll-tooltip .pd-tt-sub,
+.wfrp-paperdoll-tooltip .pd-tt-footer,
+.wfrp-paperdoll-tooltip .pd-tt-avail,
+.wfrp-paperdoll-tooltip .pd-tt-notes { font-size: 13px; }
+.wfrp-paperdoll-tooltip .pd-tt-hint { font-size: 12px; }
+.wfrp-paperdoll-tooltip.is-tip { font-size: 13.5px; max-width: 320px; }
+.wfrp-paperdoll-tooltip .pd-tip-head { font-size: 14px; }
