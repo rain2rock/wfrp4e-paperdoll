@@ -2356,3 +2356,10 @@
 }
 /* Модель: лицо обычно в верхней трети кадра - не прижимаем к самому верху */
 .wfrp-paperdoll .pd-model img { object-position: center 20%; }
+
+/* ---------- v0.25: системные подсказки (title) - своей карточкой ---------- */
+.wfrp-paperdoll-tooltip.is-tip { max-width: 300px; padding: 8px 10px; font-size: 12px; line-height: 1.35; }
+.wfrp-paperdoll-tooltip .pd-tip-head { font-weight: 700; font-size: 13px; color: var(--pd-ink, #1a140e); }
+.wfrp-paperdoll-tooltip .pd-tip-head + .pd-tip-line { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(60, 45, 25, 0.2); }
+.wfrp-paperdoll-tooltip .pd-tip-line { color: var(--pd-text-2, #3a2e22); }
+.wfrp-paperdoll-tooltip .pd-tip-line.is-sub { padding-left: 10px; color: var(--pd-text-dim); }

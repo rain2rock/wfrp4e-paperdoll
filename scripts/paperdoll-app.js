@@ -905,15 +905,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const skills = this._skillsOf(key);
     if (skills.length) {
       const names = skills.map((sk) => sk.name);
-      lines.push(F("WFRPPD.Impact.Skills", { list: names.slice(0, 8).join(", ") + (names.length > 8 ? ` +${names.length - 8}` : "") }));
+      lines.push("· " + F("WFRPPD.Impact.Skills", { list: names.slice(0, 8).join(", ") + (names.length > 8 ? ` +${names.length - 8}` : "") }));
     }
     const b0 = Math.floor(value / 10);
     const b1 = Math.floor((value + 1) / 10);
     if (b1 > b0) {
-      lines.push(F("WFRPPD.Impact.Bonus", { from: b0, to: b1 }));
-      for (const e of this._bonusEffects(key)) lines.push(`  ${e.label} +${e.n}`);
+      lines.push("· " + F("WFRPPD.Impact.Bonus", { from: b0, to: b1 }));
+      for (const e of this._bonusEffects(key)) lines.push(`    ${e.label} +${e.n}`);
     } else {
-      lines.push(F("WFRPPD.Impact.BonusLater", { n: (b0 + 1) * 10 - value }));
+      lines.push("· " + F("WFRPPD.Impact.BonusLater", { n: (b0 + 1) * 10 - value }));
     }
     return [L("WFRPPD.Impact.Title"), ...lines];
   }
@@ -2623,6 +2623,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this._openArticle("stat", terms.at(-1) ?? "", terms.slice(0, -1));
       });
     }
+    // Подсказки title - своей карточкой
+    PaperdollTooltip.adoptTitles(root);
     // Анимация последней операции с деньгами
     if (this._moneyFx) {
       const { key, delta } = this._moneyFx;
@@ -2882,9 +2884,12 @@ class PaperdollTooltip {
     return this.el;
   }
 
-  static showHtml(html, event) {
+  static mode = null;
+
+  static showHtml(html, event, mode = "rich") {
     const el = this.ensure();
-    el.className = `wfrp-paperdoll-tooltip ${themeClass()}`;
+    this.mode = mode;
+    el.className = `wfrp-paperdoll-tooltip ${themeClass()} ${mode === "tip" ? "is-tip" : ""}`;
     el.innerHTML = html;
     el.classList.add("is-visible");
     this.move(event);
@@ -2892,6 +2897,7 @@ class PaperdollTooltip {
 
   static show(item, event, app = null) {
     const el = this.ensure();
+    this.mode = "item";
     el.className = `wfrp-paperdoll-tooltip ${themeClass()}`;
     el.innerHTML = this.build(item, app);
     el.classList.add("is-visible");
@@ -2914,6 +2920,59 @@ class PaperdollTooltip {
 
   static hide() {
     this.el?.classList.remove("is-visible");
+    this.mode = null;
+  }
+
+  /** Короткая подсказка (бывший title): первая строка - заголовок, остальные - текст */
+  static tipHtml(text) {
+    const lines = String(text ?? "").split("\n").filter((l) => l.trim());
+    if (!lines.length) return "";
+    const [head, ...rest] = lines;
+    const body = rest
+      .map((l) => `<div class="pd-tip-line ${/^\s{2,}|^[·✓-]\s/.test(l) ? "is-sub" : ""}">${esc(l.trim())}</div>`)
+      .join("");
+    return `<div class="pd-tip-head">${esc(head)}</div>${body}`;
+  }
+
+  /**
+   * Системные подсказки (title) в окне куколки и списке смены рисуем своей карточкой:
+   * title переносится в data-pd-tip, показ - один общий обработчик на документ.
+   */
+  static adoptTitles(root) {
+    if (!root) return;
+    // Перерисовка: старая подсказка могла остаться от исчезнувшего элемента
+    if (this.mode === "tip") this.hide();
+    for (const el of root.querySelectorAll("[title]")) {
+      const t = el.getAttribute("title");
+      el.removeAttribute("title");
+      if (t) el.dataset.pdTip = t;
+    }
+    if (this._tipsBound) return;
+    this._tipsBound = true;
+    let timer = null;
+    let current = null;
+    const inScope = (el) => el?.closest?.(".wfrp-paperdoll, .wfrp-paperdoll-flyout");
+    document.addEventListener("pointerover", (ev) => {
+      const t = ev.target?.closest?.("[data-pd-tip]");
+      if (!t || !inScope(t) || t === current) return;
+      current = t;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (current !== t || !t.isConnected) return;
+        this.showHtml(this.tipHtml(t.dataset.pdTip), ev, "tip");
+      }, 250);
+    });
+    document.addEventListener("pointerout", (ev) => {
+      if (!current) return;
+      if (ev.relatedTarget && current.contains(ev.relatedTarget)) return;
+      if (ev.target?.closest?.("[data-pd-tip]") !== current) return;
+      current = null;
+      clearTimeout(timer);
+      if (this.mode === "tip") this.hide();
+    });
+    document.addEventListener("pointermove", (ev) => {
+      if (this.mode === "tip") this.move(ev);
+    });
   }
 
   static build(item, app = null) {
@@ -3249,6 +3308,7 @@ class PaperdollFlyout {
     el.className = `wfrp-paperdoll-flyout ${themeClass()}`;
     el.innerHTML = html;
     document.body.append(el);
+    PaperdollTooltip.adoptTitles(el);
     this.el = el;
     anchor.classList.add("is-open");
     this.anchor = anchor;

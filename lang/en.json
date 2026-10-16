@@ -140,7 +140,7 @@
       "PartI": "I",
       "PartA": "A",
       "PartM": "M",
-      "PartsHint": "Initial + advances + modifier (effects, talents, sheet edits)"
+      "PartsHint": "Breakdown\nI - Initial\nA - Advances\nM - Modifier (effects, talents, sheet edits)"
     },
     "Terms": {
       "gc": "gold crown|gold crowns|gold crowns",
