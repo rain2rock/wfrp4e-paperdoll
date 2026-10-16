@@ -2024,3 +2024,7 @@
 /* Низ списка не уходит под шестерёнку */
 .wfrp-paperdoll .pd-bag-list { padding-bottom: 44px; }
 .wfrp-paperdoll .pd-ecs { padding-bottom: 44px; }
+/* Шестерёнка - в левом нижнем углу окна, меню раскрывается вверх-вправо */
+.wfrp-paperdoll .pd-options { right: auto; left: var(--pd-step); }
+.wfrp-paperdoll .pd-options-menu { right: auto; left: 0; }
+.wfrp-paperdoll .pd-bag-list, .wfrp-paperdoll .pd-ecs { padding-bottom: 10px; }
