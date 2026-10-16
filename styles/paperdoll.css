@@ -1422,3 +1422,24 @@
 .wfrp-paperdoll .pd-root:not(.is-readonly) .pd-slot-frame { cursor: pointer; }
 .wfrp-paperdoll .pd-slot-frame.is-open { filter: brightness(1.12); box-shadow: 0 0 0 2px var(--pd-gold-soft); }
 .wfrp-paperdoll .pd-bagbar-slots { gap: 8px; }
+
+/* Сумки: ячейки как в WoW, слоты сумок - иконки в заголовках разделов */
+.wfrp-paperdoll .pd-bagsec .pd-bag-grid { grid-template-columns: repeat(5, 42px); }
+.wfrp-paperdoll .pd-bag-cell {
+  position: relative;
+  background: var(--pd-well);
+  opacity: 0.55;
+}
+.wfrp-paperdoll .pd-bag-cell::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: url("../assets/ui/frame-bag-cell.png") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.wfrp-paperdoll .pd-bagsec.is-drop .pd-bag-cell { opacity: 0.85; }
+.wfrp-paperdoll .pd-bagsec-icon.is-slot { cursor: pointer; border: none; flex-basis: 36px; width: 36px; height: 36px; }
+.wfrp-paperdoll .pd-bagsec-icon.is-slot:hover,
+.wfrp-paperdoll .pd-bagsec-icon.is-open { filter: brightness(1.12); box-shadow: 0 0 0 2px var(--pd-gold-soft); }
+.wfrp-paperdoll .pd-bagsec--free { opacity: 0.8; border-style: dashed; }
+.wfrp-paperdoll .pd-bagsec--free .pd-bagsec-icon { opacity: 0.7; }

@@ -105,12 +105,6 @@
     </nav>
 
     {{#if tabBag}}
-    <div class="pd-bagbar">
-      <span class="pd-bagbar-label">{{localize "WFRPPD.Bags.Worn"}}</span>
-      <div class="pd-bagbar-slots">
-        {{#each bagSlots}}{{> pdSlot}}{{/each}}
-      </div>
-    </div>
     {{#if bagOverflow}}<div class="pd-bag-warn">{{bagOverflow}}</div>{{/if}}
 
     <div class="pd-filters">
@@ -123,9 +117,9 @@
 
     <div class="pd-bag-list">
       {{#each bagSections}}
-      <section class="pd-bagsec pd-bagsec--{{kind}} {{#if over}}is-over{{/if}} {{#if full}}is-full{{/if}}" data-container="{{id}}">
+      <section class="pd-bagsec pd-bagsec--{{kind}} {{#if over}}is-over{{/if}} {{#if full}}is-full{{/if}}" {{#if noGrid}}data-free-slot="{{slot}}"{{else}}data-container="{{id}}"{{/if}}>
         <header class="pd-bagsec-head">
-          {{#if img}}<img class="pd-bagsec-icon" src="{{img}}" alt="">{{else}}<img class="pd-bagsec-icon is-carried" src="{{@root.art.carried}}" alt="">{{/if}}
+          {{#if img}}<img class="pd-bagsec-icon {{#if slot}}is-slot{{/if}}" src="{{img}}" alt="" {{#if slot}}data-slot="{{slot}}" title="{{localize "WFRPPD.Bags.SwapHint"}}"{{/if}}>{{else}}<img class="pd-bagsec-icon is-carried" src="{{@root.art.carried}}" alt="">{{/if}}
           <div class="pd-bagsec-title">
             <span class="pd-bagsec-name">{{name}}</span>
             {{#if slotLabel}}<span class="pd-bagsec-slot">{{slotLabel}}</span>{{/if}}
@@ -139,6 +133,7 @@
           {{/if}}
         </header>
         {{#if hasCap}}<div class="pd-bagsec-bar"><div style="width: {{pct}}%"></div></div>{{/if}}
+        {{#unless noGrid}}
         <div class="pd-bag-grid">
           {{#each items}}
           <div class="pd-item rarity-{{rarity}} {{#unless equippable}}is-plain{{/unless}}" data-item-id="{{id}}"
@@ -147,8 +142,9 @@
             {{#if qty}}<span class="pd-qty">{{qty}}</span>{{/if}}
           </div>
           {{/each}}
-          {{#if empty}}<div class="pd-bag-empty">{{localize "WFRPPD.Bags.Empty"}}</div>{{/if}}
+          {{#each cells}}<div class="pd-bag-cell"></div>{{/each}}
         </div>
+        {{/unless}}
       </section>
       {{/each}}
     </div>

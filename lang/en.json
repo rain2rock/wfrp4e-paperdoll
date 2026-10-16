@@ -195,7 +195,9 @@
       "PackNothing": "Nothing to pack: heavy items are already in bags or don't fit",
       "Packed": "Packed {n} items, encumbrance down by {w}.",
       "PackSkipped": "Didn't fit: {names}.",
-      "AndMore": "and {n} more"
+      "AndMore": "and {n} more",
+      "FreeSlot": "Empty - click the icon to wear a bag",
+      "SwapHint": "Click to change the bag"
     },
     "Layers": "Armour layers",
     "Settings": {

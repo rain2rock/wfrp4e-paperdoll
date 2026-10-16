@@ -74,6 +74,8 @@ const BAG_FILTERS = ["all", "weapon", "armour", "clothing", "other"];
 /** Слоты для сумок, как сумки на панели в WoW */
 const BAG_SLOTS = ["bag1", "bag2", "bag3"];
 const isBagSlot = (slot) => BAG_SLOTS.includes(slot);
+/** Ячеек в ряду сумки */
+const BAG_COLS = 5;
 
 /* -------------------------------------------- */
 /*  Ограничения по правилам (базовая книга 4e)  */
@@ -750,15 +752,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const L = (k) => game.i18n.localize(k);
     const containers = this.actor.itemTypes.container ?? [];
     const filter = (i) => this._matchesFilter(i, this._filter);
+    const emptyCells = (n) => Array.from({ length: Math.max(0, n) }, (_, i) => i);
     const section = (c, kind) => {
       const { inside, used, cap } = this._bagLoad(c);
       const items = inside.filter(filter).map((i) => view(i));
       const over = cap > 0 && used > cap;
+      const slot = kind === "worn" ? assign.slotOf.get(c.id) ?? "" : "";
       return {
         id: c.id,
         kind,
+        slot,
         name: c.name,
         img: itemImg(c.img, c.name),
+        // Пустые ячейки как в WoW: у сумки столько ячеек, сколько пунктов вмещает
+        cells: emptyCells(Math.max(Math.ceil(cap), items.length) - items.length),
         slotLabel: kind === "worn" ? this._slotLabel(assign.slotOf.get(c.id) ?? "") : L("WFRPPD.Bags.NotWorn"),
         used,
         cap,
@@ -767,12 +774,29 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         over,
         full: cap > 0 && used >= cap,
         items,
-        empty: !items.length
+        empty: false
       };
     };
 
     const worn = BAG_SLOTS.map((k) => assign.bySlot[k]).filter(Boolean);
-    const sections = worn.map((c) => section(c, "worn"));
+    // Слоты сумок по порядку; свободный слот - пустой раздел, клик по иконке надевает сумку
+    const sections = BAG_SLOTS.map((k) =>
+      assign.bySlot[k]
+        ? section(assign.bySlot[k], "worn")
+        : {
+            id: `slot-${k}`,
+            kind: "free",
+            slot: k,
+            name: this._slotLabel(k),
+            img: ui("slot-bag"),
+            slotLabel: L("WFRPPD.Bags.FreeSlot"),
+            hasCap: false,
+            items: [],
+            cells: [],
+            empty: false,
+            noGrid: true
+          }
+    );
     // Ненадетые контейнеры показываем, только если в них что-то лежит
     for (const c of containers) {
       if (c.system.isEquipped) continue;
@@ -794,7 +818,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         return loose.some((i) => this._packable(i) && this._weightOf(i) > 0 && this._weightOf(i) <= maxFree);
       })(),
       items: loose.filter(filter).map((i) => view(i)),
-      empty: !loose.filter(filter).length
+      // «При себе» без вместимости: добиваем пустыми ячейками до полного ряда
+      cells: emptyCells((BAG_COLS - (loose.filter(filter).length % BAG_COLS)) % BAG_COLS || (loose.filter(filter).length ? 0 : BAG_COLS)),
+      empty: false
     });
     return sections;
   }
@@ -899,6 +925,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Надеть сумку в конкретный слот; то, что там было, снимается */
   async _equipBag(item, slot) {
+    await this._pinBags();
     const { bySlot, slotOf } = this._bagAssignment();
     const occupant = bySlot[slot];
     const from = slotOf.get(item.id);
@@ -1331,10 +1358,20 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** Снять всё, что сейчас в слоте */
+  /** Закрепить текущие слоты сумок во флагах, чтобы при снятии одной остальные не съезжали */
+  async _pinBags() {
+    const { slotOf } = this._bagAssignment();
+    const updates = [...slotOf]
+      .filter(([id, slot]) => this.actor.items.get(id)?.flags?.[MODULE_ID]?.bagSlot !== slot)
+      .map(([id, slot]) => ({ _id: id, [`flags.${MODULE_ID}.bagSlot`]: slot }));
+    if (updates.length) await this.actor.updateEmbeddedDocuments("Item", updates);
+  }
+
   async _clearSlot(slot) {
     if (!this.editable) return;
     const { current } = this._swapCandidates(slot);
     if (!current.length) return;
+    if (isBagSlot(slot)) await this._pinBags();
     try {
       await this.actor.updateEmbeddedDocuments(
         "Item",
@@ -1348,6 +1385,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _unequip(item) {
     if (!this.editable || !item?.system?.isEquipped) return;
     try {
+      if (item.type === "container") await this._pinBags();
       await item.update({ "system.equipped.value": false });
     } catch (err) {
       console.warn(`${MODULE_ID} | unequip failed`, err);
@@ -1505,8 +1543,44 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
+    // Иконка сумки в заголовке раздела - как слот: клик открывает список смены сумки
+    if (this.editable) {
+      for (const icon of root.querySelectorAll(".pd-bagsec-icon[data-slot]")) {
+        const slot = icon.dataset.slot;
+        icon.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          PaperdollTooltip.hide();
+          if (PaperdollFlyout.isOpenFor(this, slot)) PaperdollFlyout.close();
+          else PaperdollFlyout.open(this, slot, icon);
+        });
+      }
+    }
+
     // Разделы сумок: перетащил в раздел - переложил в эту сумку (или «при себе»)
     for (const sec of root.querySelectorAll(".pd-bagsec")) {
+      const freeSlot = sec.dataset.freeSlot;
+      if (freeSlot) {
+        // Свободный слот сумки: сюда можно бросить сумку, чтобы надеть
+        sec.addEventListener("dragover", (ev) => {
+          if (!this.editable) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          sec.classList.add("is-drop");
+        });
+        sec.addEventListener("dragleave", (ev) => {
+          if (!sec.contains(ev.relatedTarget)) sec.classList.remove("is-drop");
+        });
+        sec.addEventListener("drop", async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          sec.classList.remove("is-drop");
+          const item = await this._resolveDropItem(ev);
+          this._onDragEnd();
+          if (item) this._equipTo(item, freeSlot);
+        });
+        continue;
+      }
       const containerId = sec.dataset.container ?? "";
       sec.addEventListener("dragover", (ev) => {
         if (!this.editable) return;
@@ -1950,7 +2024,7 @@ class PaperdollFlyout {
     }
 
     this._onDocPointer = (ev) => {
-      if (el.contains(ev.target) || ev.target.closest?.(".pd-slot-frame")) return;
+      if (el.contains(ev.target) || ev.target.closest?.(".pd-slot-frame, .pd-bagsec-icon")) return;
       this.close();
     };
     this._onKey = (ev) => {
