@@ -66,10 +66,10 @@ const SLOT_ART = {
   bag3: "slot-bag",
   main: "slot-main",
   off: "slot-off",
-  hand3: "slot-main",
-  hand4: "slot-main",
-  head2: "slot-head",
-  head3: "slot-head"
+  hand3: "slot-hand-extra",
+  hand4: "slot-hand-extra",
+  head2: "slot-head-extra",
+  head3: "slot-head-extra"
 };
 
 /** Статьи правил для строк вкладки «Характеристики»: как они называются в журналах wfrp4e-core */
@@ -89,7 +89,7 @@ const ARTICLE_TERMS = {
 /** Иконки категорий во вкладке «Характеристики» */
 /** Что можно показать второй полосой под моделью */
 const SECOND_BARS = ["fortune", "resolve", "corruption", "advantage", "xp"];
-const STAT_ART = { tree: "stat-body", general: "stat-general", experience: "stat-experience", career: "stat-experience", skills: "stat-mind", talents: "stat-talents", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
+const STAT_ART = { tree: "stat-tree", general: "stat-general", experience: "stat-experience", career: "stat-career", skills: "stat-skills", talents: "stat-talents", physical: "stat-body", mental: "stat-mind", combat: "stat-combat", defence: "stat-defence", fate: "stat-fate" };
 
 /* -------------------------------------------- */
 /*  Конечности: ампутации, переломы, протезы    */
