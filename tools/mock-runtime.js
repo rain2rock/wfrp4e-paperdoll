@@ -360,7 +360,7 @@
             talents: c.talents ?? []
           }
         })),
-        ...(data.talents ?? []).map((t, i) => ({ id: `talent-${i}`, name: t.name ?? t, type: "talent", system: { advances: { value: t.advances ?? 1 }, max: { value: t.max ?? "1" } } })),
+        ...(data.talents ?? []).map((t, i) => ({ id: `talent-${i}`, name: t.name ?? t, img: t.img, type: "talent", system: { advances: { value: t.advances ?? 1 }, max: { value: t.max ?? "1" }, description: { value: t.desc ?? "" } } })),
         ...(data.spells ?? []).map((name, i) => ({ id: `spell-${i}`, name, type: "spell", system: {} }))
       ];
       this._hasSkills = extra.some((e) => e.type === "skill");

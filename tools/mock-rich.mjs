@@ -74,6 +74,12 @@ const TALENTS = [
   ["Warleader", 1, "fel"], ["Enclosed Fighter", 1, "dex"], ["Very Strong", 1, "1"], ["Very Resilient", 1, "1"], ["Robust", 1, "t"],
   ["Rapid Reload", 2, "dex"], ["Marksman", 1, "1"], ["Strong Back", 1, "s"], ["Iron Will", 1, "wp"], ["Disarm", 1, "i"]
 ];
+const TALENT_DESC = {
+  "Strike Mighty Blow": "<p>You know how to hit hard! Your melee strikes deal +1 Damage for every level of this Talent.</p>",
+  "Hardy": "<p>You gain a permanent addition to your Wounds equal to your Toughness Bonus. If your Toughness Bonus should increase, then the number of Wounds Hardy provides also increases.</p>",
+  "Combat Aware": "<p>You are used to scanning the battlefield to make snap decisions informed by the shifting tides of war. You may take a Challenging (+0) Perception Test to ignore Surprise, which is modified by circumstance as normal.</p>",
+  "Warrior Born": "<p>You gain a permanent +5 bonus to your starting Weapon Skill, which does not count towards your Advances.</p>"
+};
 const CAREER = [
   { name: "Рекрут", group: "Солдат", level: 1, chars: ["ws", "t", "wp"], skills: ["Athletics", "Climb", "Cool", "Dodge", "Endurance", "Language (Battle)", "Melee (Basic)", "Play (Drum)"], talents: ["Diceman", "Marksman", "Strong Back", "Warrior Born"] },
   { name: "Солдат", group: "Солдат", level: 2, chars: ["ws", "t", "wp", "bs"], skills: ["Consume Alcohol", "Gamble", "Gossip", "Melee (Any)", "Ranged (Any)", "Outdoor Survival"], talents: ["Diceman", "Etiquette (Soldiers)", "Rapid Reload", "Strike Mighty Blow"] },
@@ -87,7 +93,7 @@ export const RICH = {
   career: { name: "Офицер", level: 4, class: "Воины" },
   careers: CAREER.map((c, i) => ({ ...c, ...(i < 3 ? { complete: true } : { current: true }) })),
   skills: SKILLS.map(([name, chk, adv]) => ({ name, ch: chk, adv })),
-  talents: TALENTS.map(([name, advances, max]) => ({ name, advances, max })),
+  talents: TALENTS.map(([name, advances, max]) => ({ name, advances, max, desc: TALENT_DESC[name] })),
   system: {
     characteristics: { ws: ch(38, 20), bs: ch(33, 15), s: ch(36, 10), t: ch(37, 15), i: ch(35, 15), ag: ch(32, 5), dex: ch(30), int: ch(31, 5), wp: ch(34, 20), fel: ch(33, 15) },
     status: {

@@ -234,7 +234,10 @@
       "ShortAmbidextrous": "Ambidextrous {n}",
       "ShortDualWielder": "Dual Wielder",
       "Level": "Level {lvl} of {max}",
-      "LevelNoMax": "Level {lvl}, no limit"
+      "LevelNoMax": "Level {lvl}, no limit",
+      "Loading": "Looking up the description…",
+      "NoText": "No description on the sheet or in the compendiums",
+      "Hint": "Book icon on the right - rules article"
     },
     "Bags": {
       "Worn": "Bags",

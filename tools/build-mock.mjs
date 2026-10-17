@@ -166,6 +166,18 @@ function finishActor(actor) {
     if (f) actor = { ...actor, career: { ...c, img: dataUri(f) } };
   }
   actor = { ...actor, items: actor.items.map(withOwnIcon) };
+  // Таланты: путь иконки как в wfrp4e-core, свою иконку модуль подставит сам
+  actor = {
+    ...actor,
+    talents: (actor.talents ?? []).map((t) => {
+      const name = t.name ?? t;
+      const slug = String(name).toLowerCase().replace(/\s*\([^)]*\)\s*$/, "").replace(/[^a-z!]+/g, "-").replace(/^-|-$/g, "");
+      const rel = `talents/${slug}.png`;
+      if (!OVERRIDES.has(rel)) return t;
+      assetUri(`icons/${rel}`);
+      return { ...(typeof t === "string" ? { name } : t), img: `modules/wfrp4e-core/icons/${rel}` };
+    })
+  };
   if (!(ROOTS.icons || ROOTS.core)) {
     const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"], money: ["🪙", "#6a5a20"] };
     actor = {

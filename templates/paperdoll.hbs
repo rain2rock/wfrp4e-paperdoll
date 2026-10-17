@@ -208,7 +208,7 @@
         {{#each rows}}
         <div class="pd-ecs-row {{#if child}}is-child{{/if}} {{#if derived}}is-derived{{/if}} {{cls}}">
           {{!-- подсказка - только над текстом и числом, а не над всей строкой --}}
-          <span class="pd-ecs-main" {{#if hint}}title="{{hint}}"{{/if}}>
+          <span class="pd-ecs-main" {{#if talentId}}data-talent="{{talentId}}" data-lvl="{{talentLvl}}"{{else}}{{#if hint}}title="{{hint}}"{{/if}}{{/if}}>
           <span class="pd-ecs-label">{{label}}</span>
           {{#if parts}}<span class="pd-parts" title="{{localize "WFRPPD.Stats.PartsHint"}}"><i>{{localize "WFRPPD.Stats.PartI"}}</i>{{parts.i}}+<i>{{localize "WFRPPD.Stats.PartA"}}</i>{{parts.a}}+<i>{{localize "WFRPPD.Stats.PartM"}}</i>{{parts.m}}=</span>{{/if}}
           <span class="pd-ecs-value {{cls}}">{{value}}</span>

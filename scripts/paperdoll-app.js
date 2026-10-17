@@ -503,6 +503,9 @@ function playCoinSound(gain = true) {
 
 export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
+  /** Описания талантов из библиотеки: имя -> текст */
+  static _talentLib = new Map();
+
   static instances = new Map();
 
   static uiState = { filter: "all", tab: "bag", statPanels: ["physical", "fate"], sort: "default", view: "grid", statsView: "list" };
@@ -1007,6 +1010,57 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** Максимальный уровень таланта (число или null, если без предела) */
+  /** Описание таланта из самого предмета (без разметки) */
+  _talentText(t) {
+    const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > 20 ? text : "";
+  }
+
+  /** Описание из библиотеки: талант с тем же названием в компендиумах предметов (кэш на сессию) */
+  async _loadTalentText(t) {
+    const key = norm(t.name);
+    const lib = PaperdollApp._talentLib;
+    if (lib.has(key)) return lib.get(key);
+    lib.set(key, "");
+    const base = (n) => norm(String(n ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
+    try {
+      for (const pack of game.packs ?? []) {
+        if (pack.documentName !== "Item") continue;
+        const index = await pack.getIndex({ fields: ["type"] });
+        const hit = index.find((e) => (e.type ?? "talent") === "talent" && norm(e.name) === key) ?? index.find((e) => (e.type ?? "talent") === "talent" && base(e.name) === base(t.name));
+        if (!hit) continue;
+        const doc = await pack.getDocument(hit._id);
+        const text = this._talentText(doc);
+        if (text) {
+          lib.set(key, text);
+          break;
+        }
+      }
+    } catch (err) {
+      console.warn("wfrp4e-paperdoll | talent description", err);
+    }
+    return lib.get(key);
+  }
+
+  /** Подсказка таланта: крупная иконка, название, уровень и описание */
+  _talentTooltip(t, lvl) {
+    const L = (k) => game.i18n.localize(k);
+    const max = this._talentMax(t);
+    const level = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });
+    const text = this._talentText(t) || PaperdollApp._talentLib.get(norm(t.name)) || "";
+    const short = text.length > 900 ? `${text.slice(0, 900).trim()}…` : text;
+    const loading = !text && !PaperdollApp._talentLib.has(norm(t.name));
+    return `
+      <div class="pd-tt-head">
+        <div class="pd-tt-icon rarity-${max && lvl >= max ? "rare" : "common"}"><img src="${esc(itemImg(t.img, t.name))}" alt=""></div>
+        <div class="pd-tt-title">
+          <div class="pd-tt-name">${esc(T(t.name))}</div>
+          <div class="pd-tt-sub">${esc(L("WFRPPD.Career.Talent"))} · ${esc(level)}</div>
+        </div>
+      </div>
+      ${short ? `<div class="pd-tt-text pd-tr">${esc(short)}</div>` : `<div class="pd-tt-more">${esc(L(loading ? "WFRPPD.Talent.Loading" : "WFRPPD.Talent.NoText"))}</div>`}`;
+  }
+
   _talentMax(t) {
     const sys = t.system;
     const direct = safe(() => sys.Max, null);
@@ -1356,6 +1410,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           const head = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });
           return {
             key: t.name,
+            talentId: t.id,
+            talentLvl: lvl,
             label: T(t.name),
             value: max ? `${lvl} / ${max}` : String(lvl),
             cls: max && lvl >= max ? "is-max" : "",
@@ -2848,6 +2904,24 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this._saveUiState();
         this.render();
       });
+    }
+
+    // Таланты: подсказка как у вещи - крупная иконка и описание (из листа или из библиотеки)
+    for (const el of root.querySelectorAll(".pd-ecs-main[data-talent]")) {
+      const t = this.actor.items.get(el.dataset.talent);
+      if (!t) continue;
+      el.addEventListener("pointerover", (ev) => ev.stopPropagation());
+      el.addEventListener("pointerenter", async (ev) => {
+        const lvl = Number(el.dataset.lvl) || 1;
+        PaperdollTooltip.showHtml(this._talentTooltip(t, lvl), ev);
+        // Описания в листе нет - ищем в библиотеке и дорисовываем, если подсказка ещё на этом таланте
+        if (!this._talentText(t) && !PaperdollApp._talentLib.has(norm(t.name))) {
+          await this._loadTalentText(t);
+          if (el.matches(":hover")) PaperdollTooltip.showHtml(this._talentTooltip(t, lvl), ev);
+        }
+      });
+      el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+      el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
     }
 
     // Значок травмы на слоте: подсказка с крупной картинкой
