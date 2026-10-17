@@ -302,6 +302,8 @@ const SOLDIER = [
     talents: ["Combat Aware", "Enclosed Fighter", "Unshakable", "Warleader"] }
 ];
 
+import { RICH } from "./mock-rich.mjs";
+
 export const CAST = [
   {
     id: "merc",
@@ -435,5 +437,6 @@ export const CAST = [
       { id: "v-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
         system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 } }) }
     ]
-  }
+  },
+  { ...RICH, img: portrait }
 ];
