@@ -794,7 +794,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ? game.i18n.format("WFRPPD.Bags.Overflow", { names: bagAssign.overflow.map((i) => i.name).join(", ") })
         : "",
       filters,
-      sortOptions: ["default", "rarity-desc", "rarity-asc", "name-asc", "name-desc"].map((key) => ({
+      sortOptions: ["default", "type", "rarity-desc", "rarity-asc", "name-asc", "name-desc"].map((key) => ({
         key,
         label: L(`WFRPPD.Sort.${key}`),
         active: key === this._sort
@@ -1190,12 +1190,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           .join("\n")
       };
     };
-    const row = (labelKey, value, cls = "") => ({
-      key: labelKey,
-      label: L(labelKey),
-      value: value === undefined || value === null || value === "" ? "-" : value,
-      cls
-    });
+    // Как в WoW: прибавка от вещей и эффектов - зелёным, потеря - красным, ноль и прочерк - серым
+    const row = (labelKey, value, cls = "") => {
+      const v = value === undefined || value === null || value === "" ? "-" : value;
+      return { key: labelKey, label: L(labelKey), value: v, cls: cls || (v === "-" || v === 0 || v === "0" ? "is-zero" : "") };
+    };
     const pair = (a, b) => (a === undefined || a === null ? "-" : `${a} / ${b ?? "-"}`);
     const profile = this._profile();
     const dmg = (items) => {
@@ -1205,6 +1204,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return d === null ? "-" : `+${d}`;
     };
     const ap = (loc) => st.armour?.[loc]?.value ?? 0;
+    // Броня целиком от надетого: есть очки - зелёным, нет - серым
+    const apCls = (...locs) => (locs.some((l) => Number(ap(l)) > 0) ? "is-up" : "is-zero");
     const ranged = weapons.find((w) => safe(() => w.system.isRanged));
 
     const wounds = st.wounds ?? {};
@@ -1220,10 +1221,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       defence: [
         row("WFRPPD.Wounds", pair(wounds.value, wounds.max), woundsCls),
         row("WFRPPD.Stats.Crits", pair(st.criticalWounds?.value ?? 0, st.criticalWounds?.max), (st.criticalWounds?.value ?? 0) > 0 ? "is-down" : ""),
-        row(cfg.locations?.head ?? "head", ap("head"), "is-armour"),
-        row(cfg.locations?.body ?? "body", ap("body"), "is-armour"),
-        row("WFRPPD.Stats.Arms", `${ap("rArm")} / ${ap("lArm")}`, "is-armour"),
-        row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, "is-armour"),
+        row(cfg.locations?.head ?? "head", ap("head"), apCls("head")),
+        row(cfg.locations?.body ?? "body", ap("body"), apCls("body")),
+        row("WFRPPD.Stats.Arms", `${ap("rArm")} / ${ap("lArm")}`, apCls("rArm", "lArm")),
+        row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, apCls("rLeg", "lLeg")),
         ...(() => {
           const profile = this._profile();
           if (!profile.caster) return [];
@@ -1264,12 +1265,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const det = sys.details ?? {};
     const exp = det.experience;
     const enc = sys.status?.encumbrance ?? {};
-    const row = (labelKey, value, cls = "") => ({
-      key: labelKey,
-      label: L(labelKey),
-      value: value === undefined || value === null || value === "" ? "-" : value,
-      cls
-    });
+    // Как в WoW: прибавка от вещей и эффектов - зелёным, потеря - красным, ноль и прочерк - серым
+    const row = (labelKey, value, cls = "") => {
+      const v = value === undefined || value === null || value === "" ? "-" : value;
+      return { key: labelKey, label: L(labelKey), value: v, cls: cls || (v === "-" || v === 0 || v === "0" ? "is-zero" : "") };
+    };
 
     const cats = [
       {
@@ -1765,7 +1765,19 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Сортировка вещей внутри разделов: по редкости или по алфавиту
     const rank = (i) => RARITY_RANK[i.system.availability?.value] ?? 0;
     const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
+    // По типу: оружие ближнего боя, стрелковое, боеприпасы, броня (сверху вниз), одежда, сумки, остальное
+    const typeRank = (i) => {
+      const sys = i.system;
+      if (i.type === "weapon") return safe(() => sys.isRanged) ? 1 : 0;
+      if (i.type === "ammunition") return 2;
+      if (i.type === "armour") return 3 + (["head", "body", "rArm", "lArm", "rLeg", "lLeg"].findIndex((l) => sys.protects?.[l] || (sys.AP?.[l] ?? 0) > 0) + 1) / 10;
+      if (i.type === "trapping" && sys.trappingType?.value === "clothingAccessories") return 4;
+      if (i.type === "container") return 5;
+      if (i.type === "trapping") return 6 + (String(sys.trappingType?.value ?? "misc").charCodeAt(0) % 20) / 100;
+      return 7;
+    };
     const sorters = {
+      type: (a, b) => typeRank(a) - typeRank(b) || byName(a, b),
       "rarity-desc": (a, b) => rank(b) - rank(a) || byName(a, b),
       "rarity-asc": (a, b) => rank(a) - rank(b) || byName(a, b),
       "name-asc": byName,
@@ -2660,7 +2672,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static onSetFilter(event, target) {
-    this._filter = target.dataset.filter ?? "all";
+    const f = target.dataset.filter ?? "all";
+    // Повторный клик по активному фильтру - сброс на «Всё»
+    this._filter = f === this._filter ? "all" : f;
     this._saveUiState();
     this.render();
   }
@@ -3106,11 +3120,115 @@ class PaperdollTooltip {
   static show(item, event, app = null) {
     const el = this.ensure();
     this.mode = "item";
+    this.current = { item, app };
+    this.lastEvent = event;
+    this.bindCompareKeys();
     el.className = `wfrp-paperdoll-tooltip ${themeClass()}`;
     el.innerHTML = this.build(item, app);
     el.classList.add("is-visible");
     this.move(event);
     this.translate(el, event);
+    if (event?.shiftKey) this.showCompare();
+    else this.hideCompare();
+  }
+
+  /* ---------- Сравнение с надетым (Shift, как в WoW) ---------- */
+
+  /** Надетые вещи в тех же слотах: оружие - в руках, броня - на тех же частях тела */
+  static compareTargets(item, app) {
+    const sys = item?.system;
+    if (!sys || sys.isEquipped || !app?.actor) return [];
+    const equipped = (app.actor.items ?? []).filter((i) => i.id !== item.id && i.type === item.type && i.system?.isEquipped);
+    if (item.type === "weapon") return equipped.slice(0, 2);
+    if (item.type === "armour") {
+      const locs = (o) => LOCATIONS.filter((l) => o.system.protects?.[l] || (o.system.AP?.[l] ?? 0) > 0);
+      const mine = locs(item);
+      return equipped.filter((a) => locs(a).some((l) => mine.includes(l))).slice(0, 2);
+    }
+    return [];
+  }
+
+  /** Число урона: «SB+4» -> 4, «+9» -> 9 */
+  static dmgNum(w) {
+    const v = String(safe(() => w.system.damage?.value, "") ?? "");
+    const m = v.match(/[+-]?\s*\d+/);
+    return { sb: /SB|БС/i.test(v), n: m ? Number(m[0].replace(/\s/g, "")) : 0 };
+  }
+
+  /** Что изменится, если надеть item вместо other */
+  static diffLines(item, other) {
+    const L = (k) => game.i18n.localize(k);
+    const out = [];
+    const sign = (d) => (d > 0 ? `+${d}` : `${d}`);
+    if (item.type === "weapon") {
+      const a = this.dmgNum(item), b = this.dmgNum(other);
+      if (a.sb === b.sb && a.n !== b.n) out.push([a.n - b.n, `${sign(a.n - b.n)} ${L("WFRPPD.Tooltip.CmpDamage")}`]);
+    } else if (item.type === "armour") {
+      const cfg = game.wfrp4e?.config ?? {};
+      for (const l of LOCATIONS) {
+        const d = (Number(item.system.AP?.[l]) || 0) - (Number(other.system.AP?.[l]) || 0);
+        if (d) out.push([d, `${sign(d)} ${game.i18n.format("WFRPPD.Tooltip.CmpAP", { loc: L(cfg.locations?.[l] ?? l) })}`]);
+      }
+    }
+    return out;
+  }
+
+  static showCompare() {
+    const cur = this.current;
+    if (this.mode !== "item" || !cur) return this.hideCompare();
+    const targets = this.compareTargets(cur.item, cur.app);
+    if (!targets.length) return this.hideCompare();
+    const L = (k) => game.i18n.localize(k);
+    this.cmpEls ??= [];
+    while (this.cmpEls.length < targets.length) {
+      const e = document.createElement("div");
+      document.body.append(e);
+      this.cmpEls.push(e);
+    }
+    this.cmpEls.forEach((e, i) => {
+      const other = targets[i];
+      if (!other) return e.classList.remove("is-visible");
+      const diff = this.diffLines(cur.item, other);
+      const diffHtml = diff.length
+        ? `<div class="pd-cmp-diff"><div class="pd-cmp-title">${esc(L("WFRPPD.Tooltip.CompareTitle"))}</div>${diff
+            .map(([d, t]) => `<div class="${d > 0 ? "is-up" : "is-down"}">${esc(t)}</div>`)
+            .join("")}</div>`
+        : "";
+      e.className = `wfrp-paperdoll-tooltip ${themeClass()} is-compare is-visible`;
+      e.innerHTML = `<div class="pd-cmp-head">${esc(L("WFRPPD.Tooltip.CurrentlyEquipped"))}</div>${this.build(other, null)}${diffHtml}`;
+    });
+    this.placeCompare();
+  }
+
+  static hideCompare() {
+    for (const e of this.cmpEls ?? []) e.classList.remove("is-visible");
+  }
+
+  /** Карточки надетого - вплотную слева от основной подсказки (не влезает - справа) */
+  static placeCompare() {
+    const main = this.el?.getBoundingClientRect();
+    if (!main) return;
+    const cards = (this.cmpEls ?? []).filter((e) => e.classList.contains("is-visible"));
+    const widths = cards.map((e) => e.getBoundingClientRect().width);
+    const total = widths.reduce((a, b) => a + b + 4, 0);
+    let x = main.left - total >= 8 ? main.left - total : main.right + 4;
+    for (const [i, e] of cards.entries()) {
+      const h = e.getBoundingClientRect().height;
+      e.style.left = `${x}px`;
+      e.style.top = `${Math.max(8, Math.min(main.top, window.innerHeight - h - 8))}px`;
+      x += widths[i] + 4;
+    }
+  }
+
+  static bindCompareKeys() {
+    if (this._cmpKeys) return;
+    this._cmpKeys = true;
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Shift" && !ev.repeat && this.mode === "item") this.showCompare();
+    });
+    document.addEventListener("keyup", (ev) => {
+      if (ev.key === "Shift") this.hideCompare();
+    });
   }
 
   /**
@@ -3156,10 +3274,13 @@ class PaperdollTooltip {
     if (y + rect.height > vh - 8) y = Math.max(8, vh - rect.height - 8);
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
+    if (this.cmpEls?.some((e) => e.classList.contains("is-visible"))) this.placeCompare();
   }
 
   static hide() {
     this.el?.classList.remove("is-visible");
+    this.hideCompare();
+    this.current = null;
     this.mode = null;
   }
 
@@ -3377,7 +3498,8 @@ class PaperdollTooltip {
 
     // Двойной клик имеет смысл только для того, что вообще можно надеть
     const wearable = !!sys.isEquippable && safe(() => sys.canEquip, true) !== false;
-    lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}</div>`);
+    const cmpHint = app && this.compareTargets(item, app).length ? ` · ${L("WFRPPD.Tooltip.CompareHint")}` : "";
+    lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}${esc(cmpHint)}</div>`);
     return lines.join("");
   }
 

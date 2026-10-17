@@ -52,7 +52,12 @@
       "Legs": "Legs",
       "UnderLayer": "Can be worn under other armour",
       "Ammo": "Ammunition",
-      "Yards": "{n} yd"
+      "Yards": "{n} yd",
+      "CurrentlyEquipped": "Currently equipped",
+      "CompareTitle": "If you replace this item:",
+      "CompareHint": "Shift - compare with equipped",
+      "CmpDamage": "Damage",
+      "CmpAP": "Armour: {loc}"
     },
     "Money": {
       "gc": "GC",
@@ -282,6 +287,7 @@
     "Sort": {
       "Title": "Sorting",
       "default": "As in the sheet",
+      "type": "By type",
       "rarity-desc": "Rarest first",
       "rarity-asc": "Common first",
       "name-asc": "Name A-Z",

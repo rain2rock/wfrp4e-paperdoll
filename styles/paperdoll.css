@@ -2532,3 +2532,20 @@
 /* Прокачка: навыки вне карьеры видны, но приглушены */
 .wfrp-paperdoll .pd-ecs-row.is-child.is-outcareer .pd-ecs-label,
 .wfrp-paperdoll .pd-ecs-row.is-child.is-outcareer .pd-ecs-value { opacity: 0.55; }
+
+/* Сравнение с надетым (Shift над вещью в сумке) */
+.wfrp-paperdoll-tooltip.is-compare .pd-tt-hint { display: none; }
+.wfrp-paperdoll-tooltip .pd-cmp-head {
+  margin: -2px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pd-muted);
+}
+.wfrp-paperdoll-tooltip .pd-cmp-diff { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(0, 0, 0, 0.15); font-size: 13px; }
+.wfrp-paperdoll-tooltip .pd-cmp-title { color: #a8740a; font-weight: 600; margin-bottom: 2px; }
+.wfrp-paperdoll-tooltip .pd-cmp-diff .is-up { color: var(--pd-up); }
+.wfrp-paperdoll-tooltip .pd-cmp-diff .is-down { color: var(--pd-bad); }
+
+/* Как в WoW: ноль и прочерк - серым */
+.wfrp-paperdoll span.is-zero { color: var(--pd-muted); }

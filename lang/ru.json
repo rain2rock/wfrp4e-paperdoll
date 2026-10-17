@@ -52,7 +52,12 @@
       "Legs": "Ноги",
       "UnderLayer": "Можно поддеть под доспех",
       "Ammo": "Боеприпасы",
-      "Yards": "{n} ярдов"
+      "Yards": "{n} ярдов",
+      "CurrentlyEquipped": "Сейчас надето",
+      "CompareTitle": "Если надеть вместо этого:",
+      "CompareHint": "Shift - сравнить с надетым",
+      "CmpDamage": "Урон",
+      "CmpAP": "Броня: {loc}"
     },
     "Money": {
       "gc": "зк",
@@ -282,6 +287,7 @@
     "Sort": {
       "Title": "Сортировка",
       "default": "Как в листе",
+      "type": "По типу",
       "rarity-desc": "Сначала редкое",
       "rarity-asc": "Сначала обычное",
       "name-asc": "По алфавиту А-Я",
