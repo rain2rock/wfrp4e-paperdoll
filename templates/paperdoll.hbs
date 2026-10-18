@@ -80,6 +80,12 @@
             <div class="pd-vital pd-vital--wounds {{vitals.wounds.state}}" title="{{vitals.wounds.hint}}">
               <div class="pd-vital-fill" style="width: {{vitals.wounds.pct}}%"></div>
               <span>{{localize "WFRPPD.Wounds"}} {{vitals.wounds.value}} / {{vitals.wounds.max}} · {{vitals.wounds.status}}</span>
+              {{#if editable}}<button type="button" class="pd-rest" title="{{localize "WFRPPD.Rest.Title"}}" aria-label="{{localize "WFRPPD.Rest.Title"}}">⟲</button>
+              <div class="pd-sortmenu pd-restmenu">
+                <div class="pd-sortmenu-title">{{localize "WFRPPD.Rest.Title"}}</div>
+                <button type="button" class="pd-sortopt" data-rest="night">{{localize "WFRPPD.Rest.Night"}}</button>
+                <button type="button" class="pd-sortopt" data-rest="day">{{localize "WFRPPD.Rest.Day"}}</button>
+              </div>{{/if}}
             </div>
             <div class="pd-vital pd-vital--second pd-vital--{{vitals.second.kind}}" title="{{vitals.second.hint}}">
               <div class="pd-vital-fill" style="width: {{vitals.second.pct}}%"></div>
@@ -204,7 +210,19 @@
       </div>
       {{#each statCategories}}
       <div class="pd-ecs-cat pd-ecs-cat--{{key}}">
-        <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}</div>
+        <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}
+          {{#if offers.length}}<button type="button" class="pd-talent-add" title="{{offersHint}}" aria-label="+">+</button>
+          <div class="pd-talentmenu {{#if offersOpen}}is-open{{/if}}">
+            <div class="pd-sortmenu-title">{{localize "WFRPPD.TalentBuy.Title"}}</div>
+            {{#each offers}}
+            <button type="button" class="pd-talentopt {{#unless can}}is-off{{/unless}}" data-buy="{{name}}">
+              <img src="{{img}}" alt="">
+              <span class="pd-talentopt-body"><b>{{label}}</b> <i>{{lvl}}{{#if max}} / {{max}}{{/if}}</i><span class="pd-talentopt-cost">{{#if capped}}max{{else}}{{cost}}{{/if}}</span>
+                {{#if text}}<small>{{text}}</small>{{/if}}</span>
+            </button>
+            {{/each}}
+          </div>{{/if}}
+        </div>
         {{#each rows}}
         <div class="pd-ecs-row {{#if child}}is-child{{/if}} {{#if derived}}is-derived{{/if}} {{cls}}">
           {{!-- подсказка - только над текстом и числом, а не над всей строкой --}}

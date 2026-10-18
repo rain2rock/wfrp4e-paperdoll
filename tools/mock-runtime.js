@@ -268,6 +268,9 @@
     get sheet() {
       return { render: () => toast(`ПКМ: в Foundry тут откроется лист «${this.name}»`, "info") };
     }
+    toObject() {
+      return JSON.parse(JSON.stringify({ name: this.name, type: this.type, img: this.img, system: this.system, flags: this.flags }));
+    }
     toDragData() {
       return { type: "Item", uuid: this.uuid };
     }
@@ -386,6 +389,13 @@
       });
       this.prepare();
     }
+    async createEmbeddedDocuments(type, list) {
+      const made = list.map((d, i) => new FakeItem(this, { ...JSON.parse(JSON.stringify(d)), id: `new-${Date.now()}-${i}` }));
+      this.items.push(...made);
+      Hooks.call("createItem", made[0]);
+      window.PaperdollApp?.renderAll?.();
+      return made;
+    }
     get itemTypes() {
       const out = {};
       for (const i of this.items) (out[i.type] ??= []).push(i);
@@ -480,4 +490,6 @@
     }
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
+  globalThis.Roll ??= class { constructor(f) { this.formula = f; } async evaluate() { this.total = 1 + Math.floor(Math.random() * 100); return this; } };
+  globalThis.ChatMessage ??= { getSpeaker: () => ({}), create: async (d) => toast(String(d.content).replace(/<[^>]+>/g, " "), "info") };
 })();

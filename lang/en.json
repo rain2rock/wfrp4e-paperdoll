@@ -482,6 +482,30 @@
         "fel": "how many people you can sway or lead (Charm, Leadership)"
       },
       "Affects": "Affects"
+    },
+    "Unarmed": {
+      "Name": "Unarmed - fists",
+      "Damage": "Damage",
+      "Formula": "SB+0",
+      "Group": "Group",
+      "Brawling": "Brawling",
+      "Quality": "Quality",
+      "Undamaging": "Undamaging",
+      "Note": "An empty hand punches; this 'weapon' can't be removed"
+    },
+    "TalentBuy": {
+      "Title": "Career level talents",
+      "Click": "Click + to choose and buy with XP",
+      "Log": "Talent: {name} → {to}"
+    },
+    "Rest": {
+      "Title": "Rest and recover",
+      "Night": "Night of sleep: Endurance +20, heals TB + SL",
+      "Day": "Night + day of rest: +TB more",
+      "Roll": "Roll {r} vs {target}, SL {sl}",
+      "Success": "Success.",
+      "Fail": "Failure.",
+      "Healed": "Wounds recovered: {n} ({now} / {max})"
     }
   }
 }

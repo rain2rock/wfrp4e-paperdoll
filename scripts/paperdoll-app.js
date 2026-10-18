@@ -18,6 +18,22 @@ const LOCATIONS = ["head", "body", "rArm", "lArm", "rLeg", "lLeg"];
 export const asset = (rel) => globalThis.__PD_ASSETS__?.[rel] ?? `modules/${MODULE_ID}/assets/${rel}`;
 /** Картинка интерфейса из assets/ui */
 export const uiArt = (name) => asset(`ui/${name}.png`);
+/** Картинка не загрузилась - ставим знак вопроса (один раз, без зацикливания) */
+export const bindMissingImages = (root) => {
+  if (!root || root._pdMissingBound) return;
+  root._pdMissingBound = true;
+  root.addEventListener(
+    "error",
+    (ev) => {
+      const img = ev.target;
+      if (img?.tagName !== "IMG" || img.dataset.pdMissing) return;
+      if (!img.closest?.(".wfrp-paperdoll, .wfrp-paperdoll-tooltip, .wfrp-paperdoll-flyout")) return;
+      img.dataset.pdMissing = "1";
+      img.src = uiArt("ui-missing");
+    },
+    true
+  );
+};
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
 export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false, showAllSkills: false };
@@ -46,6 +62,7 @@ const CORE_ICONS = "modules/wfrp4e-core/icons/";
  * Варианты (-fine, -flaw, dagger2) без своей картинки берут картинку базового предмета.
  */
 export function itemImg(img, name = "") {
+  if (!img) return uiArt("ui-missing");
   if (!img?.startsWith(CORE_ICONS) || !setting("itemIcons", true)) return img;
   const rel = ownIconFor(img.slice(CORE_ICONS.length), name, ICON_OVERRIDES);
   return rel ? asset(`icons/${rel}`) : img;
@@ -699,6 +716,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           // Двуручное при руке, которой нет: значок и на основной руке (держит, если ГМ разрешил)
           const otherLoc = this._handLoc(key === "main" ? "off" : "main");
           if (!slot.maim && key === "main" && twoHander && limbs[otherLoc].noHand) slot.maim = this._maimView(otherLoc, limbs);
+          // Пустая рука - это кулаки: оружие «без оружия» нельзя снять
+          if (!slot.top) slot.hint = this._unarmedHint();
           return ammoWarn(slot, key === "main" ? mainItems : offItems);
         }).concat(extra.hands.map(extraSlot))
       }
@@ -1010,6 +1029,126 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** Максимальный уровень таланта (число или null, если без предела) */
+  /** Таланты текущей ступени карьеры, которые можно взять или поднять (100 опыта + 100 за каждый взятый уровень) */
+  _talentOffers() {
+    const career = this._careerInfo();
+    if (!career) return [];
+    const exp = this.actor.system.details?.experience ?? {};
+    const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
+    const owned = this.actor.itemTypes.talent ?? [];
+    return [...new Set(career.talents ?? [])].map((name) => {
+      const mine = owned.filter((t) => skillMatches(t.name, name) || skillMatches(name, t.name));
+      const lvl = mine.reduce((n, t) => n + (Number(t.system.advances?.value) || 1), 0);
+      const max = mine[0] ? this._talentMax(mine[0]) : null;
+      const cost = 100 * (lvl + 1);
+      const capped = !!(max && lvl >= max);
+      const text = (mine[0] && this._talentText(mine[0])) || PaperdollApp._talentLib.get(norm(name)) || "";
+      return {
+        name,
+        label: T(name),
+        lvl,
+        max,
+        cost,
+        capped,
+        can: !capped && free >= cost,
+        img: itemImg(mine[0]?.img ?? null, name),
+        text: text.length > 220 ? `${text.slice(0, 220).trim()}…` : text,
+        itemId: mine[0]?.id ?? ""
+      };
+    });
+  }
+
+  /** Взять или поднять талант за опыт: копия своего таланта, иначе из компендиума, иначе пустой */
+  async _buyTalent(name) {
+    if (!this.editable) return;
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const offer = this._talentOffers().find((o) => o.name === name);
+    if (!offer || offer.capped) return;
+    const actor = this.actor;
+    const exp = actor.system.details?.experience ?? {};
+    const spent = Number(exp.spent) || 0;
+    const total = Number(exp.total) || 0;
+    if (total - spent < offer.cost) return ui.notifications?.warn(F("WFRPPD.Adv.NotEnoughMsg", { n: offer.cost - (total - spent) }));
+    let data = null;
+    const own = offer.itemId ? actor.items.get(offer.itemId) : null;
+    if (own) data = own.toObject();
+    else {
+      const base = (n) => norm(String(n ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
+      try {
+        for (const pack of game.packs ?? []) {
+          if (pack.documentName !== "Item") continue;
+          const index = await pack.getIndex({ fields: ["type"] });
+          const hit = index.find((e) => e.type === "talent" && norm(e.name) === norm(name)) ?? index.find((e) => e.type === "talent" && base(e.name) === base(name));
+          if (hit) {
+            data = (await pack.getDocument(hit._id)).toObject();
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn("wfrp4e-paperdoll | talent lookup", err);
+      }
+      data ??= { name, type: "talent", system: {} };
+      data.name = name;
+    }
+    delete data._id;
+    data.system ??= {};
+    data.system.advances = { ...(data.system.advances ?? {}), value: 1 };
+    await actor.createEmbeddedDocuments("Item", [data]);
+    const newSpent = spent + offer.cost;
+    const reason = F("WFRPPD.TalentBuy.Log", { name: offer.label, to: offer.lvl + 1 });
+    const update = { "system.details.experience.spent": newSpent };
+    const log = safe(() => actor.system.addToExpLog?.(offer.cost, reason, newSpent, total), null);
+    if (Array.isArray(log)) update["system.details.experience.log"] = log;
+    await actor.update(update);
+    ui.notifications?.info(reason);
+  }
+
+  /** Отдых и восстановление: проверка Стойкости (+20), успех - [БВ + УУ] ран, день полного покоя - ещё +БВ */
+  async _restRecover(fullDay = false) {
+    if (!this.editable) return;
+    const L = (k) => game.i18n.localize(k);
+    const F = (k, d) => game.i18n.format(k, d);
+    const actor = this.actor;
+    const t = actor.system.characteristics?.t ?? {};
+    const tb = Number(t.bonus ?? Math.floor((Number(t.value) || 0) / 10)) || 0;
+    const skill = (actor.itemTypes.skill ?? []).find((s) => /^(endurance|стойкость)$/i.test(s.name));
+    const base = Number(safe(() => skill.system.total?.value, null) ?? t.value) || 0;
+    const target = base + 20;
+    const roll = await new Roll("1d100").evaluate();
+    const r = roll.total;
+    const ok = r <= 5 || (r <= target && r < 96);
+    const sl = Math.floor(target / 10) - Math.floor(r / 10);
+    const w = actor.system.status?.wounds ?? {};
+    const max = Number(w.max) || 0;
+    const now = Number(w.value) || 0;
+    const heal = (ok ? tb + Math.max(0, sl) : 0) + (fullDay ? tb : 0);
+    const next = Math.min(max, now + heal);
+    if (next !== now) await actor.update({ "system.status.wounds.value": next });
+    const content = `<div class="wfrp-paperdoll-rest"><b>${esc(L("WFRPPD.Rest.Title"))}</b><br>${esc(
+      F("WFRPPD.Rest.Roll", { r, target, sl: sl > 0 ? `+${sl}` : sl })
+    )}<br><b>${esc(ok ? L("WFRPPD.Rest.Success") : L("WFRPPD.Rest.Fail"))}</b> ${esc(F("WFRPPD.Rest.Healed", { n: next - now, now: next, max }))}</div>`;
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor }), content, rolls: [roll] });
+  }
+
+  /** Урон кулаками: БС+0 (Щадящее) */
+  _unarmedDamage() {
+    const c = this.actor.system.characteristics?.s ?? {};
+    return Number(c.bonus ?? Math.floor((Number(c.value) || 0) / 10)) || 0;
+  }
+
+  /** Подсказка пустого слота оружия: персонаж бьёт кулаками */
+  _unarmedHint() {
+    const L = (k) => game.i18n.localize(k);
+    return [
+      L("WFRPPD.Unarmed.Name"),
+      `${L("WFRPPD.Unarmed.Damage")}\t+${this._unarmedDamage()} (${L("WFRPPD.Unarmed.Formula")})`,
+      `${L("WFRPPD.Unarmed.Group")}\t${L("WFRPPD.Unarmed.Brawling")}`,
+      `${L("WFRPPD.Unarmed.Quality")}\t${L("WFRPPD.Unarmed.Undamaging")}`,
+      `~ ${L("WFRPPD.Unarmed.Note")}`
+    ].join("\n");
+  }
+
   /** Описание таланта из самого предмета (без разметки) */
   _talentText(t) {
     const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -1251,9 +1390,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
     const pair = (a, b) => (a === undefined || a === null ? "-" : `${a} / ${b ?? "-"}`);
     const profile = this._profile();
-    const dmg = (items) => {
+    const dmg = (items, fists = false) => {
       const w = items[0];
-      if (!w) return "-";
+      // Пустые руки - кулаки (БС+0)
+      if (!w) return fists ? `+${this._unarmedDamage()}` : "-";
       const d = this._weaponDamage(w, profile);
       return d === null ? "-" : `+${d}`;
     };
@@ -1294,8 +1434,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         })()
       ],
       combat: [
-        row("WFRPPD.Stats.MainDmg", dmg(mainItems)),
-        row("WFRPPD.Stats.OffDmg", dmg(offItems)),
+        row("WFRPPD.Stats.MainDmg", dmg(mainItems, true)),
+        row("WFRPPD.Stats.OffDmg", dmg(offItems, !offItems.length && !mainItems.some((w) => w.system.twohanded?.value))),
         row("WFRPPD.Stats.RangedDmg", ranged ? dmg([ranged]) : "-"),
         row("WFRPPD.Stats.SB", chars.s?.bonus),
         row("WFRPPD.Stats.TB", chars.t?.bonus),
@@ -1401,9 +1541,15 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       else byName.set(k, { t, lvl: n });
     }
     const talents = [...byName.values()].sort((a, b) => T(a.t.name).localeCompare(T(b.t.name)));
-    if (talents.length) {
+    const offers = this.editable ? this._talentOffers() : [];
+    if (talents.length || offers.length) {
       cats.push({
         key: "talents",
+        offers,
+        offersOpen: !!this._talentMenuOpen,
+        offersHint: offers.length
+          ? [game.i18n.localize("WFRPPD.TalentBuy.Title"), ...offers.map((o) => `${o.can ? "·" : "!"} ${o.label} ${o.lvl}→${o.lvl + 1}\t${o.cost}`), `~ ${game.i18n.localize("WFRPPD.TalentBuy.Click")}`].join("\n")
+          : "",
         rows: talents.map(({ t, lvl }) => {
           const max = this._talentMax(t);
           const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -2724,7 +2870,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static onToggleSortMenu() {
     this._sortOpen = !this._sortOpen;
-    this.element.querySelector(".pd-sortmenu:not(.pd-barmenu)")?.classList.toggle("is-open", this._sortOpen);
+    this.element.querySelector(".pd-sort .pd-sortmenu")?.classList.toggle("is-open", this._sortOpen);
   }
 
   static onSetFilter(event, target) {
@@ -2773,6 +2919,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     await super._onRender(context, options);
     PaperdollTooltip.hide();
     const root = this.element;
+    // Битые и пропавшие картинки в окне, подсказках и списке смены - знак вопроса
+    bindMissingImages(document);
     root.classList.remove("pd-theme-dark", "pd-theme-parchment");
     root.classList.add(themeClass());
 
@@ -2815,7 +2963,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       root.addEventListener("pointerdown", (ev) => {
         if (this._sortOpen && !ev.target.closest?.(".pd-sort")) {
           this._sortOpen = false;
-          root.querySelector(".pd-sortmenu:not(.pd-barmenu)")?.classList.remove("is-open");
+          root.querySelector(".pd-sort .pd-sortmenu")?.classList.remove("is-open");
         }
         if (this._barMenuOpen && !ev.target.closest?.(".pd-barmenu, .pd-vital-opts")) {
           this._barMenuOpen = false;
@@ -2844,9 +2992,46 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         const next = Math.clamp(now + dir * (ev.shiftKey ? 5 : 1), 0, max);
         if (next !== now) await this.actor.update({ "system.status.wounds.value": next });
       };
-      woundsBar.addEventListener("click", (ev) => change(ev, 1));
+      woundsBar.addEventListener("click", (ev) => {
+        if (ev.target.closest(".pd-rest, .pd-restmenu")) return;
+        change(ev, 1);
+      });
+      woundsBar.querySelector(".pd-rest")?.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        woundsBar.querySelector(".pd-restmenu")?.classList.toggle("is-open");
+      });
+      for (const b of woundsBar.querySelectorAll(".pd-restmenu [data-rest]")) {
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          woundsBar.querySelector(".pd-restmenu")?.classList.remove("is-open");
+          this._restRecover(b.dataset.rest === "day");
+        });
+      }
       woundsBar.addEventListener("contextmenu", (ev) => change(ev, -1));
     }
+    // Таланты: «+» в заголовке - меню талантов ступени для покупки
+    root.querySelector(".pd-talent-add")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      this._talentMenuOpen = !this._talentMenuOpen;
+      root.querySelector(".pd-talentmenu")?.classList.toggle("is-open", this._talentMenuOpen);
+      // Описаний нет - подтягиваем из библиотеки и перерисовываем
+      if (this._talentMenuOpen) {
+        const need = this._talentOffers().filter((o) => !o.text && !PaperdollApp._talentLib.has(norm(o.name)));
+        if (need.length) Promise.all(need.map((o) => this._loadTalentText({ name: o.name, system: {} }))).then(() => this.render());
+      }
+    });
+    for (const el of root.querySelectorAll(".pd-talentmenu [data-buy]")) {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (el.classList.contains("is-off")) return;
+        await this._buyTalent(el.dataset.buy);
+      });
+    }
+
     // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг
     for (const el of root.querySelectorAll(".pd-adv")) {
       el.addEventListener("click", (ev) => {
