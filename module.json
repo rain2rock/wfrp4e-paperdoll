@@ -1,8 +1,8 @@
 {
   "id": "wfrp4e-paperdoll",
   "title": "WFRP4e Paperdoll",
-  "description": "Окно персонажа в стиле WoW для системы WFRP4e: слоты снаряжения, сумка, статы и смена снаряжения перетаскиванием.",
-  "version": "0.49.0",
+  "description": "Окно персонажа в стиле WoW для системы WFRP4e: слоты снаряжения, сумка, статы, смена снаряжения перетаскиванием. Один пакет: магия, травмы, мутации, развитие и группа внутри.",
+  "version": "0.50.0",
   "authors": [
     {
       "name": "Mikhail"
@@ -28,10 +28,19 @@
     ]
   },
   "esmodules": [
-    "scripts/main.js"
+    "scripts/main.js",
+    "addons/injuries/scripts/injuries.js",
+    "addons/magic/scripts/targeting.js",
+    "addons/magic/scripts/magic.js",
+    "addons/mutations/scripts/mutations.js",
+    "addons/party/scripts/party.js",
+    "addons/progression/scripts/progression.js"
   ],
   "styles": [
-    "styles/paperdoll.css"
+    "styles/paperdoll.css",
+    "addons/magic/styles/magic.css",
+    "addons/mutations/styles/mutations.css",
+    "addons/party/styles/party.css"
   ],
   "languages": [
     {
@@ -43,6 +52,57 @@
       "lang": "en",
       "name": "English",
       "path": "lang/en.json"
+    },
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "addons/injuries/lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "addons/injuries/lang/en.json"
+    },
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "addons/magic/lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "addons/magic/lang/en.json"
+    },
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "addons/mutations/lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "addons/mutations/lang/en.json"
+    },
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "addons/party/lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "addons/party/lang/en.json"
+    },
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "addons/progression/lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "addons/progression/lang/en.json"
     }
-  ]
+  ],
+  "socket": true
 }

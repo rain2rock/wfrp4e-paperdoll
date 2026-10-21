@@ -2616,3 +2616,12 @@
 .wfrp-paperdoll-settings .tab.active { display: block; }
 .wfrp-paperdoll-settings .pd-set-intro { font-style: italic; opacity: 0.8; margin: 0 0 8px; }
 .wfrp-paperdoll-settings .pd-actor-create { flex: 0 0 auto; }
+
+/* Выпадашки, развёрнутые вверх: подгоняет fitDropdown, когда снизу не хватает места */
+.wfrp-paperdoll .pd-talentmenu.is-up,
+.wfrp-paperdoll .pd-sortmenu.is-up,
+.wfrp-paperdoll .pd-barmenu.is-up,
+.wfrp-paperdoll .pd-restmenu.is-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}

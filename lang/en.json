@@ -485,7 +485,11 @@
     "Target": {
       "Damage": "Damage vs target",
       "Chance": "Chance vs target",
-      "ApBody": "body AP"
+      "ApBody": "body AP",
+      "Size": "target {size}",
+      "Advantage": "advantage {n}",
+      "Surrounded": "engaged with {n}",
+      "WillApply": "System will apply"
     }
   }
 }

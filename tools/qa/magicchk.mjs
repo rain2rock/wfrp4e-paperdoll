@@ -158,7 +158,9 @@ const r = await p.evaluate(() => {
       vet.setTarget(true);
       const aim = U.targetedAttack(app, sling);
       eq("полоса до цели", aim.band.key, "pointBlank");
-      eq("шанс с модификатором", [aim.hit.base, aim.hit.mod, aim.hit.total], [38, 20, 58]);
+      // Систему модификаторов считает сама - мы их НЕ складываем, только перечисляем справочно
+      eq("шанс остаётся базовым", [aim.hit.base, aim.hit.mod, aim.hit.total], [38, 0, 38]);
+      eq("полоса дальности в справке", aim.willApply.some((x) => /упор/i.test(x)), true);
       eq("урон за вычетом стойкости и брони", [aim.damage.full, aim.damage.tb, aim.damage.ap, aim.damage.net], [6, 4, 1, 1]);
       eq("разбор урона непустой", aim.damage.parts.length > 0, true);
 
@@ -167,13 +169,14 @@ const r = await p.evaluate(() => {
       const melee = U.targetedAttack(app, sword);
       eq("ближний бой - без полосы", melee.band, null);
       eq("ближний бой - шанс без модификатора", melee.hit.mod, 0);
+      eq("справка не пустая при окружении", Array.isArray(melee.willApply), true);
       eq("ближний бой - урон срезан бронёй", melee.damage.net, melee.damage.full - melee.damage.tb - melee.damage.ap);
 
       [...game.user.targets].forEach((t) => t.setTarget(false));
     }
   }
 
-  return { fail, checks: 77 };
+  return { fail, checks: 79 };
 });
 
 console.log(r.error ? `FAIL: ${r.error}` : r.fail.length ? `FAIL:\n${r.fail.join("\n")}` : `all pass (${r.checks} checks)`, "errors:", errs);

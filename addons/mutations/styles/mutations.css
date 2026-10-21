@@ -1,3 +1,3 @@
 /* Дополнение «Мутации»: рамка Хаоса */
-.wfrp-paperdoll .pd-effect--mutation::before { background-image: url("../../wfrp4e-paperdoll/assets/ui/frame-rarity-exotic.png"); }
-.wfrp-paperdoll-tooltip .pd-tt-fx.fx-mutation::after { background-image: url("../../wfrp4e-paperdoll/assets/ui/frame-rarity-exotic.png"); }
+.wfrp-paperdoll .pd-effect--mutation::before { background-image: url("../../../assets/ui/frame-rarity-exotic.png"); }
+.wfrp-paperdoll-tooltip .pd-tt-fx.fx-mutation::after { background-image: url("../../../assets/ui/frame-rarity-exotic.png"); }

@@ -9,7 +9,7 @@
 
   function register(api) {
     const { PaperdollApp, PaperdollTooltip, util } = api;
-    const { T, esc, safe, norm, option, talentImg, skillMatches, advanceCost } = util;
+    const { T, esc, safe, norm, option, talentImg, skillMatches, advanceCost, fitDropdown } = util;
 
     class Progression {
       /** Входит ли навык или характеристика в карьеру (null - карьера неизвестна) */
@@ -347,12 +347,17 @@
         { key: "showAllSkills", default: false }
       ],
       onRender(app, root) {
+        // Класс is-open ставит и шаблон (offersOpen), поэтому подгоняем высоту ПОСЛЕ каждой отрисовки,
+        // а не только по клику: иначе перерисовка возвращает меню к раскрытию вниз за край окна
+        if (app._talentMenuOpen) fitDropdown(root.querySelector(".pd-talentmenu"));
         // Таланты: «+» в заголовке - меню талантов ступени для покупки
         root.querySelector(".pd-talent-add")?.addEventListener("click", (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
           app._talentMenuOpen = !app._talentMenuOpen;
-          root.querySelector(".pd-talentmenu")?.classList.toggle("is-open", app._talentMenuOpen);
+          const menu = root.querySelector(".pd-talentmenu");
+          menu?.classList.toggle("is-open", app._talentMenuOpen);
+          if (app._talentMenuOpen) fitDropdown(menu);
           // Описаний нет - подтягиваем из библиотеки и перерисовываем
           if (app._talentMenuOpen) {
             const need = app._talentOffers().filter((o) => !o.text && !PaperdollApp._talentLib.has(norm(o.name)));

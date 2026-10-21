@@ -55,12 +55,32 @@
         "Name": "Party window",
         "Hint": "Open / close the party window: wounds, fortune, armour and effects for everyone. GM only."
       },
-      "AddNone": "Nothing found in compendiums"
+      "AddNone": "Nothing found in compendiums",
+      "AddCountHint": "How many levels to grant per click",
+      "Scope": {
+        "all": "All",
+        "online": "Online",
+        "status": "All + status",
+        "allHint": "Every player character on the scene",
+        "onlineHint": "Only those whose players are online",
+        "statusHint": "Everyone, with an online marker"
+      },
+      "Online": "Online",
+      "Offline": "Offline",
+      "Size": {
+        "s": "Small",
+        "m": "Medium",
+        "l": "Large"
+      }
     },
     "Options": {
       "tokenTransfer": {
         "Name": "Give items by dropping on a token",
         "Hint": "Drag an item from the window onto a token on the canvas to give it to that character."
+      },
+      "groupCardSize": {
+        "Name": "Party card size",
+        "Hint": "Card width in the GM party window"
       }
     },
     "Addon": {

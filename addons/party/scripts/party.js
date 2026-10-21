@@ -256,16 +256,23 @@
      * короткий кэш: его сбрасывает любая перерисовка окна (и хуки сцены, которые к ней ведут).
      */
     let partyCache = null;
+    /** Кто из игроков владеет персонажем и в сети ли он (для значка статуса) */
+    function ownersOf(actor) {
+      return (game.users ?? []).filter((u) => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
+    }
+
     function partyMembers() {
       if (partyCache) return partyCache;
       if (globalThis.__PD_MOCK__) return (partyCache = (window.__PD_actors ?? []).filter((a) => a.type === "character"));
+      const onlyOnline = GroupApp.scope === "online";
       const seen = new Set();
       const out = [];
       for (const t of canvas?.tokens?.placeables ?? []) {
         const a = t.actor;
         // Несвязанные токены - самостоятельные копии: у них свой uuid, по нему и различаем (у связанных он общий)
         if (!a || a.type !== "character" || !a.hasPlayerOwner || seen.has(a.uuid)) continue;
-        if (!game.users.some((u) => !u.isGM && u.active && a.testUserPermission?.(u, "OWNER"))) continue;
+        // «Только онлайн» отсеивает здесь; «все» и «все со статусом» берут любых игровых персонажей
+        if (onlyOnline && !ownersOf(a).some((u) => u.active)) continue;
         seen.add(a.uuid);
         out.push(a);
       }
@@ -296,10 +303,13 @@
      * Повесить состояние на персонажа. Системный addCondition есть не во всех версиях wfrp4e,
      * поэтому при его отсутствии создаём ActiveEffect сами - кнопка не должна молча ничего не делать.
      */
-    async function addConditionTo(actor, key) {
+    async function addConditionTo(actor, key, count = 1) {
+      const n = Math.max(1, Math.floor(Number(count) || 1));
       try {
         if (typeof actor.addCondition === "function") {
-          await actor.addCondition(key, 1);
+          // Принимает ли системный метод количество - на живом мире не проверено,
+          // поэтому не надеемся на второй аргумент, а зовём по разу: результат одинаков в обоих случаях
+          for (let i = 0; i < n; i++) await actor.addCondition(key, 1);
           return true;
         }
         const cfg = game.wfrp4e?.config ?? {};
@@ -309,6 +319,7 @@
             name: L(cfg.conditions?.[key] ?? key),
             img: status?.img ?? status?.icon,
             statuses: [key],
+            conditionValue: n,
             flags: { core: { statusId: key } }
           }
         ]);
@@ -422,6 +433,8 @@
         fortune: { value: fortune, max: fate },
         ap: { head: ap("head"), body: ap("body"), rArm, lArm, rLeg, lLeg },
         money: groupCoins(actor),
+        // Кто за персонажем и в сети ли: нужно для режима «все со статусом»
+        online: globalThis.__PD_MOCK__ ? true : ownersOf(actor).some((u) => u.active),
         effects
       };
     }
@@ -465,6 +478,13 @@
         <span class="${upDown(r.ap.rLeg, r.ap.lLeg)}" title="${esc(L("WFRPPD.Stats.Legs"))}">${esc(L("WFRPPD.Group.Abbr.Legs"))} ${r.ap.rLeg}/${r.ap.lLeg}</span>`;
     }
 
+    /** Точка «в сети / не в сети» - показываем только в режиме «все со статусом», иначе она лишний шум */
+    function statusDot(r) {
+      if (GroupApp.scope !== "status") return "";
+      const on = r.online;
+      return `<i class="pd-group-dot ${on ? "is-on" : "is-off"}" title="${esc(L(on ? "WFRPPD.Group.Online" : "WFRPPD.Group.Offline"))}"></i>`;
+    }
+
     /** Эффекты - иконки (подробности при наведении) + кнопка «+» добавить состояние, общие для карточки и таблицы */
     function groupFx(r) {
       const icons = r.effects.length
@@ -491,7 +511,7 @@
         const v = rowVisuals(r);
         return `
           <div class="pd-group-row">
-            <div class="pd-group-who"><img src="${esc(r.img)}" alt=""><span>${esc(r.name)}</span></div>
+            <div class="pd-group-who"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
             <div class="pd-group-wounds" data-actor-uuid="${esc(r.uuid)}"><span class="${v.woundsCls}">${r.wounds.value} / ${r.wounds.max}</span></div>
             <div><span class="${v.fortuneCls}">${r.fortune.value} / ${r.fortune.max}</span></div>
             <div class="pd-group-ap">${groupApRow(r)}</div>
@@ -519,7 +539,7 @@
         <span class="pd-group-card-num">${value} / ${max}</span>`;
       return `
         <div class="pd-group-card">
-          <div class="pd-group-card-head"><img src="${esc(r.img)}" alt=""><span>${esc(r.name)}</span></div>
+          <div class="pd-group-card-head"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
           <div class="pd-group-card-stat pd-group-wounds" data-actor-uuid="${esc(r.uuid)}">
             <span class="pd-group-card-label">${esc(L("WFRPPD.Wounds"))}</span>${bar(v.woundsCls, v.woundsPct, r.wounds.value, r.wounds.max)}
           </div>
@@ -558,10 +578,11 @@
         invalidateParty();
         const rows = (this._rows = partyMembers().map(groupRow));
         const view = GroupApp.view ?? (GroupApp.view = "card");
+        const scope = GroupApp.scope ?? (GroupApp.scope = "online");
         const body = !rows.length
           ? `<div class="pd-group-empty">${esc(L("WFRPPD.Group.Empty"))}</div>`
           : view === "card"
-            ? `<div class="pd-group-cards">${rows.map(groupCard).join("")}</div>`
+            ? `<div class="pd-group-cards size-${esc(util.setting("groupCardSize", "m"))}">${rows.map(groupCard).join("")}</div>`
             : groupTable(rows);
         const stash = stashActor();
         const treasury = stash ? `<div class="pd-group-treasury"><i class="fa-solid fa-sack-dollar"></i> ${esc(L("WFRPPD.Group.Treasury"))}: ${esc(formatMoney(moneyPennies(stash), { compact: true }))}</div>` : "";
@@ -573,11 +594,22 @@
                 <button type="button" data-view="card" class="${view === "card" ? "is-active" : ""}">${esc(L("WFRPPD.Group.ViewCard"))}</button>
                 <button type="button" data-view="table" class="${view === "table" ? "is-active" : ""}">${esc(L("WFRPPD.Group.ViewTable"))}</button>
               </div>
+              <div class="pd-group-viewtoggle pd-group-scope">
+                ${["all", "online", "status"]
+                  .map((k) => `<button type="button" data-scope="${k}" class="${scope === k ? "is-active" : ""}"
+                        title="${esc(L(`WFRPPD.Group.Scope.${k}Hint`))}">${esc(L(`WFRPPD.Group.Scope.${k}`))}</button>`)
+                  .join("")}
+              </div>
               ${treasury}
             </div>
             ${body}
             <div class="pd-group-addmenu" hidden>
-              <input type="text" class="pd-group-addmenu-search" placeholder="${esc(L("WFRPPD.Group.AddConditionSearch"))}">
+              <div class="pd-group-addmenu-top">
+                <input type="text" class="pd-group-addmenu-search" placeholder="${esc(L("WFRPPD.Group.AddConditionSearch"))}">
+                <label class="pd-group-addmenu-count" title="${esc(L("WFRPPD.Group.AddCountHint"))}">
+                  ×<input type="number" min="1" max="20" value="1">
+                </label>
+              </div>
               <div class="pd-group-addmenu-list">${addMenuHtml()}</div>
             </div>
           </div>`;
@@ -602,6 +634,14 @@
           btn.addEventListener("click", () => {
             if (GroupApp.view === btn.dataset.view) return;
             GroupApp.view = btn.dataset.view;
+            this.render();
+          });
+        }
+        for (const btn of root.querySelectorAll(".pd-group-scope [data-scope]")) {
+          btn.addEventListener("click", () => {
+            if (GroupApp.scope === btn.dataset.scope) return;
+            GroupApp.scope = btn.dataset.scope;
+            invalidateParty();
             this.render();
           });
         }
@@ -724,7 +764,8 @@
           const actor = partyMembers().find((a) => a.uuid === addMenu.dataset.actorUuid);
           closeAddMenu();
           if (!actor) return;
-          if (btn.dataset.addType === "condition") await addConditionTo(actor, btn.dataset.addKey);
+          const count = Number(addMenu.querySelector(".pd-group-addmenu-count input")?.value) || 1;
+          if (btn.dataset.addType === "condition") await addConditionTo(actor, btn.dataset.addKey, count);
           else await addItemTo(actor, btn.dataset.addKey);
         });
         // Слушатели на самом окне вешаем один раз: element живёт между перерисовками, иначе они копились бы
@@ -805,6 +846,8 @@
       icon: "fa-users",
       settings: [
         { key: "tokenTransfer", default: true },
+        // Ширина карточки в окне группы: от неё же зависит, сколько их влезет в ряд
+        { key: "groupCardSize", type: String, default: "m", choices: { s: "WFRPPD.Group.Size.s", m: "WFRPPD.Group.Size.m", l: "WFRPPD.Group.Size.l" } },
         {
           key: "stashActor",
           scope: "world",

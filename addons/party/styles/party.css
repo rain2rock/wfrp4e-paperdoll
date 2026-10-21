@@ -92,3 +92,39 @@
 .wfrp-paperdoll-group .pd-group-addmenu-list button img { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; flex: 0 0 auto; }
 .wfrp-paperdoll-group .pd-group-addmenu-list button:hover { background: rgba(128, 128, 128, 0.15); }
 .wfrp-paperdoll-group .pd-group-addmenu-empty { padding: 8px 10px; color: var(--pd-muted); font-style: italic; font-size: 12px; }
+
+/* Поле количества в меню «+»: выдать сразу несколько уровней состояния */
+.wfrp-paperdoll-group .pd-group-addmenu-top { display: flex; gap: 6px; align-items: center; margin: 6px; }
+.wfrp-paperdoll-group .pd-group-addmenu-top .pd-group-addmenu-search { margin: 0; flex: 1; min-width: 0; }
+.wfrp-paperdoll-group .pd-group-addmenu-count {
+  display: flex; align-items: center; gap: 2px; flex: 0 0 auto;
+  font-size: 12px; color: var(--pd-muted);
+}
+.wfrp-paperdoll-group .pd-group-addmenu-count input {
+  width: 42px; padding: 5px 4px; text-align: center;
+  background: transparent; border: 1px solid var(--pd-frame); border-radius: 4px; color: var(--pd-text); font-size: 12px;
+}
+
+/* Размер карточек - настройка groupCardSize; ряд сам подстраивается под ширину окна */
+.wfrp-paperdoll-group .pd-group-cards.size-s { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.wfrp-paperdoll-group .pd-group-cards.size-m { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.wfrp-paperdoll-group .pd-group-cards.size-l { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+
+/* Значок «в сети / не в сети» (режим «все со статусом») */
+.wfrp-paperdoll-group .pd-group-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.wfrp-paperdoll-group .pd-group-dot.is-on { background: var(--pd-up); }
+.wfrp-paperdoll-group .pd-group-dot.is-off { background: var(--pd-muted); opacity: 0.5; }
+
+/* Адаптивность: узкое окно - шапка в два ряда, таблица теряет лишние колонки, карточки в один столбец */
+@media (max-width: 720px) {
+  .wfrp-paperdoll-group .pd-group-toolbar { flex-wrap: wrap; }
+  .wfrp-paperdoll-group .pd-group-treasury { margin-left: 0; width: 100%; }
+  .wfrp-paperdoll-group .pd-group-head,
+  .wfrp-paperdoll-group .pd-group-row { grid-template-columns: 1.4fr 0.8fr 0.8fr 1.2fr; }
+  /* Колонки «Деньги» и «Эффекты» в узком окне не помещаются - прячем, они есть в карточках */
+  .wfrp-paperdoll-group .pd-group-head > :nth-child(5),
+  .wfrp-paperdoll-group .pd-group-head > :nth-child(6),
+  .wfrp-paperdoll-group .pd-group-row > :nth-child(5),
+  .wfrp-paperdoll-group .pd-group-row > :nth-child(6) { display: none; }
+  .wfrp-paperdoll-group .pd-group-cards { grid-template-columns: 1fr !important; }
+}

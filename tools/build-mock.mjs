@@ -219,7 +219,7 @@ const addonFiles = (id, sub, ext) => {
 };
 const css = [read("styles/paperdoll.css"), ...activeAddons.flatMap((id) => addonFiles(id, "styles", ".css"))]
   .join("\n")
-  .replace(/url\("\.\.\/\.\.\/wfrp4e-paperdoll\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`)
+  .replace(/url\("(?:\.\.\/)+(?:wfrp4e-paperdoll\/)?assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`)
   .replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
 const addonSrc = activeAddons.flatMap((id) => addonFiles(id, "scripts", ".js")).join("\n");
 const appSrc = [read("scripts/icon-index.js"), read("scripts/icon-rules.js").replace(/^export /gm, ""), read("scripts/glossary-ru.js").replace(/^export /gm, ""), read("scripts/translate.js").replace(/^export /gm, ""), read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "")].join("\n");

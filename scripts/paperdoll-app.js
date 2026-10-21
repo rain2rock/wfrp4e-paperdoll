@@ -556,6 +556,50 @@ async function confirmRemoveEffect(name) {
 }
 
 /* -------------------------------------------- */
+/*  Выпадающие меню                             */
+/* -------------------------------------------- */
+
+/**
+ * Уместить открытое выпадающее меню в окно.
+ *
+ * Меню позиционируются абсолютно и раскрываются вниз. Если снизу места не хватает,
+ * список уезжает за нижний край окна и его не видно - окно наружу не прокручивается.
+ * Поэтому: когда снизу тесно, а сверху просторнее - раскрываем вверх,
+ * и в любом случае ограничиваем высоту реальным остатком, а не константой из CSS.
+ *
+ * @param {HTMLElement} menu открытое меню (уже с классом is-open)
+ */
+function fitDropdown(menu) {
+  if (!menu?.isConnected) return;
+  // Сбрасываем прошлую подгонку, иначе замеры будут от уже сжатого меню
+  menu.style.maxHeight = "";
+  menu.style.top = "";
+  menu.style.bottom = "";
+  menu.classList.remove("is-up");
+
+  const anchor = menu.offsetParent ?? menu.parentElement;
+  const win = menu.closest(".window-content") ?? menu.closest(".application") ?? document.body;
+  if (!anchor || !win) return;
+
+  const GAP = 8;
+  const a = anchor.getBoundingClientRect();
+  const w = win.getBoundingClientRect();
+  const below = w.bottom - a.bottom - GAP;
+  const above = a.top - w.top - GAP;
+  // Сколько меню хотело бы занять: высота содержимого без ограничения
+  const want = menu.scrollHeight;
+
+  if (want <= below || below >= above) {
+    // Вниз влезает целиком либо снизу всё равно просторнее
+    menu.style.maxHeight = `${Math.max(80, below)}px`;
+  } else {
+    // Разворачиваем вверх: прижимаем нижний край к якорю
+    menu.classList.add("is-up");
+    menu.style.maxHeight = `${Math.max(80, above)}px`;
+  }
+}
+
+/* -------------------------------------------- */
 /*  Токены и дистанции                          */
 /* -------------------------------------------- */
 
@@ -641,19 +685,29 @@ function targetedAttack(app, item) {
   const sys = item?.system ?? {};
   const ranged = !!safe(() => sys.isRanged);
 
-  // Шанс попасть: база от навыка или характеристики, плюс модификатор полосы дальности
+  // Шанс попасть - БЕЗ наших модификаторов.
+  //
+  // Проверено на живом мире (окно «Weapon Test»): систему модификаторов считает САМА -
+  // преимущество у неё отдельным полем, размер цели и рывок уже лежат в `modifier`, про «Engaged» она знает.
+  // Если мы добавим то же самое к показанному числу, оно разойдётся с реальным броском (сложится дважды).
+  // Поэтому показываем базу, а всё остальное перечисляем справочно - «что система учтёт».
   const base = app._attackTarget(item);
   const band = ranged ? weaponRangeBand(item, distanceBetween(tokenOf(app.actor), target)) : null;
-  const hitParts = [];
-  if (base?.from) hitParts.push(base.from);
-  let hitMod = 0;
-  if (band && band.mod !== null) {
-    hitMod = band.mod;
-    if (hitMod) hitParts.push(`${L(`WFRPPD.Range.${band.key}`)} ${hitMod > 0 ? "+" : ""}${hitMod}`);
-  }
-  // Вне досягаемости - попасть нельзя вовсе
   const unreachable = !!band && band.key === "outOfRange";
-  const hitTotal = unreachable ? 0 : Math.max(0, (base?.target ?? 0) + hitMod);
+  const hitTotal = base?.target ?? 0;
+
+  // Справочный список: обстоятельства, которые система подставит в бросок сама
+  const willApply = [];
+  if (band && band.mod !== null && band.mod !== 0) {
+    willApply.push(`${L(`WFRPPD.Range.${band.key}`)} ${band.mod > 0 ? "+" : ""}${band.mod}`);
+  }
+  const size = target.actor.system?.details?.size?.value;
+  if (size && size !== "avg") willApply.push(F("WFRPPD.Target.Size", { size: L(game.wfrp4e.config.actorSizes?.[size] ?? size) }));
+  const adv = Number(app.actor.system?.status?.advantage?.value) || 0;
+  if (adv) willApply.push(F("WFRPPD.Target.Advantage", { n: adv }));
+  // Сколько чужих токенов вплотную - по правилам это даёт бонус атакующим, система знает это как «Engaged»
+  const near = tokensInRange(app.actor, 2).filter((t) => t.inRange).length;
+  if (near > 1) willApply.push(F("WFRPPD.Target.Surrounded", { n: near }));
 
   // Урон: оружие с бонусами талантов минус стойкость и броня цели.
   // Часть тела до броска неизвестна, поэтому считаем по корпусу - он выпадает чаще всего.
@@ -672,7 +726,9 @@ function targetedAttack(app, item) {
     targetName: target.name ?? target.actor.name ?? "",
     unreachable,
     band,
-    hit: { base: base?.target ?? 0, mod: hitMod, total: hitTotal, parts: hitParts },
+    hit: { base: base?.target ?? 0, mod: 0, total: hitTotal, parts: base?.from ? [base.from] : [] },
+    // Что система добавит от себя - показываем списком, в число не складываем
+    willApply,
     // net - сколько ран снимет попадание до учёта уровней успеха; ниже нуля не уходим
     damage: full === null ? null : { full, tb, ap, net: Math.max(0, full - tb - ap), parts: dmgParts }
   };
@@ -1345,10 +1401,24 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return Number(c.bonus ?? Math.floor((Number(c.value) || 0) / 10)) || 0;
   }
 
+  /**
+   * Шанс попасть кулаками. У кулаков нет предмета, поэтому `_attackTarget` тут не работает -
+   * считаем сами по тем же правилам: навык Brawling, а без него Ближний бой (ББ).
+   */
+  _unarmedTarget() {
+    const sk = (this.actor.itemTypes.skill ?? []).find((s) => /^(brawling|драка|рукопашн)/i.test(s.name));
+    const val = Number(safe(() => sk?.system.total?.value, null));
+    if (sk && val) return { target: val, from: T(sk.name) };
+    const ws = this.actor.system.characteristics?.ws ?? {};
+    return { target: Number(ws.value) || 0, from: L(game.wfrp4e.config.characteristics?.ws ?? "ws") };
+  }
+
   /** Подсказка пустого слота оружия: персонаж бьёт кулаками */
   _unarmedHint() {
+    const hit = this._unarmedTarget();
     return [
       L("WFRPPD.Unarmed.Name"),
+      `${L("WFRPPD.Roll.Chance")}\t${hit.target}% (${hit.from})`,
       `${L("WFRPPD.Unarmed.Damage")}\t+${this._unarmedDamage()} (${L("WFRPPD.Unarmed.Formula")})`,
       `${L("WFRPPD.Unarmed.Group")}\t${L("WFRPPD.Unarmed.Brawling")}`,
       `${L("WFRPPD.Unarmed.Quality")}\t${L("WFRPPD.Unarmed.Undamaging")}`,
@@ -2765,7 +2835,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static onToggleBarMenu(event) {
     event?.stopPropagation?.();
     this._barMenuOpen = !this._barMenuOpen;
-    this.element.querySelector(".pd-barmenu")?.classList.toggle("is-open", this._barMenuOpen);
+    const barMenu = this.element.querySelector(".pd-barmenu");
+    barMenu?.classList.toggle("is-open", this._barMenuOpen);
+    if (this._barMenuOpen) fitDropdown(barMenu);
   }
 
   static async onSetSecondBar(event, target) {
@@ -2779,7 +2851,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static onToggleSortMenu() {
     this._sortOpen = !this._sortOpen;
-    this.element.querySelector(".pd-sort .pd-sortmenu")?.classList.toggle("is-open", this._sortOpen);
+    const sortMenu = this.element.querySelector(".pd-sort .pd-sortmenu");
+    sortMenu?.classList.toggle("is-open", this._sortOpen);
+    if (this._sortOpen) fitDropdown(sortMenu);
   }
 
   static onSetFilter(event, target) {
@@ -2908,7 +2982,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       woundsBar.querySelector(".pd-rest")?.addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        woundsBar.querySelector(".pd-restmenu")?.classList.toggle("is-open");
+        const restMenu = woundsBar.querySelector(".pd-restmenu");
+        restMenu?.classList.toggle("is-open");
+        if (restMenu?.classList.contains("is-open")) fitDropdown(restMenu);
       });
       for (const b of woundsBar.querySelectorAll(".pd-restmenu [data-rest]")) {
         b.addEventListener("click", (ev) => {
@@ -3594,9 +3670,13 @@ export class PaperdollTooltip {
           row(
             L("WFRPPD.Target.Chance"),
             aim.unreachable ? L("WFRPPD.Range.outOfRange") : `${aim.hit.total}%`,
-            aim.unreachable ? "is-hurt" : aim.hit.mod < 0 ? "is-hurt" : aim.hit.mod > 0 ? "is-good" : "is-text",
+            aim.unreachable ? "is-hurt" : "is-text",
             sub(aim.hit.parts)
           );
+          // Обстоятельства, которые система подставит сама. В число не складываем - иначе разойдётся с броском
+          if (aim.willApply.length) {
+            row(L("WFRPPD.Target.WillApply"), aim.willApply.join(" · "), "is-text");
+          }
         } else if (hit) {
           row(L("WFRPPD.Roll.Chance"), `${hit.target}%`, "is-text", sub([hit.from]));
         }
@@ -3984,7 +4064,7 @@ export const PD_UTIL = {
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
-  extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound,
+  extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound, fitDropdown,
   L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
   tokenOf, distanceBetween, tokensInRange, RANGE_BANDS, weaponRangeYards, weaponRangeBand, targetedAttack
 };
