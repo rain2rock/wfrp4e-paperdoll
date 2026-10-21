@@ -7,6 +7,15 @@
 (() => {
   const ADDON = "magic";
 
+  /**
+   * Школа заклинания строкой. В живой системе `lore.value` - МАССИВ (`["petty"]`, у Bolt вообще `[""]`),
+   * а код ждал строку: ярлык группы получался пустым, а `L(массив)` ронял подсказку при наведении.
+   */
+  const loreKey = (v) => {
+    const raw = Array.isArray(v) ? v.find((x) => String(x ?? "").trim()) : v;
+    return String(raw ?? "").trim();
+  };
+
   function register(api) {
     const { PaperdollApp, PaperdollTooltip, util } = api;
     const { T, esc, safe, itemImg, option, uiArt, LOCATIONS, METAL_ARMOUR, LEATHER_ARMOUR } = util;
@@ -56,7 +65,7 @@
         };
         const groups = new Map();
         for (const sp of spells) {
-          const lore = sp.system.lore?.value || "petty";
+          const lore = loreKey(sp.system.lore?.value) || "petty";
           const label = cfg.magicLores?.[lore] ? L(cfg.magicLores[lore]) : game.i18n.has?.(`WFRPPD.Magic.Lore.${lore}`) ? L(`WFRPPD.Magic.Lore.${lore}`) : lore;
           if (!groups.has(label)) groups.set(label, []);
           groups.get(label).push(row(sp));
@@ -79,7 +88,9 @@
         const L = (k) => game.i18n.localize(k);
         const sys = it.system;
         const cfg = game.wfrp4e.config;
-        const kind = it.type === "spell" ? L(cfg.magicLores?.[sys.lore?.value] ?? sys.lore?.value ?? "") : L(cfg.prayerTypes?.[sys.type?.value] ?? sys.type?.value ?? "");
+        const key = it.type === "spell" ? loreKey(sys.lore?.value) : loreKey(sys.type?.value);
+        const label = (it.type === "spell" ? cfg.magicLores : cfg.prayerTypes)?.[key];
+        const kind = label ? L(label) : key;
         const kv = [
           [L("WFRPPD.Magic.CN"), sys.cn?.value],
           [L("WFRPPD.Magic.Range"), sys.range?.value],
@@ -90,7 +101,7 @@
         const short = text.length > 700 ? `${text.slice(0, 700).trim()}…` : text;
         return `
           <div class="pd-tt-head">
-            <div class="pd-tt-icon rarity-${it.type === "spell" ? "exotic" : "rare"}"><img src="${esc(itemImg(it.img, it.name))}" alt=""></div>
+            <div class="pd-tt-icon rarity-${it.type === "spell" ? "exotic" : "rare"}"><img src="${esc(itemImg(it.img, it.name))}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"></div>
             <div class="pd-tt-title">
               <div class="pd-tt-name">${esc(T(it.name))}</div>
               <div class="pd-tt-sub">${esc([L(it.type === "spell" ? "WFRPPD.Magic.Spell" : "WFRPPD.Magic.Prayer"), kind].filter(Boolean).join(" · "))}</div>
@@ -165,7 +176,7 @@
         .map(
           (g) => `<div class="pd-magic-group"><div class="pd-ecs-head">${esc(g.label)}</div>${g.rows
             .map(
-              (r) => `<button type="button" class="pd-spell ${r.memorized ? "is-memorized" : ""}" data-item-id="${r.id}"><img src="${esc(r.img)}" alt=""><span class="pd-spell-body"><b>${esc(r.name)}${r.memorized ? ' <i class="pd-star">✦</i>' : ""}</b><small>${esc(r.info)}</small></span></button>`
+              (r) => `<button type="button" class="pd-spell ${r.memorized ? "is-memorized" : ""}" data-item-id="${r.id}"><img src="${esc(r.img)}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"><span class="pd-spell-body"><b>${esc(r.name)}${r.memorized ? ' <i class="pd-star">✦</i>' : ""}</b><small>${esc(r.info)}</small></span></button>`
             )
             .join("")}</div>`
         )

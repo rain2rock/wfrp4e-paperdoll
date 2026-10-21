@@ -489,7 +489,7 @@
       "Size": "target {size}",
       "Advantage": "advantage {n}",
       "Surrounded": "engaged with {n}",
-      "WillApply": "System will apply"
+      "WillApply": "Modifiers:"
     }
   }
 }

@@ -350,6 +350,18 @@
         // Класс is-open ставит и шаблон (offersOpen), поэтому подгоняем высоту ПОСЛЕ каждой отрисовки,
         // а не только по клику: иначе перерисовка возвращает меню к раскрытию вниз за край окна
         if (app._talentMenuOpen) fitDropdown(root.querySelector(".pd-talentmenu"));
+        // Клик мимо меню закрывает его. Слушатель вешаем на документ один раз на окно:
+        // element живёт между перерисовками, иначе слушатели копились бы с каждой
+        if (!app._talentMenuBound) {
+          app._talentMenuBound = true;
+          document.addEventListener("pointerdown", (ev) => {
+            if (!app._talentMenuOpen || !app.rendered) return;
+            // Клик по самому меню или по кнопке «+» не считается «мимо»
+            if (ev.target.closest(".pd-talentmenu, .pd-talent-add")) return;
+            app._talentMenuOpen = false;
+            app.element?.querySelector(".pd-talentmenu")?.classList.remove("is-open");
+          });
+        }
         // Таланты: «+» в заголовке - меню талантов ступени для покупки
         root.querySelector(".pd-talent-add")?.addEventListener("click", (ev) => {
           ev.preventDefault();

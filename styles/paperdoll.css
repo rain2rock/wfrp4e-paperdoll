@@ -2625,3 +2625,56 @@
   top: auto;
   bottom: calc(100% + 4px);
 }
+
+/* Модификаторы броска в подсказке оружия: строка во всю ширину, иначе длинный список рвёт колонку значения */
+.wfrp-paperdoll-tooltip .pd-tt-mods {
+  margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(128, 128, 128, 0.25);
+  font-size: 12px; line-height: 1.35; color: var(--pd-text-2); overflow-wrap: anywhere;
+}
+.wfrp-paperdoll-tooltip .pd-tt-mods span { color: var(--pd-muted); margin-right: 4px; }
+
+/*
+ * Настройки: своя раскладка полей вместо наследуемой от Foundry.
+ * У Foundry .form-group - flex-строка, где label зажат примерно в 40% ширины. Русские названия
+ * длиннее английских и рвутся по слогам прямо посреди слова. Задаём раскладку сами:
+ * название строкой, поле под ним, пояснение снизу - ширина окна больше ни на что не влияет.
+ */
+.wfrp-paperdoll-settings .form-group {
+  display: block;
+  margin: 0 0 10px;
+  padding: 0;
+}
+.wfrp-paperdoll-settings .form-group > label {
+  display: block;
+  flex: none;
+  width: auto;
+  min-width: 0;
+  margin: 0 0 3px;
+  font-weight: 600;
+  line-height: 1.3;
+  /* Переносим только по словам: иначе длинное название ломается посередине */
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+.wfrp-paperdoll-settings .form-group .form-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.wfrp-paperdoll-settings .form-group .form-fields > select,
+.wfrp-paperdoll-settings .form-group .form-fields > input[type="text"],
+.wfrp-paperdoll-settings .form-group .form-fields > input[type="number"] { max-width: 100%; }
+.wfrp-paperdoll-settings .form-group .hint {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.75;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+/* Вкладки: при нехватке ширины переносятся по словам, а не режутся */
+.wfrp-paperdoll-settings .pd-set-tabs .item { white-space: nowrap; }

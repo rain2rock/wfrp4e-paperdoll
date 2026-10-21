@@ -553,7 +553,9 @@
     }
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
-  game.actors = { get: (id) => (window.__PD_actors ?? []).find((a) => a.id === id) ?? null };
+  // Коллекция, а не просто объект: окно настроек перебирает актёров (выбор сундука), а код ядра зовёт .get
+  game.actors = Object.assign([], { get: (id) => (window.__PD_actors ?? []).find((a) => a.id === id) ?? null });
+  Object.defineProperty(game.actors, "contents", { get: () => [...(window.__PD_actors ?? [])] });
   game.user.targets = new Set();
 
   /**

@@ -120,6 +120,25 @@ const r = await p.evaluate(() => {
     eq("без перекаста - enabled false", sp("стрела").overcast.enabled, false);
   }
 
+  // --- Форма lore из живого мира: это МАССИВ, а не строка ---
+  const wiz2 = (window.__PD_actors ?? []).find((a) => a.id === "wizard");
+  if (wiz2) {
+    const app2 = [...window.PaperdollApp.instances.values()].find((a) => a.actor.id === "wizard")
+      ?? window.PaperdollApp.openFor(wiz2);
+    const sp0 = wiz2.items.find((i) => i.type === "spell");
+    const saved = sp0.system.lore.value;
+    sp0.system.lore.value = [""];           // так отдаёт живая система у «Bolt»
+    const view = app2._magicView();
+    eq("пустой массив lore не даёт пустую группу", view.groups.every((g) => String(g.label).trim() !== ""), true);
+    let threw = false;
+    try { app2._magicTooltip(sp0); } catch { threw = true; }
+    eq("подсказка не падает на массиве lore", threw, false);
+    sp0.system.lore.value = ["petty"];      // массив с настоящей школой
+    eq("массив со школой распознаётся", app2._magicView().groups.some((g) => /прост|petty/i.test(String(g.label))), true);
+    sp0.system.lore.value = saved;
+    eq("у заклинания есть иконка", !!app2._magicView().groups[0]?.rows[0]?.img, true);
+  }
+
   // --- Оружие: полосы дальности (та же машинка дистанций, что у магии, но из ядра) ---
   const U = window.__PD_API__?.util;
   const hugo = (window.__PD_actors ?? []).find((a) => a.id === "hugo");
@@ -176,7 +195,7 @@ const r = await p.evaluate(() => {
     }
   }
 
-  return { fail, checks: 79 };
+  return { fail, checks: 83 };
 });
 
 console.log(r.error ? `FAIL: ${r.error}` : r.fail.length ? `FAIL:\n${r.fail.join("\n")}` : `all pass (${r.checks} checks)`, "errors:", errs);

@@ -489,7 +489,7 @@
       "Size": "цель {size}",
       "Advantage": "преимущество {n}",
       "Surrounded": "в бою с {n}",
-      "WillApply": "Система учтёт"
+      "WillApply": "Модификаторы:"
     }
   }
 }

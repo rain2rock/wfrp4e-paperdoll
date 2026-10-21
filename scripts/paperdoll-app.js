@@ -3652,6 +3652,7 @@ export class PaperdollTooltip {
       // Разбор «из чего сложилось» показываем только с опцией «Подробные статы», итог - всегда.
       const aim = app ? targetedAttack(app, item) : null;
       const detail = option("detailedStats");
+      let aimNote = "";
       const sub = (parts) => (detail && parts.length ? `<small class="pd-tt-bonus">${esc(parts.join(", "))}</small>` : "");
 
       if (base !== null && base !== undefined && base !== "") {
@@ -3673,10 +3674,9 @@ export class PaperdollTooltip {
             aim.unreachable ? "is-hurt" : "is-text",
             sub(aim.hit.parts)
           );
-          // Обстоятельства, которые система подставит сама. В число не складываем - иначе разойдётся с броском
-          if (aim.willApply.length) {
-            row(L("WFRPPD.Target.WillApply"), aim.willApply.join(" · "), "is-text");
-          }
+          // Обстоятельства, которые система подставит сама. В число не складываем - иначе разойдётся с броском.
+          // Выносим отдельной строкой во всю ширину: в колонке значения длинный список рвёт вёрстку
+          if (aim.willApply.length) aimNote = aim.willApply.join(" · ");
         } else if (hit) {
           row(L("WFRPPD.Roll.Chance"), `${hit.target}%`, "is-text", sub([hit.from]));
         }
@@ -3719,6 +3719,7 @@ export class PaperdollTooltip {
         for (const x of r.forbid) notes.push(`<div class="pd-tt-note is-bad">${esc(x.label)}</div>`);
         for (const x of r.warn) if (!x.info) notes.push(`<div class="pd-tt-note ${x.good ? "is-good" : "is-bad"}">${esc(humanizeTerms(x.label))}</div>`);
       }
+      if (aimNote) lines.push(`<div class="pd-tt-mods"><span>${esc(L("WFRPPD.Target.WillApply"))}</span> ${esc(aimNote)}</div>`);
       if (notes.length) lines.push(`<div class="pd-tt-notes">${notes.join("")}</div>`);
     }
 
@@ -3763,6 +3764,7 @@ export class PaperdollTooltip {
       if (pen.stealth) notes.push(`<div class="pd-tt-note is-bad">${esc(game.i18n.format("WFRPPD.Restr.Stealth", { n: -pen.stealth }))}</div>`);
       if (pen.perception) notes.push(`<div class="pd-tt-note is-bad">${esc(game.i18n.format("WFRPPD.Restr.Perception", { n: -pen.perception }))}</div>`);
       if (!notes.length && sys.penalty?.value) notes.push(`<div class="pd-tt-note is-bad">${esc(sys.penalty.value)}</div>`);
+      if (aimNote) lines.push(`<div class="pd-tt-mods"><span>${esc(L("WFRPPD.Target.WillApply"))}</span> ${esc(aimNote)}</div>`);
       if (notes.length) lines.push(`<div class="pd-tt-notes">${notes.join("")}</div>`);
     }
 

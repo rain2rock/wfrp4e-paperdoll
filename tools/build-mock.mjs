@@ -318,8 +318,10 @@ if (ROOTS.icons || ROOTS.core)
   const settingsSrc = read("scripts/settings-menu.js")
     .replace(/^import .*$/gm, "")
     .replace(/^export /gm, "")
-    // ApplicationV2 и esc уже объявлены в appSrc (paperdoll-app.js) - то же самое, но конфликт имён
+    // ApplicationV2, esc, L - уже объявлены в appSrc (paperdoll-app.js): то же самое, но при склейке
+    // в одну область видимости это «Identifier has already been declared» и мок настроек не грузится
     .replace(/^const \{ ApplicationV2 \} = foundry\.applications\.api;$/m, "")
+    .replace(/^const L = \(\w+\) => game\.i18n\.localize\(\w+\);$/m, "")
     .replace(/^const esc = \(s\) => String\(s \?\? ""\)\.replace\(\/\[&<>"\]\/g, \(c\) => \(\{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" \}\)\[c\]\);$/m, "");
   // Регистрация настроек ядра - как в scripts/main.js (хук init), без хоткея и патча токена: тут не нужны
   const coreSettings = `
