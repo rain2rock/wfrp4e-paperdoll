@@ -8,8 +8,8 @@
   const ADDON = "progression";
 
   function register(api) {
-    const { PaperdollApp, util } = api;
-    const { T, safe, norm, option, itemImg, skillMatches, advanceCost } = util;
+    const { PaperdollApp, PaperdollTooltip, util } = api;
+    const { T, esc, safe, norm, option, talentImg, skillMatches, advanceCost } = util;
 
     class Progression {
       /** Входит ли навык или характеристика в карьеру (null - карьера неизвестна) */
@@ -89,6 +89,7 @@
 
       /** Таланты текущей ступени карьеры, которые можно взять или поднять (100 опыта + 100 за каждый взятый уровень) */
       _talentOffers() {
+        const F = (k, d) => game.i18n.format(k, d);
         const career = this._careerInfo();
         if (!career) return [];
         const exp = this.actor.system.details?.experience ?? {};
@@ -107,13 +108,34 @@
             lvl,
             max,
             cost,
+            costLabel: F("WFRPPD.TalentBuy.Cost", { n: cost }),
             capped,
             can: !capped && free >= cost,
-            img: itemImg(mine[0]?.img ?? null, name),
+            img: talentImg(mine[0]?.img ?? null, name),
             text: text.length > 220 ? `${text.slice(0, 220).trim()}…` : text,
+            fullText: text,
             itemId: mine[0]?.id ?? ""
           };
         });
+      }
+
+      /** Подсказка таланта в меню покупки: крупная иконка, уровень и описание - как у купленного */
+      _talentOfferTooltip(o) {
+        const L = (k) => game.i18n.localize(k);
+        const F = (k, d) => game.i18n.format(k, d);
+        const level = o.max ? F("WFRPPD.Talent.Level", { lvl: o.lvl, max: o.max }) : F("WFRPPD.Talent.LevelNoMax", { lvl: o.lvl });
+        const text = o.fullText ?? "";
+        const short = text.length > 900 ? `${text.slice(0, 900).trim()}…` : text;
+        const loading = !text && !PaperdollApp._talentLib.has(norm(o.name));
+        return `
+          <div class="pd-tt-head">
+            <div class="pd-tt-icon rarity-${o.max && o.lvl >= o.max ? "rare" : "common"}"><img src="${esc(o.img)}" alt=""></div>
+            <div class="pd-tt-title">
+              <div class="pd-tt-name">${esc(o.label)}</div>
+              <div class="pd-tt-sub">${esc(L("WFRPPD.Career.Talent"))} · ${esc(level)}</div>
+            </div>
+          </div>
+          ${short ? `<div class="pd-tt-text pd-tr">${esc(short)}</div>` : `<div class="pd-tt-more">${esc(L(loading ? "WFRPPD.Talent.Loading" : "WFRPPD.Talent.NoText"))}</div>`}`;
       }
 
       /** Взять или поднять талант за опыт: копия своего таланта, иначе из компендиума, иначе пустой */
@@ -337,6 +359,7 @@
             if (need.length) Promise.all(need.map((o) => app._loadTalentText({ name: o.name, system: {} }))).then(() => app.render());
           }
         });
+        const offers = app._talentOffers();
         for (const el of root.querySelectorAll(".pd-talentmenu [data-buy]")) {
           el.addEventListener("click", async (ev) => {
             ev.preventDefault();
@@ -344,6 +367,22 @@
             if (el.classList.contains("is-off")) return;
             await app._buyTalent(el.dataset.buy);
           });
+          // Подсказка при наведении - крупная иконка и описание, как у вещи
+          const offer = offers.find((o) => o.name === el.dataset.buy);
+          if (!offer) continue;
+          el.addEventListener("pointerover", (ev) => ev.stopPropagation());
+          el.addEventListener("pointerenter", async (ev) => {
+            PaperdollTooltip.showHtml(app._talentOfferTooltip(offer), ev);
+            if (!offer.fullText && !PaperdollApp._talentLib.has(norm(offer.name))) {
+              await app._loadTalentText({ name: offer.name, system: {} });
+              if (el.matches(":hover")) {
+                offer.fullText = PaperdollApp._talentLib.get(norm(offer.name)) || "";
+                PaperdollTooltip.showHtml(app._talentOfferTooltip(offer), ev);
+              }
+            }
+          });
+          el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+          el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
         }
 
         // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг

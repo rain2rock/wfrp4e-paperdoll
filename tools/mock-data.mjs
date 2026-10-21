@@ -299,105 +299,15 @@ const SOLDIER = [
     talents: ["Diceman", "Etiquette (Soldiers)", "Rapid Reload", "Strike Mighty Blow"] },
   { name: "Сержант", group: "Солдат", level: 3, chars: ["ws", "t", "wp", "bs", "i"],
     skills: ["Heal", "Intuition", "Leadership", "Perception"],
-    talents: ["Combat Aware", "Enclosed Fighter", "Unshakable", "Warleader"] }
+    talents: ["Combat Aware", "Enclosed Fighter", "Unshakable", "War Leader"] }
 ];
 
-import { RICH } from "./mock-rich.mjs";
-
+/**
+ * Один тестовый персонаж для переключателя (--cast): минимум вещей, много свободного опыта -
+ * чтобы нормально гонять прокачку и покупку талантов, не упираясь в нехватку опыта.
+ * Травмы/протез оставлены - бесплатно проверяют заодно дополнение «Травмы».
+ */
 export const CAST = [
-  {
-    id: "merc",
-    name: "Наёмник Ульрих",
-    img: portrait,
-    career: { name: "Наёмник", level: 2, class: "Воины" },
-    careers: [{ ...SOLDIER[0], complete: true }, { ...SOLDIER[1], current: true }],
-    skills: [
-      { name: "Melee (Basic)", ch: "ws", adv: 10 }, { name: "Melee (Polearm)", ch: "ws", adv: 8 }, { name: "Ranged (Crossbow)", ch: "bs", adv: 5 },
-      { name: "Athletics", ch: "ag", adv: 10 }, { name: "Climb", ch: "s", adv: 5 }, { name: "Cool", ch: "wp", adv: 10 }, { name: "Dodge", ch: "ag", adv: 10 },
-      { name: "Endurance", ch: "t", adv: 10 }, { name: "Language (Battle)", ch: "int", adv: 5 }, { name: "Consume Alcohol", ch: "t", adv: 3 },
-      { name: "Gamble", ch: "int", adv: 0 }, { name: "Gossip", ch: "fel", adv: 0 }, { name: "Outdoor Survival", ch: "int", adv: 0 },
-      { name: "Charm", ch: "fel", adv: 0 }, { name: "Stealth (Rural)", ch: "ag", adv: 4 }
-    ],
-    talents: [{ name: "Strike Mighty Blow", max: "s" }, { name: "Rapid Reload", advances: 2, max: "none" }, { name: "Marksman", max: "1" }, { name: "Strong-minded", max: "5" }, { name: "Strong-minded", max: "5" }],
-    system: {
-      characteristics: { ws: ch(32, 10), bs: ch(30, 5), s: ch(33, 5), t: ch(32, 8), i: ch(33), ag: ch(30), dex: ch(28), int: ch(27), wp: ch(30, 10), fel: ch(26) },
-      status: stats(15), details: { ...details("Серебро 1"), experience: xp(900, 640) }, settings: { equipPoints: 2 }
-    },
-    items: [
-      { id: "m-halberd", name: "Алебарда", type: "weapon", _icon: own("weapons/halberd.png"), img: icon("🪓", "#5a6a7a"),
-        system: weapon({ equipped: { value: true }, twohanded: { value: true }, weaponGroup: { value: "polearm" }, reach: { value: "long" }, damage: { value: "SB+4" }, encumbrance: { value: 3 }, _qualities: ["Защитное", "Пробивающее", "Рубящее"], price: { gc: 2 } }) },
-      { id: "m-xbow", name: "Арбалет", type: "weapon", _icon: own("weapons/crossbow.png"), img: icon("🏹", "#5a6a7a"),
-        flags: { "wfrp4e-paperdoll": { extraSlot: "hand3" } },
-        system: weapon({ equipped: { value: true }, weaponGroup: { value: "crossbow" }, damage: { value: "+9" }, _ranged: true, _range: "60", encumbrance: { value: 2 }, availability: { value: "scarce" }, price: { gc: 5 } }) },
-      { id: "m-helm", name: "Открытый шлем", type: "armour", _icon: own("armour/plate-open-helm.png"), img: icon("⛑️", "#7a7a8a"),
-        system: armour({ head: 2 }, { equipped: { value: true }, armorType: { value: "plate" }, encumbrance: { value: 1 }, price: { gc: 2 } }) },
-      { id: "m-mail", name: "Кольчуга", type: "armour", _icon: own("armour/mail-coat.png"), img: icon("🛡️", "#7a7a8a"),
-        system: armour({ body: 2, rArm: 2, lArm: 2, rLeg: 2, lLeg: 2 }, { equipped: { value: true }, armorType: { value: "mail" }, encumbrance: { value: 3 }, availability: { value: "scarce" }, price: { gc: 3 } }) },
-      { id: "m-breast", name: "Латный нагрудник", type: "armour", _icon: own("armour/plate-breastplate.png"), img: icon("🛡️", "#8a8a9a"),
-        system: armour({ body: 2 }, { equipped: { value: true }, armorType: { value: "plate" }, encumbrance: { value: 3 }, availability: { value: "rare" }, price: { gc: 10 } }) },
-      { id: "m-clothes", name: "Одежда", type: "trapping", _icon: own("clothing_and_accessories/clothing.png"), img: icon("👕", "#5a5040"),
-        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 } }) },
-      { id: "m-sack", name: "Большой мешок", type: "container", _icon: own("packs_and_containers/sack-large.png"), img: icon("🎒", "#6a5530"),
-        flags: { "wfrp4e-paperdoll": { bagSlot: "bag1" } }, system: base({ equipped: { value: true }, encumbrance: { value: 1 }, carries: { value: 6 } }) },
-      { id: "m-bolts", name: "Арбалетные болты", type: "ammunition", _icon: own("ammunition/bolt.png"), img: icon("➶", "#5a5a4a"),
-        system: base({ ...inBag("m-sack"), quantity: { value: 12 }, encumbrance: { value: 0 } }) },
-      { id: "m-tent", name: "Палатка", type: "trapping", _icon: own("miscellaneous_trappings/tent.png"), img: icon("⛺", "#6a5a3a"),
-        system: trapping({ ...inBag("m-sack"), encumbrance: { value: 2 } }) },
-      { id: "m-pot", name: "Котелок", type: "trapping", _icon: own("miscellaneous_trappings/cooking-pot.png"), img: icon("🍲", "#5a5a5a"),
-        system: trapping({ ...inBag("m-sack"), encumbrance: { value: 1 } }) },
-      // Мутации: лишняя рука (в ней арбалет), щупальце (черта-оружие, слота не даёт), душевная
-      { id: "m-mut-arm", name: "Третья рука", type: "mutation", img: icon("🖐️", "#5a2a6a"),
-        system: { mutationType: { value: "physical" }, modifier: { value: "" }, description: { value: "<p>Из-под лопатки растёт третья рука, тонкая и цепкая.</p>" } } },
-      { id: "m-mut-tent", name: "Кожистое щупальце", type: "mutation", img: icon("🐙", "#5a2a6a"),
-        system: { mutationType: { value: "physical" }, modifier: { value: "" }, description: { value: "<p>Черта «Щупальце» +[рейтинг силы].</p>" } } },
-      { id: "m-mut-rage", name: "Нечестивая ярость", type: "mutation", img: icon("😡", "#5a2a6a"),
-        system: { mutationType: { value: "mental" }, modifier: { value: "" }, description: { value: "<p>Персонаж подвержен ярости.</p>" } } },
-      { id: "m-ale", name: "Бочонок эля", type: "trapping", _icon: own("food_drink_and_lodging/ale-keg.png"), img: icon("🍺", "#7a5a2a"),
-        system: trapping({ encumbrance: { value: 2 } }) }
-    ]
-  },
-  {
-    id: "mage",
-    name: "Ученица Магистра Лиза",
-    img: portrait,
-    career: { name: "Маг", level: 1, class: "Учёные" },
-    skills: ["Language (Magick)", "Channelling (Aqshy)", "Melee (Basic)"],
-    talents: [{ name: "Arcane Magic (Fire)" }, { name: "Petty Magic" }],
-    system: {
-      characteristics: { ws: ch(26), bs: ch(28), s: ch(25), t: ch(30), i: ch(38), ag: ch(33), dex: ch(35), int: ch(45, 5), wp: ch(44, 5), fel: ch(36) },
-      status: stats(10), details: details("Серебро 2"), settings: { equipPoints: 2 }
-    },
-    items: [
-      { id: "g-staff", name: "Посох", type: "weapon", _icon: own("weapons/quarter-staff.png"), img: icon("🦯", "#6a4a2a"),
-        system: weapon({ equipped: { value: true }, twohanded: { value: true }, weaponGroup: { value: "polearm" }, reach: { value: "long" }, damage: { value: "SB+4" }, encumbrance: { value: 2 }, _qualities: ["Защитное", "Дробящее"] }) },
-      { id: "g-robes", name: "Мантия Светлого колледжа", type: "trapping", _icon: own("clothing_and_accessories/robes.png"), img: icon("👘", "#8a3a2a"),
-        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 }, availability: { value: "rare" }, price: { gc: 3 } }) },
-      { id: "g-hat", name: "Шляпа", type: "trapping", _icon: own("clothing_and_accessories/hat.png"), img: icon("🎩", "#4a3a5a"),
-        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" } }) },
-      { id: "g-amulet", name: "Амулет огненного камня", type: "trapping", _icon: own("clothing_and_accessories/amulet.png"), img: icon("📿", "#c94a2a"),
-        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, availability: { value: "exotic" }, price: { gc: 25 },
-          description: { value: "<p>Тёплый на ощупь камень в серебряной оправе. Говорят, в нём спит искра Акши.</p>" } }) },
-      { id: "g-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
-        system: armour({ body: 1, rArm: 1, lArm: 1 }, { encumbrance: { value: 1 }, price: { ss: 12 } }) },
-      { id: "g-sling", name: "Наплечная сумка", type: "container", _icon: own("packs_and_containers/sling-bag.png"), img: icon("👜", "#6a5530"),
-        flags: { "wfrp4e-paperdoll": { bagSlot: "bag1" } }, system: base({ equipped: { value: true }, carries: { value: 2 } }) },
-      { id: "g-case", name: "Тубус для свитков", type: "container", _icon: own("packs_and_containers/scroll-case.png"), img: icon("📜", "#6a5530"),
-        flags: { "wfrp4e-paperdoll": { bagSlot: "bag2" } }, system: base({ equipped: { value: true }, carries: { value: 1 } }) },
-      { id: "g-pouch", name: "Кошель с ингредиентами", type: "container", _icon: own("packs_and_containers/pouch.png"), img: icon("👝", "#6a5530"),
-        flags: { "wfrp4e-paperdoll": { bagSlot: "bag3" } }, system: base({ equipped: { value: true }, carries: { value: 1 } }) },
-      { id: "g-grimoire", name: "Гримуар", type: "trapping", _icon: own("book_documents/book-magic.png"), img: icon("📕", "#8a3a2a"),
-        system: trapping({ ...inBag("g-sling"), encumbrance: { value: 1 }, availability: { value: "rare" }, trappingType: { value: "booksAndDocuments" } }) },
-      { id: "g-writing", name: "Письменный набор", type: "trapping", _icon: own("tools_and_kits/writing-kit.png"), img: icon("✒️", "#3a3a5a"),
-        system: trapping({ ...inBag("g-sling") }) },
-      { id: "g-scroll", name: "Свиток с заклинанием", type: "trapping", _icon: own("book_documents/parchmentsheet.png"), img: icon("📜", "#a08050"),
-        system: trapping({ ...inBag("g-case"), availability: { value: "scarce" } }) },
-      { id: "g-salwort", name: "Солянка", type: "trapping", _icon: own("herbs_and_draughts/salwort.png"), img: icon("🌿", "#3a6a2a"),
-        system: trapping({ ...inBag("g-pouch"), quantity: { value: 5 } }) },
-      { id: "g-healing", name: "Целебное зелье", type: "trapping", _icon: own("herbs_and_draughts/healing-draught.png"), img: icon("🧪", "#8a2a2a"),
-        system: trapping({ quantity: { value: 2 }, availability: { value: "scarce" } }) },
-      { id: "g-lens", name: "Лупа", type: "trapping", _icon: own("tools_and_kits/reading-lens.png"), img: icon("🔍", "#5a5a5a"), system: trapping({}) }
-    ]
-  },
   {
     id: "vet",
     name: "Ветеран Гюнтер",
@@ -413,7 +323,7 @@ export const CAST = [
     talents: [{ name: "Combat Aware", advances: 2, max: "i" }, { name: "Warrior Born", max: "1" }],
     system: {
       characteristics: { ws: ch(34, 15), bs: ch(30, 15), s: ch(36), t: ch(31, 15), i: ch(32, 12), ag: ch(29), dex: ch(27), int: ch(28), wp: ch(33, 15), fel: ch(25) },
-      status: stats(14), details: { ...details("Серебро 1"), experience: xp(2400, 2310) }, settings: { equipPoints: 2 }
+      status: stats(14), details: { ...details("Серебро 1"), experience: xp(9000, 500) }, settings: { equipPoints: 2 }
     },
     items: [
       // Травмы: левой кисти нет (на культе крюк), правая нога сломана
@@ -424,19 +334,10 @@ export const CAST = [
       { id: "v-hook", name: "Крюк", type: "trapping", _icon: own("prosthetics/basic-hook.png"), img: icon("🪝", "#5a5a5a"),
         flags: { "wfrp4e-paperdoll": { limb: "lArm" } },
         system: trapping({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 3, bp: 4 } }) },
-      { id: "v-leg-p", name: "Деревянная нога", type: "trapping", _icon: own("prosthetics/false-leg.png"), img: icon("🦵", "#6a4a2a"),
-        system: trapping({ encumbrance: { value: 2 }, availability: { value: "rare" }, price: { ss: 16 } }) },
-      { id: "v-marvel", name: "Инженерное чудо", type: "trapping", _icon: own("prosthetics/engineering-marvel.png"), img: icon("⚙️", "#6a6a7a"),
-        system: trapping({ encumbrance: { value: 1 }, availability: { value: "exotic" }, price: { gc: 20 } }) },
       { id: "v-sword", name: "Меч", type: "weapon", _icon: own("weapons/sword-hand-weapon.png"), img: icon("⚔️", "#5a6a7a"),
         system: weapon({ equipped: { value: true }, damage: { value: "SB+4" }, encumbrance: { value: 1 } }) },
-      { id: "v-shield", name: "Щит", type: "weapon", _icon: own("weapons/shield.png"), img: icon("🛡️", "#6a5a3a"),
-        system: weapon({ weaponGroup: { value: "parry" }, reach: { value: "personal" }, damage: { value: "SB+2" }, _qualities: ["Щит 2", "Защитное"], encumbrance: { value: 1 } }) },
-      { id: "v-axe", name: "Двуручная секира", type: "weapon", _icon: own("weapons/great-axe.png"), img: icon("🪓", "#5a6a7a"),
-        system: weapon({ twohanded: { value: true }, weaponGroup: { value: "twohanded" }, damage: { value: "SB+5" }, encumbrance: { value: 2 } }) },
       { id: "v-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
         system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 } }) }
     ]
-  },
-  { ...RICH, img: portrait }
+  }
 ];

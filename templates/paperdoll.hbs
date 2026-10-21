@@ -228,7 +228,7 @@
             {{#each offers}}
             <button type="button" class="pd-talentopt {{#unless can}}is-off{{/unless}}" data-buy="{{name}}">
               <img src="{{img}}" alt="">
-              <span class="pd-talentopt-body"><b>{{label}}</b> <i>{{lvl}}{{#if max}} / {{max}}{{/if}}</i><span class="pd-talentopt-cost">{{#if capped}}max{{else}}{{cost}}{{/if}}</span>
+              <span class="pd-talentopt-body"><b>{{label}}</b> <i>{{lvl}}{{#if max}} / {{max}}{{/if}}</i><span class="pd-talentopt-cost">{{#if capped}}max{{else}}{{costLabel}}{{/if}}</span>
                 {{#if text}}<small>{{text}}</small>{{/if}}</span>
             </button>
             {{/each}}

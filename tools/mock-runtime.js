@@ -91,15 +91,22 @@
       const ctx = await this._prepareContext({});
       if (!this.element) this._buildFrame();
       const content = this.element.querySelector(".window-content");
-      const scrollSel = Object.values(this.constructor.PARTS ?? {}).flatMap((p) => p.scrollable ?? []);
-      const scroll = scrollSel.map((s) => [s, content.querySelector(s)?.scrollTop ?? 0]);
-      const part = Object.values(this.constructor.PARTS)[0];
-      content.innerHTML = templates[part.template](ctx);
-      for (const [s, top] of scroll) {
-        const el = content.querySelector(s);
-        if (el) el.scrollTop = top;
+      if (this.constructor.PARTS) {
+        // HandlebarsApplicationMixin: шаблон по частям (как PaperdollApp)
+        const scrollSel = Object.values(this.constructor.PARTS).flatMap((p) => p.scrollable ?? []);
+        const scroll = scrollSel.map((s) => [s, content.querySelector(s)?.scrollTop ?? 0]);
+        const part = Object.values(this.constructor.PARTS)[0];
+        content.innerHTML = templates[part.template](ctx);
+        for (const [s, top] of scroll) {
+          const el = content.querySelector(s);
+          if (el) el.scrollTop = top;
+        }
+      } else {
+        // Простой ApplicationV2 - свой _renderHTML/_replaceHTML (как PaperdollSettings)
+        const result = await this._renderHTML(ctx, {});
+        this._replaceHTML(result, content, {});
       }
-      this.element.querySelector(".window-title").textContent = this.title;
+      this.element.querySelector(".window-title").textContent = this.title || i18n.localize(this.options.window.title ?? "");
       this.rendered = true;
       await this._onRender(ctx, {});
       return this;
@@ -261,6 +268,7 @@
       this.flags = structuredClone(data.flags ?? {});
       // Эффекты на самом предмете (таланты, психология): переносятся на персонажа
       this.effects = (data.effects ?? []).map((e) => new FakeEffect(this, { transfer: true, ...e }));
+      this.effects.get = (id) => this.effects.find((e) => e.id === id);
     }
     get actor() {
       return this.parent;
@@ -483,11 +491,22 @@
     // Настройки модуля: тема и свои иконки
     settings: {
       _values: { "wfrp4e-paperdoll.itemIcons": true },
+      settings: new Map(),
+      menus: new Map(),
+      register(ns, key, def) {
+        const full = `${ns}.${key}`;
+        this.settings.set(full, def);
+        if (!(full in this._values)) this._values[full] = def.default;
+      },
+      registerMenu(ns, key, def) {
+        this.menus.set(`${ns}.${key}`, def);
+      },
       get(ns, key) {
         return this._values[`${ns}.${key}`];
       },
       async set(ns, key, value) {
         this._values[`${ns}.${key}`] = value;
+        this.settings.get(`${ns}.${key}`)?.onChange?.(value);
         window.PaperdollApp?.renderAll?.();
         return value;
       }

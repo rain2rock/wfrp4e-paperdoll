@@ -18,6 +18,7 @@
     "TalentBuy": {
       "Title": "Career level talents",
       "Click": "Click + to choose and buy with XP",
+      "Cost": "{n} XP",
       "Log": "Talent: {name} → {to}"
     },
     "StatsView": {

@@ -5,7 +5,7 @@ const p = await b.newPage({ viewport: { width: 1400, height: 1000 } });
 const errs = []; p.on("pageerror", (e) => errs.push(e.message)); p.on("console", (m) => m.type() === "error" && errs.push(m.text()));
 await p.goto("file://" + path.resolve(process.argv[2])); await p.waitForTimeout(1500);
 const out = {};
-for (const who of ["Хьюго", "Гюнтер", "Рейнхард"]) {
+for (const who of ["Хьюго", "Гюнтер"]) {
   const idx = await p.$$eval("#mock-cast option", (o, w) => o.findIndex((x) => x.textContent.includes(w)), who);
   if (idx < 0) continue;
   await p.selectOption("#mock-cast", String(idx)); await p.waitForTimeout(800);

@@ -1,7 +1,7 @@
 import { ICON_OVERRIDES } from "./icon-index.js";
 import { translateTerm } from "./glossary-ru.js";
 import { translateText, cachedTranslation, looksEnglish } from "./translate.js";
-import { ownIconFor } from "./icon-rules.js";
+import { ownIconFor, talentSlug } from "./icon-rules.js";
 
 export const MODULE_ID = "wfrp4e-paperdoll";
 
@@ -66,6 +66,19 @@ export function itemImg(img, name = "") {
   if (!img?.startsWith(CORE_ICONS) || !setting("itemIcons", true)) return img;
   const rel = ownIconFor(img.slice(CORE_ICONS.length), name, ICON_OVERRIDES);
   return rel ? asset(`icons/${rel}`) : img;
+}
+
+/**
+ * Иконка таланта: своя по названию (assets/icons/talents), если есть - у непоказанной, ещё не купленной
+ * вещи картинки вообще нет, itemImg() тут бессилен. Кастомную картинку (не заглушку wfrp4e-core) не трогаем.
+ */
+export function talentImg(img, name = "") {
+  if (!img || img.startsWith(CORE_ICONS)) {
+    const slug = talentSlug(name);
+    const rel = slug && `talents/${slug}.png`;
+    if (rel && ICON_OVERRIDES.has(rel) && setting("itemIcons", true)) return asset(`icons/${rel}`);
+  }
+  return itemImg(img, name);
 }
 
 /** Силуэты пустых слотов */
@@ -1077,7 +1090,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const loading = !text && !PaperdollApp._talentLib.has(norm(t.name));
     return `
       <div class="pd-tt-head">
-        <div class="pd-tt-icon rarity-${max && lvl >= max ? "rare" : "common"}"><img src="${esc(itemImg(t.img, t.name))}" alt=""></div>
+        <div class="pd-tt-icon rarity-${max && lvl >= max ? "rare" : "common"}"><img src="${esc(talentImg(t.img, t.name))}" alt=""></div>
         <div class="pd-tt-title">
           <div class="pd-tt-name">${esc(T(t.name))}</div>
           <div class="pd-tt-sub">${esc(L("WFRPPD.Career.Talent"))} · ${esc(level)}</div>
@@ -1938,7 +1951,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           left: effectRemaining(effect),
           debuff: true,
           lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
-          hint: L("WFRPPD.Effects.HintCondition")
+          hint: L(this.editable ? "WFRPPD.Effects.HintCondition" : "WFRPPD.Effects.HintOpen")
         });
         continue;
       }
@@ -1954,7 +1967,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         left: effectRemaining(effect),
         debuff: pol !== "buff",
         lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
-        hint: L(effect.disabled ? "WFRPPD.Effects.HintEnable" : "WFRPPD.Effects.HintDisable")
+        hint: L(this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
       });
     }
 
@@ -1982,7 +1995,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
             game.i18n.format("WFRPPD.Effects.From", { name: item.name }),
             effect.description ? plainEnrichers(stripTags(effect.description)) : ""
           ],
-          hint: L("WFRPPD.Effects.HintItemEffect")
+          // Временный (Ярость и т. п.) - можно снять им самим, не трогая талант; пассивку снимают через сам предмет
+          hint: L(temporary && this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintItemEffect")
         });
       }
     }
@@ -2015,7 +2029,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           negated(injury) ? L("WFRPPD.Limb.MarvelHint") : "",
           left ?? ""
         ],
-        hint: L(this.editable ? "WFRPPD.Effects.HintInjury" : "WFRPPD.Effects.HintOpen")
+        hint: L(this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
       });
     }
     for (const crit of actor.itemTypes.critical ?? []) {
@@ -2031,7 +2045,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           sys.wounds?.value ? `${L("WFRPPD.Wounds")}: ${sys.wounds.value}` : "",
           sys.modifier?.value ? `${L("WFRPPD.Effects.Penalty")}: ${sys.modifier.value}` : ""
         ],
-        hint: L("WFRPPD.Effects.HintOpen")
+        hint: L(this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
       });
     }
     for (const disease of actor.itemTypes.disease ?? []) {
@@ -2050,7 +2064,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         img: itemImg(disease.img, disease.name),
         debuff: true,
         lines: [state, sys.symptoms?.value ? `${L("WFRPPD.Effects.Symptoms")}: ${sys.symptoms.value}` : ""],
-        hint: L("WFRPPD.Effects.HintOpen")
+        hint: L(this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
       });
     }
 
@@ -2064,47 +2078,69 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** ЛКМ по эффекту */
+  /** Диалог подтверждения снятия (единый для травм/критов/болезней/эффектов) */
+  async _confirmRemoveEffect(name) {
+    const Dialog = foundry.applications?.api?.DialogV2;
+    if (!Dialog) return true;
+    const content = `<p>${game.i18n.format("WFRPPD.Effects.DeleteConfirm", { name: foundry.utils.escapeHTML?.(name) ?? name })}</p>`;
+    return Dialog.confirm({ window: { title: game.i18n.localize("WFRPPD.Effects.DeleteTitle") }, content });
+  }
+
+  /** Сама запись ленты как ActiveEffect-документ: с предмета - из его effects, иначе - с самого актёра */
+  _effectDoc(entry) {
+    return entry.itemId ? this.actor.items.get(entry.itemId)?.effects?.get(entry.id) : this.actor.effects.get(entry.id);
+  }
+
+  /** Лист, который открывает запись ленты эффектов: пассивку - через её предмет, всё остальное - сама запись */
+  _effectSheet(entry) {
+    if (entry.itemId && entry.passive) this.actor.items.get(entry.itemId)?.sheet?.render(true);
+    else if (["condition", "effect", "buff"].includes(entry.kind)) this._effectDoc(entry)?.sheet?.render(true);
+    else this.actor.items.get(entry.id)?.sheet?.render(true);
+  }
+
+  /**
+   * ЛКМ по записи ленты - везде одно правило: Shift - снять (с подтверждением, кроме уровня состояния
+   * и пассивки с предмета - их снять нельзя, у них нет своего «снять»), без Shift - открыть лист.
+   * Исключение - состояние: ЛКМ без Shift снимает 1 уровень (как было), это самое частое действие с ним.
+   */
   async _onEffectClick(entry, ev = null) {
     if (!this.editable) return;
     try {
       // Дополнение может забрать клик себе (вернуть true)
       for (const a of ADDONS.values()) if (a.effectClick && (await a.effectClick(this, entry, ev))) return;
-      // Shift+ЛКМ по травме - удалить её (с подтверждением): зажило, вылечили, ГМ отменил
-      if (ev?.shiftKey && ["injury", "critical"].includes(entry.kind)) {
-        const item = this.actor.items.get(entry.id);
-        if (!item) return;
-        const content = `<p>${game.i18n.format("WFRPPD.Effects.DeleteConfirm", { name: foundry.utils.escapeHTML?.(item.name) ?? item.name })}</p>`;
-        const Dialog = foundry.applications?.api?.DialogV2;
-        const ok = Dialog
-          ? await Dialog.confirm({ window: { title: game.i18n.localize("WFRPPD.Effects.DeleteTitle") }, content })
-          : true;
-        if (ok) await item.delete();
+
+      if (ev?.shiftKey) {
+        if (["injury", "critical", "disease"].includes(entry.kind)) {
+          const item = this.actor.items.get(entry.id);
+          if (item && (await this._confirmRemoveEffect(item.name))) await item.delete();
+          return;
+        }
+        if (entry.kind === "condition") {
+          await this.actor.effects.get(entry.id)?.delete();
+          return;
+        }
+        if (entry.kind === "effect" || entry.kind === "buff") {
+          if (entry.itemId && entry.passive) return; // пассивку с предмета так не снять - её источник предмет/талант
+          const effect = this._effectDoc(entry);
+          if (effect && (await this._confirmRemoveEffect(effect.name))) await effect.delete();
+        }
         return;
       }
-      // Эффект с предмета (талант, психология, вещь) - открыть сам предмет
-      if (entry.itemId) {
-        this.actor.items.get(entry.itemId)?.sheet?.render(true);
-        return;
-      }
+
       if (entry.kind === "condition") {
         if (typeof this.actor.removeCondition === "function") await this.actor.removeCondition(entry.key, 1);
         else await this.actor.effects.get(entry.id)?.delete();
-      } else if (entry.kind === "effect" || entry.kind === "buff") {
-        const effect = this.actor.effects.get(entry.id);
-        await effect?.update({ disabled: !effect.disabled });
-      } else {
-        this.actor.items.get(entry.id)?.sheet?.render(true);
+        return;
       }
+      this._effectSheet(entry);
     } catch (err) {
       console.warn(`${MODULE_ID} | effect action failed`, err);
     }
   }
 
-  /** ПКМ по эффекту - открыть его лист */
+  /** ПКМ по эффекту - всегда открыть лист (эффекта или его предмета-источника) */
   _onEffectContext(entry) {
-    if (entry.itemId) this.actor.items.get(entry.itemId)?.sheet?.render(true);
-    else if (["condition", "effect", "buff"].includes(entry.kind)) this.actor.effects.get(entry.id)?.sheet?.render(true);
-    else this.actor.items.get(entry.id)?.sheet?.render(true);
+    this._effectSheet(entry);
   }
 
   /* -------------------------------------------- */
@@ -3679,7 +3715,7 @@ class PaperdollFlyout {
 /** Общие помощники ядра: дополнения берут их отсюда, а не копируют */
 export const PD_UTIL = {
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
-  esc, safe, T, norm, option, setting, asset, uiArt, itemImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
+  esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook
 };

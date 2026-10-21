@@ -6,6 +6,7 @@
     "mock": "node tools/build-mock.mjs --loot --effects --cast"
   },
   "devDependencies": {
-    "handlebars": "^4.7.8"
+    "handlebars": "^4.7.8",
+    "playwright": "^1.64.1"
   }
 }

@@ -72,7 +72,7 @@ else Hooks.once("wfrp4e-paperdoll.init", register);
 ```bash
 npm install
 npm run mock                                              # docs/paperdoll-mock.html
-node tools/build-mock.mjs --cast --out mock-all.html      # переключатель персонажей (Хьюго, Гюнтер, Рейнхард...)
+node tools/build-mock.mjs --cast --out mock-all.html      # переключатель персонажей (Хьюго, Гюнтер)
 node tools/build-mock.mjs --cast --addons none --out mock-core.html   # только ядро; all | magic,party
 tools/qa/run-all.sh                                       # всё сразу: с дополнениями и без
 ```
@@ -80,7 +80,7 @@ tools/qa/run-all.sh                                       # всё сразу: �
 - `qa.mjs <mock>` - слоты, фильтры, сортировка, перетаскивание (~100 проверок, все должны быть PASS);
 - `addchk.mjs <mock>` - вкладки, травмы, лишние слоты, прокачка по персонажам;
 - `mutchk.mjs`, `progchk.mjs` - мутации и прокачка; `smoke.mjs` - импорт main.js и окно настроек.
-Тестовые персонажи: `tools/mock-data.mjs`, богатый «Капитан Рейнхард» - `tools/mock-rich.mjs`.
+Тестовые персонажи (`tools/mock-data.mjs`): «Хьюго» - основной, для общих проверок; «Гюнтер» (--cast) - минимум вещей и много свободного опыта специально для прокачки/покупки талантов.
 Скриншоты для себя - через playwright (`page.screenshot`), Михаил смотрит мок в браузере.
 
 ## Правила игры (WFRP4e), которые уже зашиты

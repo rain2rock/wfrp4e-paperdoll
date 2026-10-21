@@ -30,7 +30,7 @@ import crypto from "node:crypto";
 import { actorData as demoActor, blankActor, CAST, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT, COINS } from "./mock-loot.mjs";
-import { ownIconFor } from "../scripts/icon-rules.js";
+import { ownIconFor, talentSlug } from "../scripts/icon-rules.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
@@ -171,13 +171,18 @@ function finishActor(actor) {
     ...actor,
     talents: (actor.talents ?? []).map((t) => {
       const name = t.name ?? t;
-      const slug = String(name).toLowerCase().replace(/\s*\([^)]*\)\s*$/, "").replace(/[^a-z!]+/g, "-").replace(/^-|-$/g, "");
-      const rel = `talents/${slug}.png`;
+      const rel = `talents/${talentSlug(name)}.png`;
       if (!OVERRIDES.has(rel)) return t;
       assetUri(`icons/${rel}`);
       return { ...(typeof t === "string" ? { name } : t), img: `modules/wfrp4e-core/icons/${rel}` };
     })
   };
+  // Таланты ступеней карьеры (меню покупки «Развития») - ещё не куплены, своей картинки у них нет вообще,
+  // модуль подберёт иконку по названию сам (talentImg) - ей только нужно попасть в __PD_ASSETS__ заранее
+  for (const name of (actor.careers ?? []).flatMap((c) => c.talents ?? [])) {
+    const rel = `talents/${talentSlug(name)}.png`;
+    if (OVERRIDES.has(rel)) assetUri(`icons/${rel}`);
+  }
   if (!(ROOTS.icons || ROOTS.core)) {
     const G = { injury: ["🦴", "#7a4a2a"], critical: ["🩸", "#7a1a1a"], disease: ["🤢", "#3a5a2a"], money: ["🪙", "#6a5a20"] };
     actor = {
@@ -260,6 +265,7 @@ ${css}
 Клик по слоту открывает список быстрой смены. Перетаскивание, двойной клик, вкладка «Характеристики» и выпадашки статов тоже работают.</p>
 <label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
 ${cast.length ? `<label class="mock-gm">Персонаж: <select id="mock-cast">${[actor, ...cast].map((a, i) => `<option value="${i}">${a.name}</option>`).join("")}</select></label>` : ""}
+<a class="mock-gm" href="paperdoll-mock-settings.html" target="_blank">Окно настроек →</a>
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
 <script>${handlebars}</script>
@@ -303,6 +309,101 @@ fs.writeFileSync(out, html);
 console.log(`Мок собран: ${out} (${(html.length / 1024).toFixed(0)} КБ), персонаж: ${actor.name}, своих иконок: ${ownIcons}`);
 if (ROOTS.icons || ROOTS.core)
   console.log(`Иконки: по пути предмета ${iconStats.path}, по названию ${iconStats.rule}, заглушки ${iconStats.placeholder}, эмодзи ${iconStats.emoji}`);
+
+/* ---------- Окно настроек: отдельная страница (docs/paperdoll-mock-settings.html) ---------- */
+{
+  const settingsSrc = read("scripts/settings-menu.js")
+    .replace(/^import .*$/gm, "")
+    .replace(/^export /gm, "")
+    // ApplicationV2 и esc уже объявлены в appSrc (paperdoll-app.js) - то же самое, но конфликт имён
+    .replace(/^const \{ ApplicationV2 \} = foundry\.applications\.api;$/m, "")
+    .replace(/^const esc = \(s\) => String\(s \?\? ""\)\.replace\(\/\[&<>"\]\/g, \(c\) => \(\{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" \}\)\[c\]\);$/m, "");
+  // Регистрация настроек ядра - как в scripts/main.js (хук init), без хоткея и патча токена: тут не нужны
+  const coreSettings = `
+    game.settings.register(MODULE_ID, "itemIcons", {
+      name: "WFRPPD.Settings.ItemIcons.Name", hint: "WFRPPD.Settings.ItemIcons.Hint",
+      scope: "client", config: false, type: Boolean, default: true
+    });
+    for (const [key, def] of Object.entries(PD_OPTIONS)) {
+      game.settings.register(MODULE_ID, key, {
+        name: \`WFRPPD.Options.\${key}.Name\`, hint: \`WFRPPD.Options.\${key}.Hint\`,
+        scope: "client", config: false, type: Boolean, default: def
+      });
+    }
+    game.settings.register(MODULE_ID, "secondBar", { scope: "client", config: false, type: String, default: "fortune" });
+    game.settings.register(MODULE_ID, "translateText", {
+      name: "WFRPPD.Options.translateText.Name", hint: "WFRPPD.Options.translateText.Hint",
+      scope: "client", config: false, type: String, default: "off",
+      choices: { off: "WFRPPD.Options.translateText.off", chrome: "WFRPPD.Options.translateText.chrome", google: "WFRPPD.Options.translateText.google" }
+    });
+    game.settings.register(MODULE_ID, "translateDescOnly", {
+      name: "WFRPPD.Options.translateDescOnly.Name", hint: "WFRPPD.Options.translateDescOnly.Hint",
+      scope: "client", config: false, type: Boolean, default: false
+    });
+  `;
+  const settingsHtml = `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paperdoll Mock - настройки</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+  html, body { margin: 0; background: #2f3237; font-family: "Signika", "Segoe UI", system-ui, sans-serif; color: #e8dcc4; }
+  body { padding: 20px; }
+  .mock-note { color: #cfcfcf; font-size: 13px; margin: 0 0 12px; max-width: 760px; line-height: 1.4; }
+  .app.window-app { max-width: 100%; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6); border: 1px solid #000; }
+  .window-header { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; background: #0b0a09;
+    color: #e8dcc4; font-size: 14px; border-bottom: 1px solid #4a4339; flex: 0 0 auto; }
+  .window-header .window-title { flex: 1; }
+  .window-header .header-control { background: none; border: none; color: #e8dcc4; cursor: pointer; font-size: 14px; }
+  .window-content { flex: 1; min-height: 0; padding: 12px 16px; overflow: auto; }
+  .form-group { margin: 0 0 10px; }
+  .form-group label { display: block; font-weight: 700; margin-bottom: 2px; }
+  .form-group .hint { margin: 2px 0 0; font-size: 12px; opacity: .75; }
+  .form-group select, .form-group input[type="text"] { width: 100%; max-width: 320px; padding: 3px 6px; }
+  .form-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid #4a4339; }
+  .form-footer button { padding: 5px 12px; cursor: pointer; }
+  .pd-actor-create { margin-left: 6px; }
+${css}
+</style>
+</head>
+<body>
+<p class="mock-note">Мок окна настроек: тот же настоящий код модуля (scripts/settings-menu.js), вкладки ядра + по одной на каждое включённое дополнение.</p>
+<div id="mock-mount"></div>
+<script>${handlebars}</script>
+<script>
+window.__PD_LANG__ = ${json(lang)};
+window.__PD_SYSTEM_STRINGS__ = ${json(systemStrings)};
+window.__PD_CONFIG__ = ${json(config)};
+window.__PD_TEMPLATES__ = ${json({})};
+window.__PD_ASSETS__ = ${json({})};
+</script>
+<script>${runtime}</script>
+<script>
+(() => {
+${appSrc.replace(/^export /gm, "").replace(/<\/script/gi, "<\\/script")}
+${settingsSrc.replace(/<\/script/gi, "<\\/script")}
+window.PaperdollApp = PaperdollApp;
+window.PaperdollSettings = PaperdollSettings;
+globalThis.__PD_MOCK__ = true;
+globalThis.__PD_API__ = PD_API;
+${coreSettings}
+${addonSrc.replace(/^export /gm, "").replace(/<\/script/gi, "<\\/script")}
+})();
+</script>
+<script>
+game.user.isGM = true;
+new PaperdollSettings().render();
+</script>
+</body>
+</html>
+`;
+  const settingsOut = path.resolve(root, "docs/paperdoll-mock-settings.html");
+  fs.writeFileSync(settingsOut, settingsHtml);
+  console.log(`Настройки собраны: ${settingsOut} (${(settingsHtml.length / 1024).toFixed(0)} КБ)`);
+}
 
 /* ---------- Слепок из Foundry -> данные мока ---------- */
 

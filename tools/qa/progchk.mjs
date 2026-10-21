@@ -5,7 +5,7 @@ const p = await b.newPage({ viewport: { width: 1100, height: 950 } });
 const errs=[]; p.on("pageerror", e => errs.push(e.message)); p.on("console", m => m.type()==="error" && errs.push(m.text()));
 await p.goto("file://" + path.resolve(process.argv[2])); await p.waitForTimeout(1000);
 const opts = await p.$$eval('#mock-cast option', e=>e.map(o=>o.textContent));
-await p.selectOption('#mock-cast', String(opts.findIndex(o=>/Рейнхард/.test(o)))); await p.waitForTimeout(600);
+await p.selectOption('#mock-cast', String(opts.findIndex(o=>/Гюнтер/.test(o)))); await p.waitForTimeout(600);
 await p.click('.pd-tab[data-tab="stats"]'); await p.waitForTimeout(300);
 const xp = () => p.$eval('.pd-ecs', e => e.textContent.match(/Потрачено\s*(\d+)/)?.[1]).catch(()=>null);
 const r = { views: await p.$$eval('.pd-ecs-view', e=>e.length), xp0: await xp() };

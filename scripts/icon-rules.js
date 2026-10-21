@@ -29,6 +29,18 @@ export const NAME_ICON_RULES = [
 export const baseVariant = (rel) => rel.replace(/(-(fine|flaw)(-?\d+)?|\d+)(\.\w+)$/, "$4");
 
 /**
+ * Английское название таланта -> имя файла в assets/icons/talents (без расширения).
+ * У всех талантов в wfrp4e-core одна и та же заглушка-картинка, своя иконка подбирается только по названию.
+ */
+export function talentSlug(name) {
+  return String(name ?? "")
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .replace(/[^a-z!]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
  * Путь своей иконки относительно assets/icons или null.
  * @param {string} rel   путь картинки предмета относительно modules/wfrp4e-core/icons/
  * @param {string} name  название предмета
