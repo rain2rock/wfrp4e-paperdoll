@@ -194,8 +194,29 @@ const cast = "cast" in args ? CAST.map((a) => finishActor(structuredClone(a))) :
 // ---------- Сборка ----------
 const require = createRequire(import.meta.url);
 const handlebars = fs.readFileSync(require.resolve("handlebars/dist/handlebars.min.js"), "utf8");
+// Дополнения из addons/<id>: по умолчанию все, --addons none - только ядро, --addons magic,party - выбранные
+const ADDON_DIR = path.join(root, "addons");
+const addonIds = fs.existsSync(ADDON_DIR) ? fs.readdirSync(ADDON_DIR).filter((d) => fs.existsSync(path.join(ADDON_DIR, d, "module.json"))).sort() : [];
+const wantAddons = args.addons === "none" ? [] : args.addons && args.addons !== true && args.addons !== "all" ? String(args.addons).split(",") : addonIds;
+const activeAddons = addonIds.filter((id) => wantAddons.includes(id));
+const deepMerge = (a, b) => {
+  for (const [k, v] of Object.entries(b ?? {})) a[k] = v && typeof v === "object" && !Array.isArray(v) ? deepMerge(a[k] ?? {}, v) : v;
+  return a;
+};
 const lang = JSON.parse(read("lang/ru.json"));
-const css = read("styles/paperdoll.css").replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
+for (const id of activeAddons) {
+  const f = path.join(ADDON_DIR, id, "lang/ru.json");
+  if (fs.existsSync(f)) deepMerge(lang, JSON.parse(fs.readFileSync(f, "utf8")));
+}
+const addonFiles = (id, sub, ext) => {
+  const d = path.join(ADDON_DIR, id, sub);
+  return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => f.endsWith(ext)).sort().map((f) => fs.readFileSync(path.join(d, f), "utf8")) : [];
+};
+const css = [read("styles/paperdoll.css"), ...activeAddons.flatMap((id) => addonFiles(id, "styles", ".css"))]
+  .join("\n")
+  .replace(/url\("\.\.\/\.\.\/wfrp4e-paperdoll\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`)
+  .replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
+const addonSrc = activeAddons.flatMap((id) => addonFiles(id, "scripts", ".js")).join("\n");
 const appSrc = [read("scripts/icon-index.js"), read("scripts/icon-rules.js").replace(/^export /gm, ""), read("scripts/glossary-ru.js").replace(/^export /gm, ""), read("scripts/translate.js").replace(/^export /gm, ""), read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "")].join("\n");
 const template = read("templates/paperdoll.hbs");
 const runtime = read("tools/mock-runtime.js");
@@ -254,6 +275,9 @@ window.__PD_ASSETS__ = ${json(ASSETS)};
 (() => {
 ${appSrc.replace(/^export /gm, "").replace(/<\/script/gi, "<\\/script")}
 window.PaperdollApp = PaperdollApp;
+globalThis.__PD_MOCK__ = true;
+globalThis.__PD_API__ = PD_API;
+${addonSrc.replace(/^export /gm, "").replace(/<\/script/gi, "<\\/script")}
 })();
 </script>
 <script>

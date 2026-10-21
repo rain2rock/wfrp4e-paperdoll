@@ -1,0 +1,63 @@
+{
+  "WFRPPD": {
+    "Adv": {
+      "Step": "Advance {from} → {to}\t{cost} XP",
+      "InCareer": "In career",
+      "OutOfCareer": "Out of career: double cost and GM approval needed",
+      "Free": "XP available\t{n}",
+      "NotEnough": "XP short\t{n}",
+      "Milestone": "Level milestone\t{adv} / {need}",
+      "RefundHint": "Right-click - undo the last advance and refund XP",
+      "OutTitle": "Out-of-career advance",
+      "OutConfirm": "«{name}» is not in your career. The advance costs {cost} XP (double) and needs GM approval. Spend it?",
+      "LogUp": "{name}: advanced to {to}",
+      "LogDown": "{name}: advance refunded (to {to})",
+      "GoalHint": "Advances towards the current level milestone",
+      "NotEnoughMsg": "{n} XP short"
+    },
+    "TalentBuy": {
+      "Title": "Career level talents",
+      "Click": "Click + to choose and buy with XP",
+      "Log": "Talent: {name} → {to}"
+    },
+    "StatsView": {
+      "list": "List",
+      "tree": "Advance",
+      "treeHint": "Tree: each characteristic with its bonus and the skills based on it",
+      "xp": "Free XP",
+      "xpHint": "XP you can spend: total minus spent"
+    },
+    "Career": {
+      "LevelValue": "level {n}",
+      "Chars": "Characteristics",
+      "Skills": "Skills",
+      "Talent": "Talent",
+      "CharsHint": "Each career characteristic: at least {need} advances",
+      "SkillsHint": "At least 8 career skills: at least {need} advances",
+      "TalentHint": "At least 1 talent of this level"
+    },
+    "Impact": {
+      "SkillsHead": "Skills +1 ({n})",
+      "More": "and {n} more",
+      "BonusHead": "Characteristic bonus",
+      "BonusLater": "goes up in {n} advance(s)",
+      "BonusRow": "Bonus"
+    },
+    "Options": {
+      "talentBuy": {
+        "Name": "Buy talents with XP",
+        "Hint": "'+' in the Talents header: current career level talents with cost and description."
+      },
+      "showAllSkills": {
+        "Name": "Show all skills in Advance view",
+        "Hint": "In the Advance view, list every skill of a characteristic, including untrained out-of-career skills (dimmed, cost ×2). Off - only career and already trained skills; the full list is in the + tooltip."
+      }
+    },
+    "Addon": {
+      "progression": {
+        "Title": "Progression",
+        "Intro": "Spend XP right from the window: «+» on characteristics and skills (RMB refunds a step), tree mode, career level milestones and buying level talents."
+      }
+    }
+  }
+}

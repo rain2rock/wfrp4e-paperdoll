@@ -311,6 +311,7 @@
       this.conditionValue = data.value ?? null;
       this.changes = data.changes ?? [];
       this.isTemporary = !!data.temporary;
+      this.duration = data.duration ?? {};
       this.transfer = data.transfer ?? undefined;
       this.origin = data.origin ?? null;
     }
@@ -364,7 +365,10 @@
           }
         })),
         ...(data.talents ?? []).map((t, i) => ({ id: `talent-${i}`, name: t.name ?? t, img: t.img, type: "talent", system: { advances: { value: t.advances ?? 1 }, max: { value: t.max ?? "1" }, description: { value: t.desc ?? "" } } })),
-        ...(data.spells ?? []).map((name, i) => ({ id: `spell-${i}`, name, type: "spell", system: {} }))
+        ...(data.spells ?? []).map((sp, i) => typeof sp === "string"
+          ? { id: `spell-${i}`, name: sp, type: "spell", system: {} }
+          : { id: `spell-${i}`, name: sp.name, img: sp.img, type: "spell", system: { cn: { value: sp.cn }, lore: { value: sp.lore }, range: { value: sp.range }, target: { value: sp.target }, duration: { value: sp.duration }, memorized: { value: !!sp.memorized }, description: { value: sp.desc ?? "" } } }),
+        ...(data.prayers ?? []).map((pr, i) => ({ id: `prayer-${i}`, name: pr.name, img: pr.img, type: "prayer", system: { type: { value: pr.type }, range: { value: pr.range }, target: { value: pr.target }, duration: { value: pr.duration }, description: { value: pr.desc ?? "" } } }))
       ];
       this._hasSkills = extra.some((e) => e.type === "skill");
       const arr = [...data.items, ...extra].map((d) => new FakeItem(this, d));

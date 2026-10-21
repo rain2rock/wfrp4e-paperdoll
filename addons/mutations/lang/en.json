@@ -1,0 +1,32 @@
+{
+  "WFRPPD": {
+    "Mutation": {
+      "Type": {
+        "physical": "Physical mutation",
+        "mental": "Mental mutation"
+      },
+      "Grants": "Gives the doll a slot: {slot}",
+      "Grant": {
+        "hand": "extra hand",
+        "head": "extra head",
+        "none": "nothing",
+        "auto": "by name"
+      },
+      "GMHint": "Shift+LMB (GM) - what it gives the doll: hand / head / nothing / by name · LMB or RMB - open",
+      "Set": "«{name}»: {slot}",
+      "ExtraHint": "Slot from the «{name}» mutation. The system does not know about extra limbs: the item is equipped, the module remembers where."
+    },
+    "Options": {
+      "mutations": {
+        "Name": "Mutations add slots",
+        "Hint": "Extra arms and heads from mutations become extra doll slots. Mutations always show in the effects strip"
+      }
+    },
+    "Addon": {
+      "mutations": {
+        "Title": "Mutations",
+        "Intro": "Mutations in the effects strip with a Chaos frame. Extra arms and heads from mutations become extra character slots; the GM marks what a mutation grants with Shift+LMB."
+      }
+    }
+  }
+}

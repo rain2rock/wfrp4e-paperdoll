@@ -93,6 +93,17 @@ export const RICH = {
   career: { name: "Офицер", level: 4, class: "Воины" },
   careers: CAREER.map((c, i) => ({ ...c, ...(i < 3 ? { complete: true } : { current: true }) })),
   skills: SKILLS.map(([name, chk, adv]) => ({ name, ch: chk, adv })),
+  spells: [
+    { name: "Dart", lore: "petty", cn: 0, range: "WPB yards", target: "1", duration: "Instant", desc: "<p>You fling a small dart of magical energy. Treat it as a magic missile with Damage +0.</p>" },
+    { name: "Light", lore: "petty", cn: 0, range: "You", target: "You", duration: "WPB minutes", desc: "<p>You create a small light, roughly equivalent to a torch.</p>" },
+    { name: "Aqshy's Aegis", lore: "fire", cn: 5, range: "You", target: "You", duration: "WPB rounds", memorized: true, desc: "<p>You are wreathed in protective flame and completely immune to fire damage.</p>" },
+    { name: "Flaming Hearts", lore: "fire", cn: 8, range: "WPB yards", target: "AoE (WPB yards)", duration: "WPB rounds", desc: "<p>Your allies are filled with courage and are immune to Fear and Terror.</p>" }
+  ],
+  prayers: [
+    { name: "Blessing of Courage", type: "blessing", range: "6 yards", target: "1", duration: "6 rounds", desc: "<p>Your target gains +10 bonus to Willpower Tests.</p>" },
+    { name: "Blessing of Might", type: "blessing", range: "6 yards", target: "1", duration: "6 rounds", desc: "<p>Your target gains +10 to Melee Tests.</p>" },
+    { name: "The Twin-Tailed Comet", type: "miracle", range: "Fellowship yards", target: "Special", duration: "Instant", desc: "<p>A comet falls from the heavens upon your foes.</p>" }
+  ],
   talents: TALENTS.map(([name, advances, max]) => ({ name, advances, max, desc: TALENT_DESC[name] })),
   system: {
     characteristics: { ws: ch(38, 20), bs: ch(33, 15), s: ch(36, 10), t: ch(37, 15), i: ch(35, 15), ag: ch(32, 5), dex: ch(30), int: ch(31, 5), wp: ch(34, 20), fel: ch(33, 15) },

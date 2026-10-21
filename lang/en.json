@@ -104,8 +104,8 @@
     "Level": "lvl",
     "Stats": {
       "Set": {
-        "physical": "Physical",
-        "mental": "Mental",
+        "physical": "Body",
+        "mental": "Mind",
         "combat": "Combat",
         "defence": "Defence",
         "fate": "Fate",
@@ -138,7 +138,6 @@
       "ExpTotal": "Total",
       "ExpSpent": "Spent",
       "ExpCurrent": "Available",
-      "CastPenalty": "Armour casting penalty",
       "Modified": "Modified: {mod} (effects, talents or a sheet edit)",
       "StealthPenalty": "Stealth",
       "PerceptionPenalty": "Perception",
@@ -160,8 +159,6 @@
       "Cavalry": "On foot needs Melee (Two-Handed)",
       "OffHand": "{n} off hand",
       "OffHandHint": "Attacking with the off hand is penalised. Ambidextrous reduces it",
-      "Cast": "{n} SL to casting",
-      "CastHint": "A caster takes -1 SL to Language (Magick) and Channelling per armour point on the most armoured location",
       "Cult": "Against strictures: {god}",
       "CultUlric": "Ulric: blackpowder, helmets, crossbows and technology are not the way of Ulric",
       "Penalty": "{text}",
@@ -179,15 +176,6 @@
       "Practical": "Practical: penalty 10 lower"
     },
     "Class": "Class",
-    "Career": {
-      "LevelValue": "level {n}",
-      "Chars": "Characteristics",
-      "Skills": "Skills",
-      "Talent": "Talent",
-      "CharsHint": "Each career characteristic: at least {need} advances",
-      "SkillsHint": "At least 8 career skills: at least {need} advances",
-      "TalentHint": "At least 1 talent of this level"
-    },
     "Gods": {
       "Ulric": "Ulric"
     },
@@ -219,7 +207,22 @@
       "DeleteConfirm": "Delete the injury «{name}» from the character? This cannot be undone.",
       "DeleteTitle": "Delete injury",
       "From": "Source: {name}",
-      "HintItemEffect": "LMB or RMB - open the source"
+      "HintItemEffect": "LMB or RMB - open the source",
+      "LeftRoundsShort": "{n}r",
+      "LeftRounds": "Rounds left: {n}",
+      "LeftTime": "Left: {n} {unit}",
+      "Unit": {
+        "s": "s",
+        "m": "m",
+        "h": "h",
+        "d": "d"
+      },
+      "UnitLong": {
+        "s": "sec",
+        "m": "min",
+        "h": "h",
+        "d": "days"
+      }
     },
     "Talent": {
       "MightyBlow": "+{n} dmg: Strike Mighty Blow",
@@ -301,55 +304,8 @@
       "grid": "Cells",
       "list": "List with names"
     },
-    "Limb": {
-      "Kind": {
-        "arm": "arm lost",
-        "hand": "hand lost",
-        "leg": "leg lost",
-        "foot": "foot lost",
-        "broken": "broken: unusable until it heals",
-        "torn": "torn muscle: unusable until it heals"
-      },
-      "Prosthetic": "Prosthetic: {name}",
-      "MarvelHint": "Engineering Marvel: the loss has no effect.",
-      "NoHandHint": "By the rules this hand cannot hold a weapon, nor a two-handed one. You can still drag an item here if the GM allows it.",
-      "StumpHint": "No hand: cannot hold a weapon, but a shield can be strapped to the stump. -20 to tests needing both hands.",
-      "HookHint": "Hook: counts as a dagger in melee.",
-      "NoLegHint": "Movement is reduced (core rules, Amputations). A false leg restores 1 Movement.",
-      "LegProsthesisHint": "False leg: +1 to Movement lost with the leg.",
-      "TempHint": "Temporary: the limit goes away when the injury heals.",
-      "ShieldStrapped": "shield strapped to the stump",
-      "NoHand": "no hand",
-      "HandBroken": "arm unusable",
-      "NeedTwoHands": "needs two hands",
-      "LegDisabledHint": "The leg does not work until the injury heals: Movement is reduced as if it were lost."
-    },
-    "Mutation": {
-      "Type": {
-        "physical": "Physical mutation",
-        "mental": "Mental mutation"
-      },
-      "Grants": "Gives the doll a slot: {slot}",
-      "Grant": {
-        "hand": "extra hand",
-        "head": "extra head",
-        "none": "nothing",
-        "auto": "by name"
-      },
-      "GMHint": "Shift+LMB (GM) - what it gives the doll: hand / head / nothing / by name · LMB or RMB - open",
-      "Set": "«{name}»: {slot}",
-      "ExtraHint": "Slot from the «{name}» mutation. The system does not know about extra limbs: the item is equipped, the module remembers where."
-    },
     "Options": {
       "Title": "Options",
-      "mutations": {
-        "Name": "Mutations add slots",
-        "Hint": "Extra arms and heads from mutations become extra doll slots. Mutations always show in the effects strip"
-      },
-      "injuries": {
-        "Name": "Track limb injuries",
-        "Hint": "Slot badges, \"no hand\" marks and prosthetics."
-      },
       "prices": {
         "Name": "Show item prices",
         "Hint": "Approximate value in tooltips. The GM always sees prices."
@@ -389,9 +345,25 @@
         "Name": "Translate only descriptions and flavour text",
         "Hint": "Names, terms and rules stay as they are; only item, effect and talent descriptions are translated."
       },
-      "showAllSkills": {
-        "Name": "Show all skills in Advance view",
-        "Hint": "In the Advance view, list every skill of a characteristic, including untrained out-of-career skills (dimmed, cost ×2). Off - only career and already trained skills; the full list is in the + tooltip."
+      "effectDurations": {
+        "Name": "Effect durations",
+        "Hint": "'3r' / '2h' badge on the effect icon and 'Left' line in the tooltip."
+      },
+      "unarmed": {
+        "Name": "Fists with empty hands",
+        "Hint": "An empty weapon slot shows 'Unarmed'; main-hand damage uses fists (SB+0)."
+      },
+      "restButton": {
+        "Name": "Rest on the wounds bar",
+        "Hint": "⟲ button on the wounds bar: Endurance +20, heals TB + SL."
+      },
+      "rolls": {
+        "Name": "Rolls from the window",
+        "Hint": "Dice on the weapon slot - attack; click a characteristic or skill name - test."
+      },
+      "shiftCompare": {
+        "Name": "Shift to compare",
+        "Hint": "Hold Shift over a weapon or armour in the bag to see what's equipped in that slot."
       }
     },
     "Vitals": {
@@ -423,41 +395,14 @@
         "xp": "Free experience {value} of {max} earned"
       }
     },
-    "Adv": {
-      "Step": "Advance {from} → {to}\t{cost} XP",
-      "InCareer": "In career",
-      "OutOfCareer": "Out of career: double cost and GM approval needed",
-      "Free": "XP available\t{n}",
-      "NotEnough": "XP short\t{n}",
-      "Milestone": "Level milestone\t{adv} / {need}",
-      "RefundHint": "Right-click - undo the last advance and refund XP",
-      "OutTitle": "Out-of-career advance",
-      "OutConfirm": "«{name}» is not in your career. The advance costs {cost} XP (double) and needs GM approval. Spend it?",
-      "LogUp": "{name}: advanced to {to}",
-      "LogDown": "{name}: advance refunded (to {to})",
-      "GoalHint": "Advances towards the current level milestone",
-      "NotEnoughMsg": "{n} XP short"
-    },
-    "StatsView": {
-      "list": "List",
-      "tree": "Advance",
-      "treeHint": "Tree: each characteristic with its bonus and the skills based on it",
-      "xp": "Free XP",
-      "xpHint": "XP you can spend: total minus spent"
-    },
     "Impact": {
       "Title": "Affects:",
       "Skills": "skills +1: {list}",
       "Bonus": "bonus {from} → {to}:",
-      "BonusLater": "goes up in {n} advance(s)",
-      "BonusRow": "Bonus",
       "PerBonus": "per bonus point",
       "Wounds": "wounds",
       "Damage": "melee damage",
       "Enc": "carry limit",
-      "SkillsHead": "Skills +1 ({n})",
-      "More": "and {n} more",
-      "BonusHead": "Characteristic bonus",
       "PerBonusShort": "per bonus"
     },
     "Hotkey": {
@@ -493,11 +438,6 @@
       "Undamaging": "Undamaging",
       "Note": "An empty hand punches; this 'weapon' can't be removed"
     },
-    "TalentBuy": {
-      "Title": "Career level talents",
-      "Click": "Click + to choose and buy with XP",
-      "Log": "Talent: {name} → {to}"
-    },
     "Rest": {
       "Title": "Rest and recover",
       "Night": "Night of sleep: Endurance +20, heals TB + SL",
@@ -506,6 +446,33 @@
       "Success": "Success.",
       "Fail": "Failure.",
       "Healed": "Wounds recovered: {n} ({now} / {max})"
+    },
+    "Roll": {
+      "Chance": "Hit chance",
+      "Attack": "Attack: weapon test",
+      "Click": "Click the name to roll a test"
+    },
+    "StatsTabShort": "Stats",
+    "SettingsMenu": {
+      "Title": "Character equipment: settings",
+      "Button": "Open settings",
+      "Hint": "All module settings by category: display, rules, controls, translation, party.",
+      "Save": "Save",
+      "Tab": {
+        "display": "Display",
+        "rules": "Rules",
+        "controls": "Controls",
+        "translate": "Translation"
+      },
+      "Intro": {
+        "display": "What the window shows. Each player has their own settings.",
+        "rules": "Which WFRP rules the module handles for you.",
+        "controls": "Hotkeys, clicks and drag & drop. The window key is changed in Foundry's Configure Controls.",
+        "translate": "Translating English compendium data."
+      }
+    },
+    "Career": {
+      "Talent": "Talent"
     }
   }
 }

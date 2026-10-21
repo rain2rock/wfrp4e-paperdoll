@@ -36,7 +36,7 @@ export const bindMissingImages = (root) => {
 };
 
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
-export const PD_OPTIONS = { mutations: false, injuries: true, prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false, showAllSkills: false };
+export const PD_OPTIONS = { prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false, effectDurations: true, unarmed: true, restButton: true, rolls: true, shiftCompare: true };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
 /** Игровой термин на русском (опция «Переводить термины», клиент на русском) */
 export const T = (name) =>
@@ -116,36 +116,6 @@ const LIMB_LOCS = ["rArm", "lArm", "rLeg", "lLeg"];
 const isArmLoc = (loc) => loc === "rArm" || loc === "lArm";
 const baseName = (img) => String(img ?? "").split("/").pop().replace(/\.\w+$/, "").toLowerCase();
 
-/**
- * Что травма делает с конечностью. Узнаём по картинке wfrp4e-core (не зависит от перевода),
- * потом по названию на английском и русском.
- * arm / hand / leg / foot - ампутация, broken / torn - временно не действует (книга: как ампутация, пока не заживёт)
- */
-function injuryLimbKind(item) {
-  const img = baseName(item.img);
-  const name = String(item.name ?? "").toLowerCase();
-  const test = (imgRe, nameRe) => imgRe.test(img) || nameRe.test(name);
-  if (test(/^amputatedhand/, /amputated hand|lost hand|кист/)) return "hand";
-  if (test(/^amputatedarm/, /amputated arm|lost arm|потер\S* рук|ампутац\S* рук/)) return "arm";
-  if (test(/^amputatedfoot/, /amputated foot|lost foot|стоп/)) return "foot";
-  if (test(/^amputatedleg/, /amputated leg|lost leg|потер\S* ног|ампутац\S* ног/)) return "leg";
-  if (test(/^broken-(arm|leg)/, /broken bone|перелом/)) return "broken";
-  if (test(/^torn(arm|leg)/, /torn muscle \(major\)|серь\S* разрыв|разрыв\S* мышц\S* \(серь/)) return "torn";
-  return null;
-}
-
-/** Какая конечность: rArm / lArm / rLeg / lLeg или null, если по данным не понять */
-function injuryLimbLoc(item, kind) {
-  const key = item.system?.location?.key;
-  if (LIMB_LOCS.includes(key)) return key;
-  const text = `${item.system?.location?.value ?? ""} ${item.name ?? ""} ${baseName(item.img)}`.toLowerCase();
-  const side = /\bleft\b|лев/.test(text) ? "l" : /\bright\b|прав/.test(text) ? "r" : null;
-  const arm = ["hand", "arm"].includes(kind) || /arm|hand|рук|кист/.test(text);
-  const leg = ["foot", "leg"].includes(kind) || /leg|foot|ног|стоп/.test(text);
-  if (!side || arm === leg) return null;
-  return `${side}${arm ? "Arm" : "Leg"}`;
-}
-
 /* -------------------------------------------- */
 /*  Мутации: лишние руки и головы               */
 /* -------------------------------------------- */
@@ -156,33 +126,11 @@ const isExtraHand = (slot) => EXTRA_HANDS.includes(slot);
 const isExtraHead = (slot) => EXTRA_HEADS.includes(slot);
 const isExtraSlot = (slot) => isExtraHand(slot) || isExtraHead(slot);
 /** В каком дополнительном слоте вещь (флаг модуля) */
-// Опция «Мутации дают слоты» выключена - флаг игнорируем, вещь видна в обычном слоте
-const extraSlotOf = (item) => (option("mutations") ? item?.flags?.[MODULE_ID]?.extraSlot ?? null : null);
+// Без дополнения «Мутации» (или с выключенной опцией) флаг игнорируем, вещь видна в обычном слоте
+const extraSlotOf = (item) => (ADDONS.has("mutations") && option("mutations") ? item?.flags?.[MODULE_ID]?.extraSlot ?? null : null);
 
-/**
- * Что мутация даёт куколке: "hand" - лишняя рука, "head" - лишняя голова, "none" - ничего (решение ГМ), null - не знаем.
- * В базовой книге таких мутаций нет (есть щупальце - это черта-оружие), они бывают в дополнениях и у ГМ,
- * поэтому сначала флаг, который ставит ГМ кликом по мутации, потом название.
- */
-function mutationGrant(item) {
-  const flag = item.flags?.[MODULE_ID]?.grants;
-  if (flag) return flag;
-  const name = String(item.name ?? "").toLowerCase();
-  if (/(extra|additional|third|fourth|second)\s+(arm|hand)s?|(третья|четв\S+|лишн\S+|дополнит\S+|втор\S+)\s+(рук|кист)|многорук/.test(name)) return "hand";
-  if (/(extra|additional|second|two|third)\s+heads?|(втор\S+|лишн\S+|дополнит\S+|треть\S+)\s+голов|двухголов|две головы|многоголов/.test(name)) return "head";
-  return null;
-}
-
-/** Протез: hook - крюк, leg - деревянная нога или стопа, marvel - инженерное чудо */
-function prostheticKind(item) {
-  if (item.type !== "trapping") return null;
-  const img = baseName(item.img);
-  const name = String(item.name ?? "").toLowerCase();
-  if (/engineering-marvel/.test(img) || /engineering marvel|инженерн\S* чуд/.test(name)) return "marvel";
-  if (/hook/.test(img) || /\bhook\b|крюк/.test(name)) return "hook";
-  if (/false-leg|wooden-leg/.test(img) || /false (leg|foot)|wooden leg|peg leg|деревянн\S* ног|искусственн\S* (ног|стоп)/.test(name)) return "leg";
-  return null;
-}
+/** Протез: hook - крюк, leg - деревянная нога или стопа, marvel - инженерное чудо. Распознаёт дополнение «Травмы» */
+const prostheticKind = (item) => ADDONS.get("injuries")?.prostheticKind?.(item) ?? null;
 
 /** Доступность предмета -> «редкость» рамки в стиле WoW */
 const RARITY = {
@@ -518,6 +466,19 @@ function playCoinSound(gain = true) {
   }
 }
 
+/**
+ * Дополнения - отдельные модули (магия, травмы, мутации, развитие, группа).
+ * Регистрируются через PD_API.registerAddon в хуке «wfrp4e-paperdoll.init».
+ * Ядро работает без любого из них: точки расширения вызываются, только если дополнение есть.
+ */
+export const ADDONS = new Map();
+/** Вызвать точку расширения у всех дополнений: addon[name](app, ...args) */
+const addonHook = (name, ...args) => {
+  const out = [];
+  for (const a of ADDONS.values()) if (typeof a[name] === "function") out.push(a[name](...args));
+  return out;
+};
+
 export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Одно окно на актёра */
   /** Описания талантов из библиотеки: имя -> текст */
@@ -574,7 +535,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static PARTS = {
     main: {
       template: `modules/${MODULE_ID}/templates/paperdoll.hbs`,
-      scrollable: [".pd-bag-list"]
+      scrollable: [".pd-bag-list", ".pd-ecs", ".pd-addon-tab"]
     }
   };
 
@@ -717,7 +678,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           const otherLoc = this._handLoc(key === "main" ? "off" : "main");
           if (!slot.maim && key === "main" && twoHander && limbs[otherLoc].noHand) slot.maim = this._maimView(otherLoc, limbs);
           // Пустая рука - это кулаки: оружие «без оружия» нельзя снять
-          if (!slot.top) slot.hint = this._unarmedHint();
+          if (!slot.top && option("unarmed")) slot.hint = this._unarmedHint();
+          else if (editable && !slot.top.ghost && option("rolls")) slot.rollId = slot.top.id;
           return ammoWarn(slot, key === "main" ? mainItems : offItems);
         }).concat(extra.hands.map(extraSlot))
       }
@@ -749,6 +711,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       rows: sets[selected] ?? []
     }));
     const statCategories = this._statCategories(sets);
+    // Вкладки дополнений (Магия и т. п.)
+    const addonTabs = [...ADDONS.values()].flatMap((a) => a.tabs ?? []).filter((t) => safe(() => t.visible?.(this) ?? true, false));
+    if (!["bag", "stats"].includes(this._tab) && !addonTabs.some((t) => t.id === this._tab)) this._tab = "bag";
+    const activeAddonTab = addonTabs.find((t) => t.id === this._tab);
 
     // --- Шапка: имя, карьера, вид ---
     const career = safe(() => sys.currentCareer ?? actor.currentCareer);
@@ -827,7 +793,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       statCategories,
       tabBag: this._tab === "bag",
       tabStats: this._tab === "stats",
-      statsTree: this._statsView === "tree",
+      addonTabs: addonTabs.map((t) => ({ id: t.id, label: L(t.label), icon: t.icon, active: t.id === this._tab })),
+      addonTabHtml: activeAddonTab ? safe(() => activeAddonTab.render(this), "") : "",
+      bagToolbarHtml: addonHook("bagToolbar", this).filter(Boolean).join(""),
+      restButton: this.editable && option("restButton"),
+      statsTree: this._treeView(),
+      hasProgression: ADDONS.has("progression"),
       xpFree: (() => {
         const e = sys.details?.experience;
         return e ? (Number(e.total) || 0) - (Number(e.spent) || 0) : null;
@@ -912,49 +883,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return { item: cur, group, level, need: level * 5, skills, chars, talents: cur.system.talents ?? [], levels };
   }
 
-  /** Входит ли навык или характеристика в карьеру (null - карьера неизвестна) */
-  _inCareer(kind, keyOrItem, career = this._careerInfo()) {
-    if (!career) return null;
-    if (kind === "char") return career.chars.has(keyOrItem);
-    return career.skills.some((e) => skillMatches(keyOrItem.name, e));
+  /** Данные для кнопки «+» у навыка или характеристики. В ядре кнопок нет - их даёт дополнение «Развитие» */
+  _advInfo() {
+    return null;
   }
 
-  /** Данные для кнопки «+» у навыка или характеристики */
-  _advInfo(kind, keyOrItem, career = this._careerInfo()) {
-    const F = (k, d) => game.i18n.format(k, d);
-    const L = (k) => game.i18n.localize(k);
-    const sys = this.actor.system;
-    const adv = kind === "char"
-      ? Number(sys.characteristics?.[keyOrItem]?.advances) || 0
-      : Number(keyOrItem.system.advances?.value) || 0;
-    const inCareer = this._inCareer(kind, keyOrItem, career);
-    const mult = inCareer === false ? 2 : 1;
-    const cost = advanceCost(adv, kind === "char" ? "characteristic" : "skill") * mult;
-    const exp = sys.details?.experience ?? {};
-    const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
-    const can = free >= cost;
-    // Разметка подсказки: «## » - заголовок блока, «! » - предупреждение, «~ » - мелкая сноска, TAB - значение справа
-    const lines = [
-      F("WFRPPD.Adv.Step", { from: adv, to: adv + 1, cost }),
-      inCareer === false ? `! ${L("WFRPPD.Adv.OutOfCareer")}` : inCareer ? L("WFRPPD.Adv.InCareer") : "",
-      can ? F("WFRPPD.Adv.Free", { n: free }) : `! ${F("WFRPPD.Adv.NotEnough", { n: cost - free })}`,
-      career && inCareer ? F("WFRPPD.Adv.Milestone", { adv, need: career.need }) : "",
-      ...(kind === "char" ? this._charImpact(keyOrItem) : []),
-      adv > 0 ? `~ ${L("WFRPPD.Adv.RefundHint")}` : ""
-    ].filter(Boolean);
-    return {
-      kind,
-      key: kind === "char" ? keyOrItem : keyOrItem.id,
-      adv,
-      cost,
-      can: can && this.editable,
-      inCareer,
-      reached: !!(career && inCareer && adv >= career.need),
-      // Прогресс к вехе ступени (только для того, что в карьере)
-      goal: career && inCareer && adv < career.need ? `${adv}/${career.need}` : null,
-      cls: [can && this.editable ? "" : "is-off", career && inCareer && adv >= career.need ? "is-reached" : "", inCareer === false ? "is-out" : ""].join(" ").trim(),
-      hint: lines.join("\n")
-    };
+  /** Режим прокачки (дерево) есть только с дополнением «Развитие» */
+  _treeView() {
+    return this._statsView === "tree" && typeof this._advanceTree === "function";
   }
 
   /** Навыки персонажа на этой характеристике */
@@ -998,112 +934,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return lines;
   }
 
-  /** Что изменит +1 к характеристике: навыки на ней и, если сменится десяток, бонус и производные */
-  _charImpact(key) {
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
-    const c = this.actor.system.characteristics?.[key] ?? {};
-    const value = Number(c.value) || 0;
-    const lines = [];
-    // Навыки на этой характеристике - каждый своей строкой: было → станет
-    const skills = this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name));
-    if (skills.length) {
-      lines.push(`## ${F("WFRPPD.Impact.SkillsHead", { n: skills.length })}`);
-      for (const sk of skills.slice(0, 10)) {
-        const t = Number(safe(() => sk.system.total?.value, null) ?? 0);
-        lines.push(`· ${T(sk.name)}\t${t} → ${t + 1}`);
-      }
-      if (skills.length > 10) lines.push(`~ ${F("WFRPPD.Impact.More", { n: skills.length - 10 })}`);
-    }
-    // Бонус: сменится ли десяток
-    const b0 = Math.floor(value / 10);
-    const b1 = Math.floor((value + 1) / 10);
-    lines.push(`## ${L("WFRPPD.Impact.BonusHead")}`);
-    if (b1 > b0) {
-      lines.push(`${L("WFRPPD.Bonus.Title").replace(/:.*$/, "")}\t${b0} → ${b1}`);
-      for (const e of this._bonusEffects(key)) lines.push(`· ${e.label}\t+${e.n}`);
-    } else {
-      lines.push(F("WFRPPD.Impact.BonusLater", { n: (b0 + 1) * 10 - value }));
-    }
-    return lines;
-  }
-
-  /** Максимальный уровень таланта (число или null, если без предела) */
-  /** Таланты текущей ступени карьеры, которые можно взять или поднять (100 опыта + 100 за каждый взятый уровень) */
-  _talentOffers() {
-    const career = this._careerInfo();
-    if (!career) return [];
-    const exp = this.actor.system.details?.experience ?? {};
-    const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
-    const owned = this.actor.itemTypes.talent ?? [];
-    return [...new Set(career.talents ?? [])].map((name) => {
-      const mine = owned.filter((t) => skillMatches(t.name, name) || skillMatches(name, t.name));
-      const lvl = mine.reduce((n, t) => n + (Number(t.system.advances?.value) || 1), 0);
-      const max = mine[0] ? this._talentMax(mine[0]) : null;
-      const cost = 100 * (lvl + 1);
-      const capped = !!(max && lvl >= max);
-      const text = (mine[0] && this._talentText(mine[0])) || PaperdollApp._talentLib.get(norm(name)) || "";
-      return {
-        name,
-        label: T(name),
-        lvl,
-        max,
-        cost,
-        capped,
-        can: !capped && free >= cost,
-        img: itemImg(mine[0]?.img ?? null, name),
-        text: text.length > 220 ? `${text.slice(0, 220).trim()}…` : text,
-        itemId: mine[0]?.id ?? ""
-      };
-    });
-  }
-
-  /** Взять или поднять талант за опыт: копия своего таланта, иначе из компендиума, иначе пустой */
-  async _buyTalent(name) {
-    if (!this.editable) return;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
-    const offer = this._talentOffers().find((o) => o.name === name);
-    if (!offer || offer.capped) return;
-    const actor = this.actor;
-    const exp = actor.system.details?.experience ?? {};
-    const spent = Number(exp.spent) || 0;
-    const total = Number(exp.total) || 0;
-    if (total - spent < offer.cost) return ui.notifications?.warn(F("WFRPPD.Adv.NotEnoughMsg", { n: offer.cost - (total - spent) }));
-    let data = null;
-    const own = offer.itemId ? actor.items.get(offer.itemId) : null;
-    if (own) data = own.toObject();
-    else {
-      const base = (n) => norm(String(n ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
-      try {
-        for (const pack of game.packs ?? []) {
-          if (pack.documentName !== "Item") continue;
-          const index = await pack.getIndex({ fields: ["type"] });
-          const hit = index.find((e) => e.type === "talent" && norm(e.name) === norm(name)) ?? index.find((e) => e.type === "talent" && base(e.name) === base(name));
-          if (hit) {
-            data = (await pack.getDocument(hit._id)).toObject();
-            break;
-          }
-        }
-      } catch (err) {
-        console.warn("wfrp4e-paperdoll | talent lookup", err);
-      }
-      data ??= { name, type: "talent", system: {} };
-      data.name = name;
-    }
-    delete data._id;
-    data.system ??= {};
-    data.system.advances = { ...(data.system.advances ?? {}), value: 1 };
-    await actor.createEmbeddedDocuments("Item", [data]);
-    const newSpent = spent + offer.cost;
-    const reason = F("WFRPPD.TalentBuy.Log", { name: offer.label, to: offer.lvl + 1 });
-    const update = { "system.details.experience.spent": newSpent };
-    const log = safe(() => actor.system.addToExpLog?.(offer.cost, reason, newSpent, total), null);
-    if (Array.isArray(log)) update["system.details.experience.log"] = log;
-    await actor.update(update);
-    ui.notifications?.info(reason);
-  }
-
   /** Отдых и восстановление: проверка Стойкости (+20), успех - [БВ + УУ] ран, день полного покоя - ещё +БВ */
   async _restRecover(fullDay = false) {
     if (!this.editable) return;
@@ -1128,6 +958,62 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const content = `<div class="wfrp-paperdoll-rest"><b>${esc(L("WFRPPD.Rest.Title"))}</b><br>${esc(
       F("WFRPPD.Rest.Roll", { r, target, sl: sl > 0 ? `+${sl}` : sl })
     )}<br><b>${esc(ok ? L("WFRPPD.Rest.Success") : L("WFRPPD.Rest.Fail"))}</b> ${esc(F("WFRPPD.Rest.Healed", { n: next - now, now: next, max }))}</div>`;
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor }), content, rolls: [roll] });
+  }
+
+  /** Цель проверки атаки оружием: значение навыка группы, иначе ББ / ДБ */
+  _attackTarget(item) {
+    const sys = item?.system;
+    if (!sys) return null;
+    const ranged = !!safe(() => sys.isRanged);
+    const chars = this.actor.system.characteristics ?? {};
+    const sk = safe(() => sys.skillToUse, null) ?? (this.actor.itemTypes.skill ?? []).find((s) => norm(s.name) === norm(GROUP_SKILL[sys.weaponGroup?.value] ?? ""));
+    const val = Number(safe(() => sk?.system.total?.value, null));
+    if (sk && val) return { target: val, from: T(sk.name) };
+    const c = ranged ? "bs" : "ws";
+    return { target: Number(chars[c]?.value) || 0, from: game.i18n.localize(game.wfrp4e.config.characteristics?.[c] ?? c) };
+  }
+
+  /**
+   * Проверка из окна: через систему WFRP4e (диалог модификаторов, карточка в чате).
+   * Если системный вызов недоступен - простой бросок d100 против цели в чат.
+   */
+  async _rollTest(kind, ref) {
+    const actor = this.actor;
+    const L = (k) => game.i18n.localize(k);
+    try {
+      let test = null;
+      if (kind === "weapon" && actor.setupWeapon) test = await actor.setupWeapon(ref);
+      else if (kind === "skill" && actor.setupSkill) test = await actor.setupSkill(ref);
+      else if (kind === "char" && actor.setupCharacteristic) test = await actor.setupCharacteristic(ref);
+      else throw new Error("no system test");
+      if (test?.roll) await test.roll();
+      return;
+    } catch (err) {
+      if (!/no system test/.test(String(err?.message))) console.warn("wfrp4e-paperdoll | system test", err);
+    }
+    // Запасной бросок
+    let label = "";
+    let target = 0;
+    if (kind === "weapon") {
+      const hit = this._attackTarget(ref);
+      label = `${ref.name} (${hit?.from ?? ""})`;
+      target = hit?.target ?? 0;
+    } else if (kind === "skill") {
+      label = T(ref.name);
+      target = Number(safe(() => ref.system.total?.value, 0)) || 0;
+    } else {
+      const c = actor.system.characteristics?.[ref] ?? {};
+      label = L(game.wfrp4e.config.characteristics?.[ref] ?? ref);
+      target = Number(c.value) || 0;
+    }
+    const roll = await new Roll("1d100").evaluate();
+    const r = roll.total;
+    const ok = r <= 5 || (r <= target && r < 96);
+    const sl = Math.floor(target / 10) - Math.floor(r / 10);
+    const content = `<div class="wfrp-paperdoll-rest"><b>${esc(label)}</b><br>${esc(
+      game.i18n.format("WFRPPD.Rest.Roll", { r, target, sl: sl > 0 ? `+${sl}` : sl })
+    )}<br><b>${esc(ok ? L("WFRPPD.Rest.Success") : L("WFRPPD.Rest.Fail"))}</b></div>`;
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor }), content, rolls: [roll] });
   }
 
@@ -1211,139 +1097,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return ch ? Number(ch.bonus ?? Math.floor((Number(ch.value) || 0) / 10)) : null;
   }
 
-  /** Режим прокачки: характеристика, под ней её бонус с производными и навыки на ней */
-  _advanceTree(charRows) {
-    const F = (k, d) => game.i18n.format(k, d);
-    const L = (k) => game.i18n.localize(k);
-    const career = this._careerInfo();
-    const out = [];
-    for (const r of charRows) {
-      const key = r.key.replace(/^char\./, "");
-      const c = this.actor.system.characteristics?.[key] ?? {};
-      out.push({ ...r, cls: `${r.cls ?? ""} is-parent`.trim() });
-      const bonus = Number(c.bonus ?? Math.floor((Number(c.value) || 0) / 10));
-      const effects = this._bonusEffects(key);
-      out.push({
-        key: `${r.key}.bonus`,
-        label: F("WFRPPD.Impact.BonusRow", { name: r.label }),
-        value: bonus,
-        child: true,
-        derived: true,
-        hint: this._bonusInfo(key).join("\n")
-      });
-      for (const sk of this._skillsOf(key).sort((a, b) => a.name.localeCompare(b.name))) {
-        // По умолчанию - навыки карьеры и уже вкачанные; опция «все навыки» - как в подсказке плюса,
-        // вне карьеры приглушены (шаг стоит ×2)
-        const adv = this._advInfo("skill", sk, career);
-        if (!option("showAllSkills") && adv.inCareer === false && adv.adv === 0) continue;
-        out.push({
-          key: sk.name,
-          label: T(sk.name),
-          value: safe(() => sk.system.total?.value, null) ?? adv.adv,
-          cls: adv.inCareer === false ? "is-outcareer" : "",
-          done: adv.reached,
-          child: true,
-          adv
-        });
-      }
-    }
-    return out;
-  }
-
-  /** Вехи текущей ступени: что уже закрыто и что осталось */
-  _milestones(career) {
-    if (!career) return null;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
-    const cfg = game.wfrp4e.config;
-    const sys = this.actor.system;
-    const need = career.need;
-    const chars = [...career.chars].map((k) => ({
-      label: L(cfg.characteristics?.[k] ?? k),
-      adv: Number(sys.characteristics?.[k]?.advances) || 0
-    }));
-    const charsDone = chars.filter((c) => c.adv >= need);
-    const skills = (this.actor.itemTypes.skill ?? [])
-      .filter((sk) => career.skills.some((e) => skillMatches(sk.name, e)))
-      .map((sk) => ({ label: T(sk.name), adv: Number(sk.system.advances?.value) || 0 }));
-    const skillsDone = skills.filter((x) => x.adv >= need);
-    const talents = (this.actor.itemTypes.talent ?? []).filter((t) => career.talents.some((e) => skillMatches(t.name, e)));
-    const list = (arr) => arr.map((x) => `${x.adv >= need ? "✓" : "·"} ${x.label} ${x.adv}/${need}`).join("\n");
-    const rows = [
-      {
-        key: "Career.Chars",
-        label: L("WFRPPD.Career.Chars"),
-        value: `${charsDone.length} / ${chars.length}`,
-        done: charsDone.length >= chars.length,
-        cls: charsDone.length >= chars.length ? "is-done" : "is-todo",
-        hint: [F("WFRPPD.Career.CharsHint", { need }), list(chars)].join("\n")
-      },
-      {
-        key: "Career.Skills",
-        label: L("WFRPPD.Career.Skills"),
-        value: `${Math.min(skillsDone.length, 8)} / 8`,
-        done: skillsDone.length >= 8,
-        cls: skillsDone.length >= 8 ? "is-done" : "is-todo",
-        hint: [F("WFRPPD.Career.SkillsHint", { need }), list(skills)].join("\n")
-      },
-      {
-        key: "Career.Talent",
-        label: L("WFRPPD.Career.Talent"),
-        value: `${Math.min(talents.length, 1)} / 1`,
-        done: talents.length > 0,
-        cls: talents.length ? "is-done" : "is-todo",
-        hint: [L("WFRPPD.Career.TalentHint"), ...career.talents.map((t) => `${talents.some((x) => skillMatches(x.name, t)) ? "✓" : "·"} ${t}`)].join("\n")
-      }
-    ];
-    const done = rows.every((r) => r.cls === "is-done") || !!career.item.system.complete?.value;
-    return { rows, done };
-  }
-
-  /** Шаг развития за опыт: +1 (dir = 1) или вернуть последний шаг (dir = -1) */
-  async _advance(kind, key, dir = 1) {
-    if (!this.editable) return;
-    const actor = this.actor;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
-    const item = kind === "skill" ? actor.items.get(key) : null;
-    if (kind === "skill" && !item) return;
-    const name = item ? item.name : L(game.wfrp4e.config.characteristics?.[key] ?? key);
-    const adv = item ? Number(item.system.advances?.value) || 0 : Number(actor.system.characteristics?.[key]?.advances) || 0;
-    if (dir < 0 && adv <= 0) return;
-    const career = this._careerInfo();
-    const inCareer = this._inCareer(kind === "skill" ? "skill" : "char", item ?? key, career);
-    const type = kind === "skill" ? "skill" : "characteristic";
-    const cost = advanceCost(dir > 0 ? adv : adv - 1, type) * (inCareer === false ? 2 : 1);
-    const exp = actor.system.details?.experience ?? {};
-    const spent = Number(exp.spent) || 0;
-    const total = Number(exp.total) || 0;
-    if (dir > 0 && total - spent < cost) {
-      ui.notifications?.warn(F("WFRPPD.Adv.NotEnoughMsg", { n: cost - (total - spent) }));
-      return;
-    }
-    // Вне карьеры - только с одобрения ведущего, переспрашиваем
-    if (dir > 0 && inCareer === false) {
-      const Dialog = foundry.applications?.api?.DialogV2;
-      const ok = Dialog
-        ? await Dialog.confirm({ window: { title: L("WFRPPD.Adv.OutTitle") }, content: `<p>${F("WFRPPD.Adv.OutConfirm", { name, cost })}</p>` })
-        : true;
-      if (!ok) return;
-    }
-    const newSpent = spent + dir * cost;
-    const reason = F(dir > 0 ? "WFRPPD.Adv.LogUp" : "WFRPPD.Adv.LogDown", { name, to: adv + dir });
-    const update = { "system.details.experience.spent": newSpent };
-    // Журнал опыта системы, если он есть
-    const log = safe(() => actor.system.addToExpLog?.(dir * cost, reason, newSpent, total), null) ?? safe(() => actor._addToExpLog?.(dir * cost, reason, newSpent, total), null);
-    if (Array.isArray(log)) update["system.details.experience.log"] = log;
-    if (item) {
-      await item.update({ "system.advances.value": adv + dir });
-      await actor.update(update);
-    } else {
-      update[`system.characteristics.${key}.advances`] = adv + dir;
-      await actor.update(update);
-    }
-  }
-
   /* -------------------------------------------- */
   /*  Статы в стиле WoW / ECS                     */
   /* -------------------------------------------- */
@@ -1370,7 +1123,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return {
         adv,
         parts,
-        done: adv.reached,
+        done: !!adv?.reached,
         key: `char.${key}`,
         label: full ? L(full) : L(cfg.characteristicsAbbrev?.[key] ?? key),
         value: c.value ?? "-",
@@ -1393,7 +1146,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const dmg = (items, fists = false) => {
       const w = items[0];
       // Пустые руки - кулаки (БС+0)
-      if (!w) return fists ? `+${this._unarmedDamage()}` : "-";
+      if (!w) return fists && option("unarmed") ? `+${this._unarmedDamage()}` : "-";
       const d = this._weaponDamage(w, profile);
       return d === null ? "-" : `+${d}`;
     };
@@ -1402,43 +1155,38 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const apCls = (...locs) => (locs.some((l) => Number(ap(l)) > 0) ? "is-up" : "is-zero");
     const ranged = weapons.find((w) => safe(() => w.system.isRanged));
 
+    const pen = this._skillPenalties();
     const wounds = st.wounds ?? {};
     const woundsCls = wounds.max && wounds.value < wounds.max ? "is-down" : "";
 
-    return {
-      physical: ["ws", "bs", "s", "t", "i", "ag"].map(charRow),
-      mental: [
-        ...["dex", "int", "wp", "fel"].map(charRow),
+    const sets = {
+      // Тело: сила, выносливость, подвижность; Разум: восприятие, ум, воля, обаяние
+      // Штрафы брони - рядом с тем, на что влияют, и только когда они есть
+      physical: [
+        ...["s", "t", "ag", "dex"].map(charRow),
         row("WFRPPD.Stats.Move", det.move?.value),
-        row("WFRPPD.Stats.Run", det.move?.run)
+        row("WFRPPD.Stats.Run", det.move?.run),
+        ...(pen.stealth ? [row("WFRPPD.Stats.StealthPenalty", `-${pen.stealth}`, "is-down")] : [])
+      ],
+      mental: [
+        ...["i", "int", "wp", "fel"].map(charRow),
+        ...(pen.perception ? [row("WFRPPD.Stats.PerceptionPenalty", `-${pen.perception}`, "is-down")] : [])
       ],
       defence: [
         row("WFRPPD.Wounds", pair(wounds.value, wounds.max), woundsCls),
         row("WFRPPD.Stats.Crits", pair(st.criticalWounds?.value ?? 0, st.criticalWounds?.max), (st.criticalWounds?.value ?? 0) > 0 ? "is-down" : ""),
+        row("WFRPPD.Stats.TB", chars.t?.bonus),
         row(cfg.locations?.head ?? "head", ap("head"), apCls("head")),
         row(cfg.locations?.body ?? "body", ap("body"), apCls("body")),
         row("WFRPPD.Stats.Arms", `${ap("rArm")} / ${ap("lArm")}`, apCls("rArm", "lArm")),
         row("WFRPPD.Stats.Legs", `${ap("rLeg")} / ${ap("lLeg")}`, apCls("rLeg", "lLeg")),
-        ...(() => {
-          const profile = this._profile();
-          if (!profile.caster) return [];
-          const pen = this._castPenalty(profile);
-          return [row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} УУ` : "0", pen ? "is-down" : "")];
-        })(),
-        ...(() => {
-          const pen = this._skillPenalties();
-          return [
-            row("WFRPPD.Stats.StealthPenalty", pen.stealth ? `-${pen.stealth}` : "0", pen.stealth ? "is-down" : ""),
-            row("WFRPPD.Stats.PerceptionPenalty", pen.perception ? `-${pen.perception}` : "0", pen.perception ? "is-down" : "")
-          ];
-        })()
       ],
       combat: [
+        ...["ws", "bs"].map(charRow),
         row("WFRPPD.Stats.MainDmg", dmg(mainItems, true)),
         row("WFRPPD.Stats.OffDmg", dmg(offItems, !offItems.length && !mainItems.some((w) => w.system.twohanded?.value))),
         row("WFRPPD.Stats.RangedDmg", ranged ? dmg([ranged]) : "-"),
         row("WFRPPD.Stats.SB", chars.s?.bonus),
-        row("WFRPPD.Stats.TB", chars.t?.bonus),
         row("WFRPPD.Stats.Advantage", st.advantage?.value ?? 0)
       ],
       fate: [
@@ -1450,6 +1198,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         row("WFRPPD.Stats.Sin", st.sin?.value ?? 0, (st.sin?.value ?? 0) > 0 ? "is-sin" : "")
       ]
     };
+    // Дополнения дописывают строки (штраф к касту и т. п.); row - тот же построитель строк
+    addonHook("statSets", this, sets, { row, profile });
+    return sets;
   }
 
   /** Категории для вкладки «Характеристики» справа (как аддон ECS) */
@@ -1475,9 +1226,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Encumbrance", `${Number(enc.current) || 0} / ${Number(enc.max) || 0}`)
         ]
       },
-      ...(this._statsView === "tree"
-        ? [{ key: "tree", rows: this._advanceTree([...sets.physical, ...sets.mental.slice(0, 4)]) }]
-        : [{ key: "physical", rows: sets.physical }, { key: "mental", rows: sets.mental.slice(0, 4) }]),
+      ...(this._treeView()
+        ? [{ key: "tree", rows: this._advanceTree([...sets.combat.slice(0, 2), ...sets.physical.slice(0, 4), ...sets.mental.slice(0, 4)]) }]
+        : [{ key: "physical", rows: sets.physical.slice(0, 4) }, { key: "mental", rows: sets.mental.slice(0, 4) }]),
       { key: "combat", rows: sets.combat },
       { key: "defence", rows: sets.defence },
       { key: "fate", rows: sets.fate }
@@ -1491,39 +1242,29 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           row("WFRPPD.Stats.ExpCurrent", exp.current)
         ]
       });
-    // Карьера: вехи текущей ступени и навыки с кнопкой «+»
+    // Карьера и вехи ступени - из дополнения «Развитие»; в режиме прокачки сверху
     const career = this._careerInfo();
-    const ms = this._milestones(career);
-    if (career && ms) {
-      const levelRow = {
-        key: "Career.Level",
-        label: career.item.name,
-        value: game.i18n.format("WFRPPD.Career.LevelValue", { n: career.level }),
-        done: ms.done,
-        cls: "",
-        hint: career.levels.map((l) => `${l.current ? "▶" : l.past ? "✓" : "·"} ${l.n}. ${l.name ?? "?"}`).join("\n"),
-        levels: career.levels
-      };
-      const careerCat = { key: "career", rows: [levelRow, ...ms.rows] };
-      // В режиме прокачки вехи - сверху: к ним и качаемся
-      if (this._statsView === "tree") cats.unshift(careerCat);
+    const careerCat = this._careerCategory?.(career);
+    if (careerCat) {
+      if (this._treeView()) cats.unshift(careerCat);
       else cats.push(careerCat);
     }
     const skills = (this.actor.itemTypes.skill ?? [])
-      .map((sk) => ({ sk, adv: this._advInfo("skill", sk, career) }))
+      .map((sk) => ({ sk, adv: this._advInfo("skill", sk, career), n: Number(sk.system.advances?.value) || 0 }))
       // Навыки карьеры - всегда; остальные - если уже развиты
-      .filter(({ adv }) => adv.inCareer !== false || adv.adv > 0)
-      .sort((a, b) => (b.adv.inCareer === true) - (a.adv.inCareer === true) || a.sk.name.localeCompare(b.sk.name));
-    if (skills.length && this._statsView !== "tree") {
+      .filter(({ adv, n }) => (adv ? adv.inCareer !== false : false) || n > 0)
+      .sort((a, b) => (b.adv?.inCareer === true) - (a.adv?.inCareer === true) || a.sk.name.localeCompare(b.sk.name));
+    if (skills.length && !this._treeView()) {
       cats.push({
         key: "skills",
         rows: skills.map(({ sk, adv }) => ({
           key: sk.name,
           itemId: sk.id,
+          skillRoll: true,
           label: T(sk.name),
-          value: safe(() => sk.system.total?.value, null) ?? adv.adv,
-          cls: adv.inCareer === false ? "is-outcareer" : "",
-          done: adv.reached,
+          value: safe(() => sk.system.total?.value, null) ?? adv?.adv,
+          cls: adv?.inCareer === false ? "is-outcareer" : "",
+          done: !!adv?.reached,
           adv
         }))
       });
@@ -1541,7 +1282,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       else byName.set(k, { t, lvl: n });
     }
     const talents = [...byName.values()].sort((a, b) => T(a.t.name).localeCompare(T(b.t.name)));
-    const offers = this.editable ? this._talentOffers() : [];
+    const offers = this.editable && option("talentBuy") && this._talentOffers ? this._talentOffers() : [];
     if (talents.length || offers.length) {
       cats.push({
         key: "talents",
@@ -1570,7 +1311,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // У каждой строки - термины для поиска статьи правил (английские названия из книги + подпись)
     // Специализация в скобках статье не нужна: «Lore (Empire)» -> «Lore»
     const baseName = (t) => String(t ?? "").replace(/:$/, "").replace(/\s*\([^)]*\)\s*$/, "").trim();
-    const withArticle = (r) => ({ ...r, article: [ARTICLE_TERMS[r.key], baseName(r.label)].filter(Boolean).join("|") });
+    const withArticle = (r) => ({
+      ...r,
+      article: [ARTICLE_TERMS[r.key], baseName(r.label)].filter(Boolean).join("|"),
+      // Клик по названию характеристики или навыка - проверка
+      rollKey: this.editable && option("rolls") && (String(r.key).startsWith("char.") || r.skillRoll) ? r.key : null
+    });
     return cats.map((c) => ({
       ...c,
       rows: c.rows.map(withArticle),
@@ -1760,51 +1506,23 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
-  /** Дополнительные слоты от мутаций: { hands: ["hand3"], heads: ["head2"], source: { hand3: mutation } } */
+  /** Дополнительные слоты (лишние руки и головы). В ядре их нет - даёт дополнение «Мутации» */
   _extraSlots() {
-    const out = { hands: [], heads: [], source: {} };
-    if (!option("mutations")) return out;
-    for (const m of this.actor.itemTypes.mutation ?? []) {
-      const grant = mutationGrant(m);
-      const list = grant === "hand" ? EXTRA_HANDS : grant === "head" ? EXTRA_HEADS : null;
-      const target = grant === "hand" ? out.hands : out.heads;
-      if (!list || target.length >= list.length) continue;
-      const key = list[target.length];
-      target.push(key);
-      out.source[key] = m;
-    }
-    return out;
+    return { hands: [], heads: [], source: {} };
   }
 
   /**
-   * Состояние конечностей: какие травмы, какой протез надет, работает ли рука или нога.
-   * Инженерное чудо отменяет все последствия для своей конечности.
+   * Состояние конечностей: травмы, протез, работает ли рука или нога.
+   * В ядре все конечности целы - травмы учитывает дополнение «Травмы»
    */
   _limbState() {
-    const state = Object.fromEntries(LIMB_LOCS.map((loc) => [loc, { injuries: [], prosthetic: null }]));
-    // Учёт травм выключен в опциях: конечности считаем целыми
-    for (const item of option("injuries") ? this.actor.items : []) {
-      if (item.type === "injury") {
-        const kind = injuryLimbKind(item);
-        const loc = kind && injuryLimbLoc(item, kind);
-        if (loc) state[loc].injuries.push({ item, kind });
-      } else if (item.system?.isEquipped && prostheticKind(item)) {
-        const loc = item.flags?.[MODULE_ID]?.limb;
-        if (LIMB_LOCS.includes(loc)) state[loc].prosthetic = item;
-      }
-    }
-    for (const [loc, st] of Object.entries(state)) {
-      const kinds = st.injuries.map((x) => x.kind);
-      st.marvel = prostheticKind(st.prosthetic ?? {}) === "marvel";
-      st.lost = !st.marvel && kinds.some((k) => ["arm", "hand", "leg", "foot"].includes(k));
-      st.disabled = !st.marvel && kinds.some((k) => ["broken", "torn"].includes(k));
-      // Рука: держать оружие нечем. Щит можно привязать к культе, если потеряна только кисть
-      st.noHand = isArmLoc(loc) && (st.lost || st.disabled);
-      st.stump = isArmLoc(loc) && !st.disabled && kinds.includes("hand") && !kinds.includes("arm") && !st.marvel;
-      st.hook = st.stump && prostheticKind(st.prosthetic ?? {}) === "hook";
-      st.any = st.injuries.length > 0;
-    }
-    return state;
+    const healthy = () => ({ injuries: [], prosthetic: null, marvel: false, lost: false, disabled: false, noHand: false, stump: false, hook: false, any: false });
+    return Object.fromEntries(LIMB_LOCS.map((loc) => [loc, healthy()]));
+  }
+
+  /** Какую конечность задела травма (rArm / lArm / rLeg / lLeg) или null. Знает дополнение «Травмы» */
+  _injuryLimb() {
+    return null;
   }
 
   /** Рука, которая держит оружие в слоте main / off */
@@ -1814,36 +1532,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return main === "rArm" ? "lArm" : "rArm";
   }
 
-  /** Значок на слоте: что не так с конечностью (и чем она заменена) */
-  _maimView(loc, limbs) {
-    const st = limbs[loc];
-    if (!st?.any) return null;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
-    const top = st.injuries[0].item;
-    const lines = st.injuries.map((x) => `${x.item.name} - ${L(`WFRPPD.Limb.Kind.${x.kind}`)}`);
-    if (st.prosthetic) lines.push(F("WFRPPD.Limb.Prosthetic", { name: st.prosthetic.name }));
-    if (st.marvel) lines.push(L("WFRPPD.Limb.MarvelHint"));
-    else if (isArmLoc(loc)) {
-      if (st.noHand) lines.push(L(st.stump ? "WFRPPD.Limb.StumpHint" : "WFRPPD.Limb.NoHandHint"));
-      if (st.hook) lines.push(L("WFRPPD.Limb.HookHint"));
-    } else if (st.lost) lines.push(L(prostheticKind(st.prosthetic ?? {}) === "leg" ? "WFRPPD.Limb.LegProsthesisHint" : "WFRPPD.Limb.NoLegHint"));
-    else if (st.disabled) lines.push(L("WFRPPD.Limb.LegDisabledHint"));
-    if (st.disabled) lines.push(L("WFRPPD.Limb.TempHint"));
-    const view = {
-      loc,
-      img: itemImg(st.prosthetic && !st.marvel ? st.prosthetic.img : top.img, st.prosthetic && !st.marvel ? st.prosthetic.name : top.name),
-      // В подсказке - крупно сама травма
-      bigImg: itemImg(top.img, top.name),
-      name: top.name,
-      lines,
-      prostheticName: st.prosthetic?.name ?? "",
-      ok: st.marvel,
-      // Обычный протез (деревянная нога, крюк): заменено, но штрафы остаются
-      partial: !!st.prosthetic && !st.marvel
-    };
-    (this._maimCache ??= {})[loc] = view;
-    return view;
+  /** Значок на слоте: что не так с конечностью. В ядре его нет - даёт дополнение «Травмы» */
+  _maimView() {
+    return null;
   }
 
   _matchesFilter(item, filter) {
@@ -2244,6 +1935,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           name: T(effect.name || L(cfg.conditions[condition])),
           img: effect.img,
           value: value && value > 1 ? value : null,
+          left: effectRemaining(effect),
           debuff: true,
           lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
           hint: L("WFRPPD.Effects.HintCondition")
@@ -2259,6 +1951,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         name: effect.name,
         img: effect.img,
         disabled: !!effect.disabled,
+        left: effectRemaining(effect),
         debuff: pol !== "buff",
         lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
         hint: L(effect.disabled ? "WFRPPD.Effects.HintEnable" : "WFRPPD.Effects.HintDisable")
@@ -2283,6 +1976,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           passive: !temporary,
           name: effect.name || item.name,
           img: effect.img || item.img,
+          left: temporary ? effectRemaining(effect) : null,
           debuff: pol === "debuff",
           lines: [
             game.i18n.format("WFRPPD.Effects.From", { name: item.name }),
@@ -2297,8 +1991,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Травма конечности, которую заменило инженерное чудо, больше не действует
     const limbs = this._limbState();
     const negated = (injury) => {
-      const kind = injuryLimbKind(injury);
-      const loc = kind && injuryLimbLoc(injury, kind);
+      const loc = this._injuryLimb(injury);
       return !!(loc && limbs[loc]?.marvel);
     };
     for (const injury of actor.itemTypes.injury ?? []) {
@@ -2361,28 +2054,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    // Мутации: телесные и душевные, в рамке Хаоса. ГМ кликом отмечает, даёт ли мутация лишнюю руку или голову
-    // Мутации в ленте эффектов - всегда (это дебаффы); опция отвечает только за лишние слоты
-    for (const m of actor.itemTypes.mutation ?? []) {
-      const sys = m.system ?? {};
-      const type = sys.mutationType?.value;
-      const grant = mutationGrant(m);
-      out.push({
-        kind: "mutation",
-        id: m.id,
-        name: m.name,
-        img: itemImg(m.img, m.name),
-        debuff: true,
-        grant,
-        lines: [
-          type ? L(cfg.mutationTypes?.[type] ?? `WFRPPD.Mutation.Type.${type}`) : "",
-          sys.modifier?.value ?? "",
-          sys.description?.value ? plainEnrichers(stripTags(sys.description.value)) : "",
-          grant === "hand" || grant === "head" ? F("WFRPPD.Mutation.Grants", { slot: L(`WFRPPD.Mutation.Grant.${grant}`) }) : ""
-        ],
-        hint: L(game.user?.isGM ? "WFRPPD.Mutation.GMHint" : "WFRPPD.Effects.HintOpen")
-      });
-    }
+    // Дополнения добавляют свои записи (например, мутации)
+    addonHook("effects", this, out);
 
     // Сначала баффы, потом остальное; на стыке - разделитель
     const buffs = out.filter((e) => e.kind === "buff");
@@ -2394,6 +2067,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _onEffectClick(entry, ev = null) {
     if (!this.editable) return;
     try {
+      // Дополнение может забрать клик себе (вернуть true)
+      for (const a of ADDONS.values()) if (a.effectClick && (await a.effectClick(this, entry, ev))) return;
       // Shift+ЛКМ по травме - удалить её (с подтверждением): зажило, вылечили, ГМ отменил
       if (ev?.shiftKey && ["injury", "critical"].includes(entry.kind)) {
         const item = this.actor.items.get(entry.id);
@@ -2417,16 +2092,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       } else if (entry.kind === "effect" || entry.kind === "buff") {
         const effect = this.actor.effects.get(entry.id);
         await effect?.update({ disabled: !effect.disabled });
-      } else if (entry.kind === "mutation" && game.user?.isGM && ev?.shiftKey) {
-        // ГМ: Shift+ЛКМ по мутации переключает, что она даёт куколке: лишняя рука -> голова -> ничего -> по названию.
-        // Только с Shift: обычный клик слишком легко сделать случайно
-        const order = [null, "hand", "head", "none"];
-        const item = this.actor.items.get(entry.id);
-        const now = item?.flags?.[MODULE_ID]?.grants ?? null;
-        const next = order[(order.indexOf(now) + 1) % order.length];
-        if (next === null) await item?.unsetFlag?.(MODULE_ID, "grants");
-        else await item?.update({ [`flags.${MODULE_ID}.grants`]: next });
-        ui.notifications.info(game.i18n.format("WFRPPD.Mutation.Set", { name: item?.name ?? "", slot: game.i18n.localize(`WFRPPD.Mutation.Grant.${next ?? "auto"}`) }));
       } else {
         this.actor.items.get(entry.id)?.sheet?.render(true);
       }
@@ -2512,29 +2177,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const n = Number(base);
     if (Number.isNaN(n)) return null;
     return n + this._weaponBonuses(item, profile).dmg;
-  }
-
-  /** Даёт ли эта броня штраф к касту этому магу */
-  _castsThrough(item, profile) {
-    const type = item.system.armorType?.value;
-    if (profile.metalLore && (METAL_ARMOUR.includes(type) || item.system.isMetal)) return false;
-    if (profile.beastLore && LEATHER_ARMOUR.includes(type)) return false;
-    return true;
-  }
-
-  /** Штраф брони к касту: максимум AP по локациям среди «мешающей» брони */
-  _castPenalty(profile, extra = null) {
-    if (!profile.caster) return 0;
-    const worn = this.actor.itemTypes.armour?.filter((a) => a.system.isEquipped) ?? [];
-    const list = extra && !worn.includes(extra) ? [...worn, extra] : worn;
-    let max = 0;
-    for (const loc of LOCATIONS) {
-      const ap = list
-        .filter((a) => this._castsThrough(a, profile))
-        .reduce((n, a) => n + (safe(() => a.system.currentAP?.[loc], null) ?? a.system.AP?.[loc] ?? 0), 0);
-      max = Math.max(max, ap);
-    }
-    return max;
   }
 
   /** Надетая броня (плюс примерка ещё одной вещи) */
@@ -2623,17 +2265,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         if (profile.dualWielder) score += 100;
       }
-      // Рука без кисти или сломана: держать оружие нечем (перетащить всё равно можно - вдруг ГМ разрешит)
-      if (slot === "main" || slot === "off") {
-        const limbs = this._limbState();
-        const hand = limbs[this._handLoc(slot)];
-        const other = limbs[this._handLoc(slot === "main" ? "off" : "main")];
-        if (hand.noHand) {
-          if (shieldValue(item) && hand.stump) warn.push({ label: L("WFRPPD.Limb.ShieldStrapped"), info: true });
-          else forbid.push({ label: L(hand.disabled ? "WFRPPD.Limb.HandBroken" : "WFRPPD.Limb.NoHand"), hint: L("WFRPPD.Limb.NoHandHint") });
-        }
-        if (sys.twohanded?.value && (hand.noHand || other.noHand)) forbid.push({ label: L("WFRPPD.Limb.NeedTwoHands") });
-      }
       if (this._hasAmmo(item) === false) {
         warn.push({ label: L("WFRPPD.Restr.NoAmmo"), hint: L("WFRPPD.Restr.NoAmmoHint") });
         score -= 200;
@@ -2643,13 +2274,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     if (item.type === "armour") {
-      if (profile.caster && !sys.isEquipped && this._castsThrough(item, profile)) {
-        const delta = this._castPenalty(profile, item) - this._castPenalty(profile);
-        if (delta > 0) {
-          warn.push({ label: F("WFRPPD.Restr.Cast", { n: -delta }), hint: L("WFRPPD.Restr.CastHint") });
-          score -= delta * 150;
-        }
-      }
       // Слои: два жёстких доспеха на одной части тела по правилам не сочетаются
       if (!sys.isEquipped && !isUnderLayer(item)) {
         const before = this._layerConflicts();
@@ -2673,7 +2297,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (cult.forbids(item)) forbid.push({ label: F("WFRPPD.Restr.Cult", { god: L(cult.god) }), hint: L(cult.hint) });
     }
 
-    return { forbid, warn, score };
+    // Дополнения добавляют свои ограничения (штраф к касту, увечья и т. п.)
+    const out = { forbid, warn, score };
+    addonHook("restrictions", this, item, slot, out, profile);
+    return out;
   }
 
   /* -------------------------------------------- */
@@ -2904,7 +2531,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static onSetTab(event, target) {
-    this._tab = target.dataset.tab === "stats" ? "stats" : "bag";
+    this._tab = target.dataset.tab || "bag";
     this._saveUiState();
     this.render();
   }
@@ -3011,40 +2638,36 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       woundsBar.addEventListener("contextmenu", (ev) => change(ev, -1));
     }
-    // Таланты: «+» в заголовке - меню талантов ступени для покупки
-    root.querySelector(".pd-talent-add")?.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      this._talentMenuOpen = !this._talentMenuOpen;
-      root.querySelector(".pd-talentmenu")?.classList.toggle("is-open", this._talentMenuOpen);
-      // Описаний нет - подтягиваем из библиотеки и перерисовываем
-      if (this._talentMenuOpen) {
-        const need = this._talentOffers().filter((o) => !o.text && !PaperdollApp._talentLib.has(norm(o.name)));
-        if (need.length) Promise.all(need.map((o) => this._loadTalentText({ name: o.name, system: {} }))).then(() => this.render());
-      }
-    });
-    for (const el of root.querySelectorAll(".pd-talentmenu [data-buy]")) {
-      el.addEventListener("click", async (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (el.classList.contains("is-off")) return;
-        await this._buyTalent(el.dataset.buy);
-      });
-    }
-
-    // Шаг развития за опыт: ЛКМ +1, ПКМ вернуть последний шаг
-    for (const el of root.querySelectorAll(".pd-adv")) {
+    // Броски: кубик на слоте оружия, клик по названию характеристики или навыка
+    for (const el of root.querySelectorAll(".pd-roll[data-roll-item]")) {
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        this._advance(el.dataset.kind, el.dataset.key, 1);
-      });
-      el.addEventListener("contextmenu", (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        this._advance(el.dataset.kind, el.dataset.key, -1);
+        PaperdollTooltip.hide();
+        const item = this.actor.items.get(el.dataset.rollItem);
+        if (item) this._rollTest("weapon", item);
       });
     }
+    for (const el of root.querySelectorAll("[data-roll-key]")) {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        PaperdollTooltip.hide();
+        const key = el.dataset.rollKey;
+        if (key.startsWith("char.")) return this._rollTest("char", key.slice(5));
+        const sk = this.actor.items.get(el.dataset.rollItem) ?? (this.actor.itemTypes.skill ?? []).find((s) => s.name === key);
+        if (sk) this._rollTest("skill", sk);
+      });
+    }
+
+    // Дополнения: своя вкладка и свои обработчики
+    const tabEl = root.querySelector(".pd-addon-tab");
+    if (tabEl) {
+      const tab = [...ADDONS.values()].flatMap((a) => a.tabs ?? []).find((t) => t.id === this._tab);
+      tab?.onRender?.(this, tabEl);
+    }
+    addonHook("onRender", this, root);
+
     // Вкладка «Характеристики»: значок справа от строки открывает статью правил
     for (const el of root.querySelectorAll(".pd-ecs-info")) {
       el.addEventListener("click", (ev) => {
@@ -3264,6 +2887,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const item = await fromUuid(data.uuid);
     if (!item) return null;
     if (item.parent?.uuid !== this.actor.uuid) {
+      // Чужая вещь: может забрать дополнение (сундук группы)
+      for (const a of ADDONS.values()) if (a.externalDrop && (await a.externalDrop(this, item, data))) return null;
       ui.notifications.warn(game.i18n.localize("WFRPPD.Warn.NotOwned"));
       return null;
     }
@@ -3274,7 +2899,8 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     PaperdollTooltip.hide();
     this._dragging = { item };
     // Формат Foundry: предмет можно бросить и в другие окна (лист, другой актёр)
-    event.dataTransfer.setData("text/plain", JSON.stringify(item.toDragData()));
+    // fromPaperdoll: сброс на токен на столе передаёт вещь его персонажу (дополнение «Группа»)
+    event.dataTransfer.setData("text/plain", JSON.stringify({ ...item.toDragData(), fromPaperdoll: true }));
     event.dataTransfer.effectAllowed = "move";
     el.classList.add("is-dragging");
 
@@ -3319,6 +2945,35 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 /*  Тултип в стиле WoW                          */
 /* ============================================ */
 
+/**
+ * Сколько осталось действовать эффекту (Foundry: раунды/ходы в бою или игровое время).
+ * { short: "3р" | "2ч", long: "Осталось: 3 раунда" } или null, если эффект бессрочный.
+ */
+function effectRemaining(effect) {
+  if (!option("effectDurations")) return null;
+  const d = safe(() => effect.duration, null) ?? {};
+  const L = (k) => game.i18n.localize(k);
+  const F = (k, x) => game.i18n.format(k, x);
+  let rounds = null;
+  let seconds = null;
+  if (["turns", "rounds"].includes(d.type) && Number.isFinite(d.remaining)) rounds = Math.max(0, Math.ceil(d.remaining));
+  else if (d.type === "seconds" && Number.isFinite(d.remaining)) seconds = Math.max(0, d.remaining);
+  else if (Number(d.rounds) || Number(d.turns)) {
+    const total = Number(d.rounds) || 0;
+    const now = game.combat?.round ?? null;
+    rounds = now !== null && d.startRound !== undefined && d.startRound !== null ? Math.max(0, total - (now - d.startRound)) : total;
+  } else if (Number(d.seconds)) {
+    const now = game.time?.worldTime ?? 0;
+    seconds = d.startTime !== undefined && d.startTime !== null ? Math.max(0, d.startTime + Number(d.seconds) - now) : Number(d.seconds);
+  }
+  if (rounds !== null) return { short: F("WFRPPD.Effects.LeftRoundsShort", { n: rounds }), long: F("WFRPPD.Effects.LeftRounds", { n: rounds }) };
+  if (seconds !== null) {
+    const [n, unit] = seconds < 60 ? [Math.ceil(seconds), "s"] : seconds < 3600 ? [Math.ceil(seconds / 60), "m"] : seconds < 86400 ? [Math.ceil(seconds / 3600), "h"] : [Math.ceil(seconds / 86400), "d"];
+    return { short: `${n}${L(`WFRPPD.Effects.Unit.${unit}`)}`, long: F("WFRPPD.Effects.LeftTime", { n, unit: L(`WFRPPD.Effects.UnitLong.${unit}`) }) };
+  }
+  return null;
+}
+
 function effectTooltip(entry) {
   const L = (k) => game.i18n.localize(k);
   const kind = L(`WFRPPD.Effects.Kind.${entry.kind}`);
@@ -3332,6 +2987,7 @@ function effectTooltip(entry) {
       <div class="pd-tt-title">
         <div class="pd-tt-name ${entry.kind === "buff" ? "is-buff" : entry.debuff ? "is-debuff" : ""}">${esc(entry.name)}${esc(value)}</div>
         <div class="pd-tt-sub">${esc(kind + state)}</div>
+        ${entry.left ? `<div class="pd-tt-left">${esc(entry.left.long)}</div>` : ""}
       </div>
     </div>
     ${lines}
@@ -3353,7 +3009,7 @@ function maimTooltip(view) {
     ${[head, ...rest].map((l) => `<div class="pd-tt-text pd-tr">${esc(l)}</div>`).join("")}`;
 }
 
-class PaperdollTooltip {
+export class PaperdollTooltip {
   static el = null;
 
   static ensure() {
@@ -3433,6 +3089,7 @@ class PaperdollTooltip {
   }
 
   static showCompare() {
+    if (!option("shiftCompare")) return this.hideCompare();
     const cur = this.current;
     if (this.mode !== "item" || !cur) return this.hideCompare();
     const targets = this.compareTargets(cur.item, cur.app);
@@ -3645,6 +3302,11 @@ class PaperdollTooltip {
         const sub = bonus.parts.length ? `<small class="pd-tt-bonus">${esc(bonus.parts.join(", "))}</small>` : "";
         row(L("WFRPPD.Tooltip.Damage"), `+${Number.isNaN(total) ? base : total}`, "is-dmg", sub);
       }
+      // Шанс попасть: навык группы оружия, без него - ББ / ДБ
+      if (app) {
+        const hit = app._attackTarget(item);
+        if (hit) row(L("WFRPPD.Roll.Chance"), `${hit.target}%`, "is-text", `<small class="pd-tt-bonus">${esc(hit.from)}</small>`);
+      }
       if (safe(() => sys.isMelee)) {
         const reach = safe(() => sys.Reach);
         if (reach) row(L("WFRPPD.Tooltip.Reach"), L(reach), "is-text");
@@ -3757,7 +3419,7 @@ class PaperdollTooltip {
 
     // Двойной клик имеет смысл только для того, что вообще можно надеть
     const wearable = !!sys.isEquippable && safe(() => sys.canEquip, true) !== false;
-    const cmpHint = app && this.compareTargets(item, app).length ? ` · ${L("WFRPPD.Tooltip.CompareHint")}` : "";
+    const cmpHint = app && option("shiftCompare") && this.compareTargets(item, app).length ? ` · ${L("WFRPPD.Tooltip.CompareHint")}` : "";
     lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}${esc(cmpHint)}</div>`);
     return lines.join("");
   }
@@ -4009,3 +3671,57 @@ class PaperdollFlyout {
     this.slot = null;
   }
 }
+
+/* -------------------------------------------- */
+/*  API для дополнений                          */
+/* -------------------------------------------- */
+
+/** Общие помощники ядра: дополнения берут их отсюда, а не копируют */
+export const PD_UTIL = {
+  MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
+  esc, safe, T, norm, option, setting, asset, uiArt, itemImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
+  isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
+  extraSlotOf, isExtraHand, isExtraHead, addonHook
+};
+
+export const PD_API = {
+  PaperdollApp,
+  PaperdollTooltip,
+  util: PD_UTIL,
+  addons: ADDONS,
+  hasAddon: (id) => ADDONS.has(id),
+
+  /**
+   * Подключить дополнение.
+   * addon = { id, title, icon, settings: [{ key, default, type?, choices?, scope? }], tabs: [...],
+   *   statSets(app, sets, ctx), restrictions(app, item, slot, out, profile), effects(app, out),
+   *   effectClick(app, entry, ev), bagToolbar(app), externalDrop(app, item, data), onRender(app, root) }
+   */
+  registerAddon(addon) {
+    if (!addon?.id) return;
+    ADDONS.set(addon.id, addon);
+    for (const def of addon.settings ?? []) {
+      if (typeof def.default === "boolean" && !(def.key in PD_OPTIONS)) PD_OPTIONS[def.key] = def.default;
+      const full = `${MODULE_ID}.${def.key}`;
+      if (!game.settings?.register || game.settings.settings?.has(full)) continue;
+      game.settings.register(MODULE_ID, def.key, {
+        name: def.name ?? `WFRPPD.Options.${def.key}.Name`,
+        hint: def.hint ?? `WFRPPD.Options.${def.key}.Hint`,
+        scope: def.scope ?? "client",
+        config: false,
+        type: def.type ?? Boolean,
+        default: def.default,
+        ...(def.choices ? { choices: def.choices } : {}),
+        onChange: () => PaperdollApp.renderAll()
+      });
+    }
+  },
+
+  /** Добавить методы окну (класс-«примесь»: его методы копируются в PaperdollApp) */
+  mixin(Cls) {
+    for (const key of Object.getOwnPropertyNames(Cls.prototype)) {
+      if (key === "constructor") continue;
+      Object.defineProperty(PaperdollApp.prototype, key, Object.getOwnPropertyDescriptor(Cls.prototype, key));
+    }
+  }
+};

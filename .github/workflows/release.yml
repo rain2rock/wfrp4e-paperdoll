@@ -1,7 +1,8 @@
 # Сборка релиза для Foundry: при каждом пуше в main с новой версией в module.json
-# создаётся релиз vX.Y.Z с module.json и module.zip.
-# Ссылка для установки (Manifest URL) всегда одна:
-# https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/module.json
+# создаётся релиз vX.Y.Z: ядро (module.json + module.zip) и каждое дополнение из addons/<id>
+# (wfrp4e-paperdoll-<id>.json + wfrp4e-paperdoll-<id>.zip). Версия дополнений = версия ядра.
+# Manifest URL ядра: https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/module.json
+# Дополнения: https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/wfrp4e-paperdoll-<id>.json
 name: Release
 
 on:
@@ -32,15 +33,24 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build module.zip
+      - name: Build module.zip and add-ons
         if: steps.exists.outputs.skip != 'true'
         run: |
+          V="${{ steps.v.outputs.version }}"
           zip -r module.zip module.json README.md scripts styles templates lang assets
+          mkdir -p dist
+          for dir in addons/*/; do
+            id="$(basename "$dir")"
+            name="wfrp4e-paperdoll-$id"
+            jq --arg v "$V" '.version = $v | .relationships.requires[0].compatibility.minimum = $v' "$dir/module.json" > "dist/$name.json"
+            cp "dist/$name.json" "$dir/module.json"
+            (cd "$dir" && zip -r "../../dist/$name.zip" .)
+          done
 
       - name: Publish release
         if: steps.exists.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.v.outputs.version }}" module.json module.zip \
+          gh release create "v${{ steps.v.outputs.version }}" module.json module.zip dist/* \
             --title "v${{ steps.v.outputs.version }}" --generate-notes --latest

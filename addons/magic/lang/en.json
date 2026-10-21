@@ -1,0 +1,60 @@
+{
+  "WFRPPD": {
+    "Magic": {
+      "Tab": "Magic",
+      "Cast": "Casting",
+      "Channel": "Channelling",
+      "ArmourHint": "metal armour hinders casting",
+      "Pray": "Prayer",
+      "SinHint": "more sin makes prayers riskier",
+      "CN": "CN",
+      "Range": "Range",
+      "Target": "Target",
+      "Duration": "Duration",
+      "Spell": "Spell",
+      "Prayer": "Prayer",
+      "Hint": "Click - cast · RMB - open",
+      "Empty": "No spells or prayers yet",
+      "Lore": {
+        "petty": "Petty Magic",
+        "arcane": "Arcane",
+        "fire": "Lore of Fire",
+        "heavens": "Lore of Heavens",
+        "death": "Lore of Death",
+        "beasts": "Lore of Beasts",
+        "metal": "Lore of Metal",
+        "life": "Lore of Life",
+        "light": "Lore of Light",
+        "shadow": "Lore of Shadow",
+        "hedgecraft": "Hedgecraft",
+        "witchcraft": "Witchcraft",
+        "daemonology": "Daemonology",
+        "necromancy": "Necromancy",
+        "blessing": "Blessings",
+        "miracle": "Miracles"
+      },
+      "Memorized": "✦ Memorised - cast without a grimoire",
+      "NotMemorized": "Not memorised - cast from a grimoire at double CN",
+      "StarTip": "✦ - memorised\nCan be cast without a grimoire"
+    },
+    "Restr": {
+      "Cast": "{n} SL to casting",
+      "CastHint": "A caster takes -1 SL to Language (Magick) and Channelling per armour point on the most armoured location"
+    },
+    "Stats": {
+      "CastPenalty": "Armour casting penalty"
+    },
+    "Options": {
+      "magicTab": {
+        "Name": "Magic tab",
+        "Hint": "Spells and prayers, click to cast. Shown only to characters who have them."
+      }
+    },
+    "Addon": {
+      "magic": {
+        "Title": "Magic",
+        "Intro": "Magic & Prayers add-on: spells tab, casting, armour penalty to casting."
+      }
+    }
+  }
+}

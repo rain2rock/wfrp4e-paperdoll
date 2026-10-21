@@ -1,0 +1,59 @@
+{
+  "id": "wfrp4e-paperdoll-party",
+  "title": "WFRP4e Paperdoll: Группа",
+  "description": "Дополнение к окну снаряжения: передача вещей перетаскиванием на токен и общий сундук группы.",
+  "version": "0.40.0",
+  "authors": [
+    {
+      "name": "Mikhail"
+    }
+  ],
+  "url": "https://github.com/rain2rock/wfrp4e-paperdoll",
+  "manifest": "https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/wfrp4e-paperdoll-party.json",
+  "download": "https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/wfrp4e-paperdoll-party.zip",
+  "bugs": "https://github.com/rain2rock/wfrp4e-paperdoll/issues",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "wfrp4e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "9.0.0"
+        }
+      }
+    ],
+    "requires": [
+      {
+        "id": "wfrp4e-paperdoll",
+        "type": "module",
+        "manifest": "https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/module.json",
+        "compatibility": {
+          "minimum": "0.40.0"
+        }
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/party.js"
+  ],
+  "styles": [
+    "styles/party.css"
+  ],
+  "languages": [
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "socket": true
+}

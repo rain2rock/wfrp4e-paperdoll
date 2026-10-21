@@ -1,0 +1,58 @@
+{
+  "id": "wfrp4e-paperdoll-mutations",
+  "title": "WFRP4e Paperdoll: Mutations",
+  "description": "Mutations in the effects strip, extra arms and heads as extra paperdoll slots.",
+  "version": "0.40.0",
+  "authors": [
+    {
+      "name": "Mikhail"
+    }
+  ],
+  "url": "https://github.com/rain2rock/wfrp4e-paperdoll",
+  "manifest": "https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/wfrp4e-paperdoll-mutations.json",
+  "download": "https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/wfrp4e-paperdoll-mutations.zip",
+  "bugs": "https://github.com/rain2rock/wfrp4e-paperdoll/issues",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "wfrp4e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "9.0.0"
+        }
+      }
+    ],
+    "requires": [
+      {
+        "id": "wfrp4e-paperdoll",
+        "type": "module",
+        "manifest": "https://github.com/rain2rock/wfrp4e-paperdoll/releases/latest/download/module.json",
+        "compatibility": {
+          "minimum": "0.40.0"
+        }
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/mutations.js"
+  ],
+  "styles": [
+    "styles/mutations.css"
+  ],
+  "languages": [
+    {
+      "lang": "ru",
+      "name": "Русский",
+      "path": "lang/ru.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ]
+}

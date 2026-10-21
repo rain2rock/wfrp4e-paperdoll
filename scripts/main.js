@@ -1,4 +1,5 @@
-import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS, option } from "./paperdoll-app.js";
+import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS, PD_API, option } from "./paperdoll-app.js";
+import { PaperdollSettings } from "./settings-menu.js";
 
 const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
@@ -8,7 +9,7 @@ Hooks.once("init", () => {
     name: "WFRPPD.Settings.ItemIcons.Name",
     hint: "WFRPPD.Settings.ItemIcons.Hint",
     scope: "client",
-    config: true,
+    config: false,
     type: Boolean,
     default: true,
     onChange: rerender
@@ -20,12 +21,22 @@ Hooks.once("init", () => {
       name: `WFRPPD.Options.${key}.Name`,
       hint: `WFRPPD.Options.${key}.Hint`,
       scope: "client",
-      config: true,
+      config: false,
       type: Boolean,
       default: def,
       onChange: rerender
     });
   }
+
+  // Все настройки модуля - одним окном по категориям
+  game.settings.registerMenu(MODULE_ID, "menu", {
+    name: "WFRPPD.SettingsMenu.Title",
+    label: "WFRPPD.SettingsMenu.Button",
+    hint: "WFRPPD.SettingsMenu.Hint",
+    icon: "fa-solid fa-user-shield",
+    type: PaperdollSettings,
+    restricted: false
+  });
 
   // Вторая полоса под моделью (выбирается шестерёнкой на самой полосе)
   game.settings.register(MODULE_ID, "secondBar", {
@@ -40,7 +51,7 @@ Hooks.once("init", () => {
     name: "WFRPPD.Options.translateText.Name",
     hint: "WFRPPD.Options.translateText.Hint",
     scope: "client",
-    config: true,
+    config: false,
     type: String,
     choices: {
       off: "WFRPPD.Options.translateText.off",
@@ -54,7 +65,7 @@ Hooks.once("init", () => {
     name: "WFRPPD.Options.translateDescOnly.Name",
     hint: "WFRPPD.Options.translateDescOnly.Hint",
     scope: "client",
-    config: true,
+    config: false,
     type: Boolean,
     default: false,
     onChange: rerender
@@ -62,6 +73,9 @@ Hooks.once("init", () => {
 
   // Горячая клавиша (по умолчанию I): открыть / закрыть снаряжение.
   // Клавишу меняют в «Настроить управление» Foundry, включают и выключают - в настройках модуля
+  // Дополнения (магия, травмы, мутации, развитие, группа) подключаются здесь
+  Hooks.callAll("wfrp4e-paperdoll.init", PD_API);
+
   game.keybindings?.register(MODULE_ID, "toggle", {
     name: "WFRPPD.Hotkey.Name",
     hint: "WFRPPD.Hotkey.Hint",
@@ -84,7 +98,8 @@ Hooks.once("init", () => {
 
   // Доступ из макросов: game.modules.get("wfrp4e-paperdoll").api.open(actor)
   game.modules.get(MODULE_ID).api = {
-    open: (actor) => PaperdollApp.openFor(actor)
+    open: (actor) => PaperdollApp.openFor(actor),
+    ...PD_API
   };
 });
 

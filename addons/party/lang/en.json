@@ -1,0 +1,39 @@
+{
+  "WFRPPD": {
+    "Transfer": {
+      "HowMany": "Give: {name}",
+      "HowManyHint": "How many to give (of {have})?",
+      "Give": "Give",
+      "Chat": "{from} gives {to}: {item} ×{n}",
+      "NotYours": "This isn't your character - you can't give its items",
+      "ContainerFull": "Empty the container first",
+      "NeedGM": "A GM must be online to give items to another player's character"
+    },
+    "Stash": {
+      "Title": "Party stash",
+      "DefaultName": "Party stash",
+      "Open": "Party stash",
+      "NotSet": "The GM hasn't chosen a party stash in the module settings yet",
+      "Hint": "Drop an item here to store it. Drag to your bag or double-click to take. RMB - open.",
+      "Empty": "The stash is empty",
+      "None": "- none -",
+      "Create": "Create stash",
+      "Setting": {
+        "Name": "Party stash",
+        "Hint": "A storage actor for shared items. 'Create stash' makes an NPC owned by all players."
+      }
+    },
+    "Options": {
+      "tokenTransfer": {
+        "Name": "Give items by dropping on a token",
+        "Hint": "Drag an item from the window onto a token on the canvas to give it to that character."
+      }
+    },
+    "Addon": {
+      "party": {
+        "Title": "Party",
+        "Intro": "Party add-on: give items by dropping on a token, and a shared stash chosen by the GM."
+      }
+    }
+  }
+}

@@ -1831,7 +1831,6 @@
 .wfrp-paperdoll .pd-slot.is-extra .pd-slot-frame { box-shadow: 0 0 0 2px rgba(106, 31, 160, 0.55), 0 0 10px rgba(106, 31, 160, 0.45); }
 .wfrp-paperdoll .pd-slot.is-extra .pd-slot-placeholder img { filter: hue-rotate(250deg) saturate(2); }
 /* Мутация в ленте эффектов: рамка экзотики (фиолетовая) */
-.wfrp-paperdoll .pd-effect--mutation::before { background-image: url("../assets/ui/frame-rarity-exotic.png"); }
 
 /* ---------- v0.19 ---------- */
 /* Цифры AP и «+N» всегда поверх рамки травмы и значков */
@@ -2509,7 +2508,6 @@
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-injury::after { background-image: url("../assets/ui/frame-effect-injury.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-critical::after { background-image: url("../assets/ui/frame-effect-critical.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-disease::after { background-image: url("../assets/ui/frame-effect-disease.png"); }
-.wfrp-paperdoll-tooltip .pd-tt-fx.fx-mutation::after { background-image: url("../assets/ui/frame-rarity-exotic.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-buff::after { background-image: url("../assets/ui/frame-rarity-epic.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx img { object-fit: contain; }
 .wfrp-paperdoll-tooltip .pd-tt-fx-value {
@@ -2582,3 +2580,39 @@
 .wfrp-paperdoll .pd-vital--wounds:hover .pd-rest { opacity: 0.9; }
 .wfrp-paperdoll .pd-restmenu { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; min-width: 260px; cursor: default; }
 .wfrp-paperdoll .pd-restmenu.is-open { display: block; }
+
+/* v0.38: броски из окна */
+.wfrp-paperdoll .pd-ecs-label.is-rollable { cursor: pointer; }
+.wfrp-paperdoll .pd-ecs-label.is-rollable:hover { color: var(--pd-gold, #a8740a); text-decoration: underline dotted; text-underline-offset: 3px; }
+.wfrp-paperdoll .pd-roll {
+  position: absolute; z-index: 4; bottom: 3px; right: 3px; width: 20px; height: 20px; min-height: 0; margin: 0; padding: 2px;
+  line-height: 0; color: #f3ead6; background: rgba(0, 0, 0, 0.65); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 4px;
+  cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.wfrp-paperdoll .pd-roll svg { width: 100%; height: 100%; }
+.wfrp-paperdoll .pd-slot:hover .pd-roll { opacity: 0.9; }
+.wfrp-paperdoll .pd-roll:hover { opacity: 1; color: #ffd36b; }
+
+/* Вкладка дополнения: прокрутка как у статов */
+.wfrp-paperdoll .pd-addon-tab { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+
+/* три вкладки помещаются в ширину */
+.wfrp-paperdoll .pd-tabs .pd-tab { flex: 1 1 0; min-width: 0; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wfrp-paperdoll .pd-tabs:has(.pd-tab:nth-child(3)) .pd-tab { font-size: 12px; gap: 4px; padding: 0 4px; }
+
+/* v0.39: сколько осталось действовать эффекту */
+.wfrp-paperdoll .pd-effect-left {
+  position: absolute; z-index: 3; left: -3px; top: -4px; min-width: 14px; padding: 0 3px;
+  font-size: 10px; font-weight: 700; line-height: 13px; color: #f3ead6; background: rgba(20, 16, 12, 0.9);
+  border: 1px solid #a08a5a; border-radius: 7px; pointer-events: none;
+}
+.wfrp-paperdoll-tooltip .pd-tt-left { margin-top: 2px; font-size: 12.5px; color: #a8740a; font-weight: 600; }
+
+/* Окно настроек модуля */
+.wfrp-paperdoll-settings .pd-set-tabs { display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 1px solid var(--color-border-light-tertiary, #999); }
+.wfrp-paperdoll-settings .pd-set-tabs .item { padding: 4px 10px; cursor: pointer; border-radius: 4px 4px 0 0; }
+.wfrp-paperdoll-settings .pd-set-tabs .item.active { font-weight: 700; border-bottom: 2px solid currentColor; }
+.wfrp-paperdoll-settings .tab { display: none; }
+.wfrp-paperdoll-settings .tab.active { display: block; }
+.wfrp-paperdoll-settings .pd-set-intro { font-style: italic; opacity: 0.8; margin: 0 0 8px; }
+.wfrp-paperdoll-settings .pd-actor-create { flex: 0 0 auto; }

@@ -16,6 +16,7 @@
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
             {{#if maim}}<span class="pd-maim {{#if maim.ok}}is-ok{{/if}} {{#if maim.partial}}is-partial{{/if}}" data-maim="{{maim.loc}}"><img src="{{maim.img}}" alt=""></span>{{/if}}
             {{#if warn}}<span class="pd-slot-warn" title="{{warn.title}}"></span>{{/if}}
+            {{#if rollId}}<button type="button" class="pd-roll" data-roll-item="{{rollId}}" title="{{localize "WFRPPD.Roll.Attack"}}" aria-label="{{localize "WFRPPD.Roll.Attack"}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 21 7v10l-9 5-9-5V7z M12 2v20 M3 7l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>{{/if}}
           </div>
         </div>
 {{/inline}}
@@ -63,6 +64,7 @@
             <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}} {{#if passive}}is-passive{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
               <img src="{{img}}" alt="">
               {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
+              {{#if left}}<span class="pd-effect-left">{{left.short}}</span>{{/if}}
             </button>
             {{/if}}{{/each}}
             </div>
@@ -71,6 +73,7 @@
             <button type="button" class="pd-effect pd-effect--{{kind}} {{#if disabled}}is-disabled{{/if}} {{#if negated}}is-negated{{/if}} {{#if passive}}is-passive{{/if}}" data-index="{{@index}}" aria-label="{{name}}">
               <img src="{{img}}" alt="">
               {{#if value}}<span class="pd-effect-value">{{value}}</span>{{/if}}
+              {{#if left}}<span class="pd-effect-left">{{left.short}}</span>{{/if}}
             </button>
             {{/unless}}{{/each}}
             </div>
@@ -80,7 +83,7 @@
             <div class="pd-vital pd-vital--wounds {{vitals.wounds.state}}" title="{{vitals.wounds.hint}}">
               <div class="pd-vital-fill" style="width: {{vitals.wounds.pct}}%"></div>
               <span>{{localize "WFRPPD.Wounds"}} {{vitals.wounds.value}} / {{vitals.wounds.max}} · {{vitals.wounds.status}}</span>
-              {{#if editable}}<button type="button" class="pd-rest" title="{{localize "WFRPPD.Rest.Title"}}" aria-label="{{localize "WFRPPD.Rest.Title"}}">⟲</button>
+              {{#if restButton}}<button type="button" class="pd-rest" title="{{localize "WFRPPD.Rest.Title"}}" aria-label="{{localize "WFRPPD.Rest.Title"}}">⟲</button>
               <div class="pd-sortmenu pd-restmenu">
                 <div class="pd-sortmenu-title">{{localize "WFRPPD.Rest.Title"}}</div>
                 <button type="button" class="pd-sortopt" data-rest="night">{{localize "WFRPPD.Rest.Night"}}</button>
@@ -132,8 +135,11 @@
         <img src="{{art.tabBag}}" alt=""> {{localize "WFRPPD.Bag"}}
       </button>
       <button type="button" class="pd-tab {{#if tabStats}}is-active{{/if}}" data-action="setTab" data-tab="stats">
-        <img src="{{art.tabStats}}" alt=""> {{localize "WFRPPD.StatsTab"}}
+        <img src="{{art.tabStats}}" alt=""> {{#if addonTabs.length}}{{localize "WFRPPD.StatsTabShort"}}{{else}}{{localize "WFRPPD.StatsTab"}}{{/if}}
       </button>
+      {{#each addonTabs}}<button type="button" class="pd-tab {{#if active}}is-active{{/if}}" data-action="setTab" data-tab="{{id}}">
+        {{#if icon}}<img src="{{icon}}" alt="">{{/if}} {{label}}
+      </button>{{/each}}
     </nav>
 
     {{#if tabBag}}
@@ -147,6 +153,7 @@
       </button>
       {{/each}}
       </div>
+      {{{bagToolbarHtml}}}
       <div class="pd-sort">
         <button type="button" class="pd-sortbtn" data-action="toggleSortMenu" title="{{localize "WFRPPD.Sort.Title"}}" aria-label="{{localize "WFRPPD.Sort.Title"}}">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -201,13 +208,17 @@
       {{/each}}
     </div>
 
+    {{else}}{{#if addonTabHtml}}
+    <div class="pd-addon-tab">{{{addonTabHtml}}}</div>
     {{else}}
     <div class="pd-ecs">
+      {{#if hasProgression}}
       <div class="pd-ecs-views">
         <button type="button" class="pd-ecs-view {{#unless statsTree}}is-active{{/unless}}" data-action="setStatsView" data-view="list">{{localize "WFRPPD.StatsView.list"}}</button>
         <button type="button" class="pd-ecs-view {{#if statsTree}}is-active{{/if}}" data-action="setStatsView" data-view="tree" title="{{localize "WFRPPD.StatsView.treeHint"}}">{{localize "WFRPPD.StatsView.tree"}}</button>
         {{#if statsTree}}<span class="pd-xp-free" title="{{localize "WFRPPD.StatsView.xpHint"}}">{{localize "WFRPPD.StatsView.xp"}} <b>{{xpFree}}</b></span>{{/if}}
       </div>
+      {{/if}}
       {{#each statCategories}}
       <div class="pd-ecs-cat pd-ecs-cat--{{key}}">
         <div class="pd-ecs-head">{{#if art}}<img src="{{art}}" alt="">{{/if}}{{label}}
@@ -227,7 +238,7 @@
         <div class="pd-ecs-row {{#if child}}is-child{{/if}} {{#if derived}}is-derived{{/if}} {{cls}}">
           {{!-- подсказка - только над текстом и числом, а не над всей строкой --}}
           <span class="pd-ecs-main" {{#if talentId}}data-talent="{{talentId}}" data-lvl="{{talentLvl}}"{{else}}{{#if hint}}title="{{hint}}"{{/if}}{{/if}}>
-          <span class="pd-ecs-label">{{label}}</span>
+          <span class="pd-ecs-label {{#if rollKey}}is-rollable{{/if}}" {{#if rollKey}}data-roll-key="{{rollKey}}" data-roll-item="{{itemId}}"{{/if}}>{{label}}</span>
           {{#if parts}}<span class="pd-parts" title="{{localize "WFRPPD.Stats.PartsHint"}}"><i>{{localize "WFRPPD.Stats.PartI"}}</i>{{parts.i}}+<i>{{localize "WFRPPD.Stats.PartA"}}</i>{{parts.a}}+<i>{{localize "WFRPPD.Stats.PartM"}}</i>{{parts.m}}=</span>{{/if}}
           <span class="pd-ecs-value {{cls}}">{{value}}</span>
           </span>
@@ -242,7 +253,7 @@
       </div>
       {{/each}}
     </div>
-    {{/if}}
+    {{/if}}{{/if}}
   </section>
 
 </div>
