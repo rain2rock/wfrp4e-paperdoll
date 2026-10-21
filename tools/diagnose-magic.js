@@ -1,18 +1,33 @@
 /**
- * Диагностика магии для живого Foundry. Ничего не меняет - только печатает в консоль (F12).
+ * Диагностика магии для живого Foundry. Ничего не меняет и не пишет в чат - только печатает в консоль.
+ * Прав ГМ не требует: всё читается с собственного персонажа и из открытых игроку компендиумов.
  *
- * Как запустить: Foundry -> вкладка «Макросы» -> новый макрос типа «Script» -> вставить этот файл -> выполнить.
- * Выбери перед запуском токен жреца или мага (или просто открой лист - возьмём game.user.character).
+ * КАК ЗАПУСТИТЬ ИГРОКУ (прав на макросы не нужно):
+ *   1. В окне Foundry нажми F12 - откроется консоль браузера, вкладка Console.
+ *   2. Вставь туда весь этот файл и нажми Enter.
+ *   3. Выполни в той же консоли:  copy(__pdDump)  - весь вывод ляжет в буфер обмена.
+ * Можно и макросом типа «Script», если ГМ разрешил их игрокам - результат тот же.
  *
- * Зачем: исходников системы wfrp4e у модуля нет, поэтому форму данных (строки дальности, цели,
- * длительности и то, что возвращает setupPrayer / setupCast) нужно снять с живого мира.
- * Скопируй вывод целиком - по нему достраивается разбор дальностей в addons/magic/scripts/targeting.js
+ * Перед запуском выбери токен своего мага или жреца (или просто имей назначенного персонажа).
+ *
+ * ПРОБА КАСТА включена: она дёргает setupPrayer, чтобы увидеть форму объекта теста.
+ * У некоторых версий это открывает окно броска и может оставить след в чате - за столом это увидят.
+ * Если нужно тихо, поставь false в строке ПРОБНЫЙ_КАСТ ниже.
  */
 (async () => {
-  const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
-  if (!actor) return ui.notifications.warn("Выбери токен или назначь себе персонажа");
+  const ПРОБНЫЙ_КАСТ = true;
 
-  const dump = { система: game.system?.version, foundry: game.version, персонаж: actor.name };
+  const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
+  if (!actor) return ui.notifications.warn("Выбери токен своего персонажа или назначь себе персонажа");
+  if (!actor.isOwner) return ui.notifications.warn("Это не твой персонаж - выбери своего");
+
+  const dump = {
+    система: game.system?.version,
+    foundry: game.version,
+    персонаж: actor.name,
+    ярольГМ: game.user?.isGM === true,
+    компендиумовВидно: (game.packs ?? []).filter((p) => p.documentName === "Item").length
+  };
 
   // 1. Что вообще лежит в молитвах и заклинаниях
   const say = (items) =>
@@ -99,9 +114,12 @@
 
   // 5. Форма объекта теста - БЕЗ броска (setup только готовит тест)
   try {
-    const prayer = (actor.itemTypes.prayer ?? [])[0];
-    if (prayer && typeof actor.setupPrayer === "function") {
-      const test = await actor.setupPrayer(prayer, { bypass: true, skipTargets: true });
+    const prayer = (actor.itemTypes.prayer ?? [])[0] ?? (actor.itemTypes.spell ?? [])[0];
+    const setup = prayer?.type === "spell" ? actor.setupCast : actor.setupPrayer;
+    if (!ПРОБНЫЙ_КАСТ) {
+      dump.тест = "проба каста выключена флагом ПРОБНЫЙ_КАСТ";
+    } else if (prayer && typeof setup === "function") {
+      const test = await setup.call(actor, prayer, { bypass: true, skipTargets: true });
       dump.тест = {
         ключи: Object.keys(test ?? {}),
         естьRoll: typeof test?.roll === "function",
@@ -110,10 +128,10 @@
         preData: Object.keys(test?.preData ?? test?.data?.preData ?? {})
       };
     } else {
-      dump.тест = "нет молитв у персонажа или нет метода setupPrayer";
+      dump.тест = "нет молитв и заклинаний у персонажа, либо нет метода setupPrayer/setupCast";
     }
   } catch (err) {
-    dump.тест = `setupPrayer бросил ошибку: ${err?.message}`;
+    dump.тест = `setup бросил ошибку: ${err?.message}`;
   }
 
   // 6. Цели и измерение дистанции - на чём строится выбор целей
@@ -125,7 +143,9 @@
     размерКлетки: canvas.grid?.size
   };
 
+  window.__pdDump = dump;
   console.log("=== wfrp4e-paperdoll: диагностика магии ===");
   console.log(JSON.stringify(dump, null, 2));
-  ui.notifications.info("Готово: открой консоль (F12) и скопируй вывод");
+  console.log("Чтобы скопировать всё в буфер, выполни в консоли:  copy(__pdDump)");
+  ui.notifications.info("Готово: в консоли (F12) выполни copy(__pdDump) и пришли результат");
 })();
