@@ -265,6 +265,7 @@ ${css}
 Клик по слоту открывает список быстрой смены. Перетаскивание, двойной клик, вкладка «Характеристики» и выпадашки статов тоже работают.</p>
 <label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
 ${cast.length ? `<label class="mock-gm">Персонаж: <select id="mock-cast">${[actor, ...cast].map((a, i) => `<option value="${i}">${a.name}</option>`).join("")}</select></label>` : ""}
+<button id="mock-group" class="mock-gm" type="button">Окно группы (ГМ)</button>
 <a class="mock-gm" href="paperdoll-mock-settings.html" target="_blank">Окно настроек →</a>
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
@@ -298,6 +299,7 @@ document.getElementById("mock-cast")?.addEventListener("change", async (ev) => {
 });
 document.getElementById("mock-reopen").addEventListener("click", open);
 document.getElementById("mock-gm").addEventListener("change", (ev) => { game.user.isGM = ev.target.checked; });
+document.getElementById("mock-group").addEventListener("click", () => window.__PD_API__?.openGroup?.());
 open();
 </script>
 </body>

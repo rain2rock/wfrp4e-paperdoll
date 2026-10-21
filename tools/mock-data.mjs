@@ -184,7 +184,11 @@ export const TEST_EFFECTS = {
     { id: "eff-bless", name: "Благословение Сигмара", duration: { type: "seconds", remaining: 5400 }, _icon: "core:magic/holy/saint-glass-portrait-halo.webp", img: icon("✨", "#7a6a20"), changes: [{ key: "system.characteristics.wp.modifier", value: "10" }],
       description: "<p>+10 к проверкам Силы воли до конца сцены.</p>" },
     { id: "eff-swamp", name: "Проклятая топь", _icon: "core:magic/unholy/silhouette-robe-evil-glow.webp",
-      description: "<p>Пока персонаж в топях Драквальда: -10 к Хладнокровию и Стойкости. Выключить, когда персонаж покинет территорию.</p>" }
+      description: "<p>Пока персонаж в топях Драквальда: -10 к Хладнокровию и Стойкости. Выключить, когда персонаж покинет территорию.</p>" },
+    // Пассивка, перенесённая с таланта: в Foundry такие лежат и на самом актёре (transfer + origin).
+    // Её нельзя снимать из ленты и из окна группы - источник предмет, иначе снесём эффект самого таланта
+    { id: "eff-hardy-transfer", name: "Закалка", transfer: true, origin: "Actor.hugo.Item.tal-hardy", _icon: "core:magic/life/heart-shadow-red.webp",
+      img: icon("❤️", "#5a1a1a"), changes: [{ key: "system.status.wounds.bonus", value: "4" }], description: "<p>+БВ к ранам.</p>" }
   ],
   items: [
     { id: "psy-frenzy", name: "Ярость", type: "psychology", _icon: "core:magic/fire/flame-burning-skull-orange.webp", system: {},

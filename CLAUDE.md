@@ -32,6 +32,8 @@ Manifest URL ядра: `https://github.com/rain2rock/wfrp4e-paperdoll/releases/l
 
 - `scripts/paperdoll-app.js` - ядро (~4000 строк): `PaperdollApp` (ApplicationV2 + Handlebars), `PaperdollTooltip`,
   утилиты, реестр дополнений `ADDONS`, `PD_UTIL`, `PD_API`, опции `PD_OPTIONS`.
+  Звуки синтезируются через Web Audio, без файлов: `playCoinSound(gain)` - монеты, `playGearSound("equip"|"unequip"|"move")` -
+  надеть / снять / переложить. Оба слушают опцию `sounds` и громкость интерфейса Foundry, доступны дополнениям через `PD_UTIL`.
 - `scripts/main.js` - init: настройки (все `config:false`), меню настроек, `Hooks.callAll("wfrp4e-paperdoll.init", PD_API)`, клавиша.
 - `scripts/settings-menu.js` - окно настроек по вкладкам: категории ядра + вкладка на каждое дополнение.
 - `scripts/translate.js`, `scripts/glossary-ru.js` - перевод терминов и описаний. `icon-index.js`, `icon-rules.js` - подбор иконок.
@@ -47,7 +49,7 @@ Manifest URL ядра: `https://github.com/rain2rock/wfrp4e-paperdoll/releases/l
 | injuries | травмы конечностей, протезы | mixin `_limbState/_injuryLimb/_maimView`, `prostheticKind`, restrictions |
 | mutations | мутации в ленте эффектов, лишние руки/головы | mixin `_extraSlots`, effects, effectClick |
 | progression | «+» за опыт, дерево, вехи карьеры, покупка талантов | mixin `_advInfo/_advance/_advanceTree/_milestones/_careerCategory/_talentOffers/_buyTalent`, onRender |
-| party | передача вещей на токен, общий сундук | bagToolbar, onRender, externalDrop, socket, `api.openStash` |
+| party | передача вещей на токен, общий сундук, окно группы для ГМ (раны/удача/броня/золото/эффекты кликабельно как в карточке, карточки или таблица, казна группы), «Начало сессии», «+» у ленты - поиск и выдача состояния, а также мутации и травмы из компендиумов, если стоят дополнения mutations / injuries | bagToolbar, onRender, externalDrop, socket, keybinding `openGroup` (ГМ, по умолчанию G), `api.openStash`, `api.openGroup` |
 
 ### API дополнений
 
@@ -79,7 +81,8 @@ tools/qa/run-all.sh                                       # всё сразу: �
 Проверки в `tools/qa/` (нужен playwright: `npm i -D playwright && npx playwright install chromium`):
 - `qa.mjs <mock>` - слоты, фильтры, сортировка, перетаскивание (~100 проверок, все должны быть PASS);
 - `addchk.mjs <mock>` - вкладки, травмы, лишние слоты, прокачка по персонажам;
-- `mutchk.mjs`, `progchk.mjs` - мутации и прокачка; `smoke.mjs` - импорт main.js и окно настроек.
+- `mutchk.mjs`, `progchk.mjs` - мутации и прокачка; `partychk.mjs` - окно группы и «Начало сессии»;
+  `sfxchk.mjs` - звуки (надеть/снять/переложить/монеты) через перехват Web Audio; `smoke.mjs` - импорт main.js и окно настроек.
 Тестовые персонажи (`tools/mock-data.mjs`): «Хьюго» - основной, для общих проверок; «Гюнтер» (--cast) - минимум вещей и много свободного опыта специально для прокачки/покупки талантов.
 Скриншоты для себя - через playwright (`page.screenshot`), Михаил смотрит мок в браузере.
 
@@ -96,4 +99,12 @@ tools/qa/run-all.sh                                       # всё сразу: �
 - Полоса нагрузки шире и правки полосы удачи - одной правкой, когда будут иконки.
 - Диагностический макрос для настоящего Foundry.
 - Окно настроек, сокеты, сундук, dropCanvasData проверены только в моке - проверить в живом Foundry.
+- Окно группы: кнопка «+» зовёт `actor.addCondition(key, value)`, а если метода нет - сама создаёт ActiveEffect со `statuses`.
+  Какой путь сработает в живой системе, без настоящего Foundry не проверить (в моке - своя заглушка), но молча не делать ничего кнопка уже не может.
+- Мутации и травмы в меню «+» берутся из компендиумов предметов по `type`. В моке компендиум поддельный (`tools/mock-runtime.js`),
+  в живом Foundry состав зависит от установленных модулей с контентом.
+- Сокеты: Foundry не подписывает module-сокеты, поэтому ГМ проверяет права по `userId` из payload (его теоретически можно подделать).
+  Полная защита невозможна в принципе - рассчитываем на доверенный состав стола.
+- Дополнение `party` разрослось (~800 строк, три фичи). Разбить на файлы мешает сборка: в Foundry скрипты дополнения -
+  отдельные ES-модули без общей области видимости, а мок их просто склеивает. Нужен либо общий неймспейс, либо сборка с импортами.
 - Идеи: смена карьеры, наборы снаряжения.

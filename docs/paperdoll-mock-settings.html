@@ -2819,6 +2819,8 @@ window.__PD_ASSETS__ = {};
       });
       document.getElementById("mock-mount").append(el);
       this.element = el;
+      // В моке окна складываются в столбик, а не плавают поверх, как в настоящем Foundry - прокручиваем новое в поле зрения
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     bringToFront() {}
@@ -3030,7 +3032,7 @@ window.__PD_ASSETS__ = {};
       this.uuid = `Actor.${data.id}`;
       this.name = data.name;
       this.img = data.img;
-      this.type = "character";
+      this.type = data.type ?? "character";
       this.isOwner = true;
       this.system = structuredClone(data.system);
       // Навыки и таланты - обычные предметы актёра, как в Foundry
@@ -3109,6 +3111,19 @@ window.__PD_ASSETS__ = {};
       if (left > 0 && effect.conditionValue) await effect.update({ conditionValue: left });
       else await effect.delete();
     }
+    /** Как в системе: добавить N уровней состояния, создаёт эффект, если его ещё нет */
+    async addCondition(key, value = 1) {
+      let effect = this.effects.find((e) => e.statuses.has(key));
+      if (effect) {
+        await effect.update({ conditionValue: (effect.conditionValue ?? 1) + value });
+      } else {
+        effect = new FakeEffect(this, { id: `cond-${key}-${Date.now()}`, name: window.__PD_CONFIG__?.conditions?.[key] ?? key, statuses: [key], value });
+        this.effects.push(effect);
+        Hooks.call("createActiveEffect", effect);
+      }
+      window.PaperdollApp?.renderAll?.();
+      return effect;
+    }
     /** Как Actor.update: точечные пути, пересчёт, хук */
     async update(changes) {
       for (const [k, v] of Object.entries(flatten(changes))) setPath(this, k, v);
@@ -3165,7 +3180,17 @@ window.__PD_ASSETS__ = {};
   window.__PD_makeActor__ = (data) => {
     const actor = new FakeActor(data);
     (window.__PD_actors ??= []).push(actor);
-    window.fromUuid = async (uuid) => actor.items.find((i) => i.uuid === uuid) ?? null;
+    // Ищем по всем созданным актёрам, а не только по последнему, и понимаем ссылки в компендиум
+    window.fromUuid = async (uuid) => {
+      const inPack = /^Compendium\.[^.]+\.[^.]+\.(.+)$/.exec(uuid ?? "");
+      if (inPack) return (game.packs?.[0])?.getDocument(inPack[1]) ?? null;
+      for (const a of window.__PD_actors ?? []) {
+        if (a.uuid === uuid) return a;
+        const item = a.items.find((i) => i.uuid === uuid);
+        if (item) return item;
+      }
+      return null;
+    };
     return actor;
   };
 
@@ -3198,6 +3223,27 @@ window.__PD_ASSETS__ = {};
     }
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
+  game.actors = { get: (id) => (window.__PD_actors ?? []).find((a) => a.id === id) ?? null };
+  game.users = Object.assign([], { get: (id) => null, activeGM: null });
+  // Компендиум-заглушка: окно группы ищет в нём мутации и травмы для меню «+»
+  const PACK_ITEMS = [
+    { _id: "mut-eye", name: "Третий глаз", type: "mutation", system: { mutationType: { value: "physical" }, description: { value: "<p>Лишний глаз во лбу.</p>" } } },
+    { _id: "mut-claw", name: "Когтистая лапа", type: "mutation", system: { mutationType: { value: "physical" }, description: { value: "<p>Рука превратилась в лапу.</p>" } } },
+    { _id: "inj-leg", name: "Перелом ноги", type: "injury", system: { location: { value: "rLeg", key: "rLeg" }, penalty: { value: "-20 к Движению" }, duration: { value: "6", active: true } } }
+  ];
+  game.packs = [
+    {
+      collection: "mock.items",
+      documentName: "Item",
+      async getIndex() {
+        return PACK_ITEMS.map((i) => ({ _id: i._id, name: i.name, type: i.type, img: i.img ?? null }));
+      },
+      async getDocument(id) {
+        const d = PACK_ITEMS.find((i) => i._id === id);
+        return d ? { ...d, toObject: () => JSON.parse(JSON.stringify(d)) } : null;
+      }
+    }
+  ];
   globalThis.Roll ??= class { constructor(f) { this.formula = f; } async evaluate() { this.total = 1 + Math.floor(Math.random() * 100); return this; } };
   globalThis.ChatMessage ??= { getSpeaker: () => ({}), create: async (d) => toast(String(d.content).replace(/<[^>]+>/g, " "), "info") };
 })();
@@ -4492,6 +4538,64 @@ function playCoinSound(gain = true) {
         osc.start(start);
         osc.stop(start + decay + 0.02);
       }
+    }
+  } catch {
+    // Звук - украшение: без него всё работает
+  }
+}
+
+/**
+ * Звук снаряжения без звукового файла: короткий «шорох ткани с металлом» через Web Audio.
+ * kind: equip - надеть (выше и звонче), unequip - снять (ниже и глуше), move - переложить (совсем короткий щелчок).
+ */
+let gearAudio = null;
+function playGearSound(kind = "equip") {
+  if (!option("sounds")) return;
+  try {
+    const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+    if (!AC) return;
+    gearAudio ??= new AC();
+    const ctx = gearAudio;
+    if (ctx.state === "suspended") ctx.resume();
+    let volume = 0.5;
+    try {
+      volume = Number(game.settings.get("core", "globalInterfaceVolume") ?? 0.5);
+    } catch {}
+    volume *= kind === "move" ? 0.12 : 0.2;
+    if (!(volume > 0)) return;
+    const start = ctx.currentTime;
+    const dur = kind === "move" ? 0.06 : 0.13;
+
+    // Шум - «ткань»: короткий всплеск белого шума через полосовой фильтр
+    const frames = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = kind === "unequip" ? 900 : kind === "move" ? 1800 : 1400;
+    band.Q.value = 0.9;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(volume, start);
+    ng.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    noise.connect(band).connect(ng).connect(ctx.destination);
+    noise.start(start);
+    noise.stop(start + dur + 0.02);
+
+    // Призвук пряжки - только у надеть/снять, у перекладывания его нет
+    if (kind !== "move") {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(kind === "equip" ? 620 : 360, start);
+      osc.frequency.exponentialRampToValueAtTime(kind === "equip" ? 880 : 240, start + 0.09);
+      g.gain.setValueAtTime(volume * 0.5, start);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.1);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.12);
     }
   } catch {
     // Звук - украшение: без него всё работает
@@ -5886,6 +5990,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (item.system.isEquipped) update["system.equipped.value"] = false;
     try {
       await item.update(update);
+      playGearSound("move");
     } catch (err) {
       console.warn(`${MODULE_ID} | move failed`, err);
     }
@@ -6420,6 +6525,12 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
+    // Уже надетая вещь, переехавшая в другой слот, - это перекладывание, а не надевание: звук другой.
+    // Слепок состояния до операции нужен, чтобы не звучать вхолостую, когда ничего не поменялось
+    const wasEquipped = !!item.system.isEquipped;
+    const gearState = () =>
+      JSON.stringify([!!item.system.isEquipped, !!item.system.offhand?.value, extraSlotOf(item) ?? null, item.system.location?.value ?? ""]);
+    const before = gearState();
     try {
       // Надетая вещь не может лежать в сумке: сначала достаём её
       // (иначе система считает её «в контейнере» - нет AP и нагрузки)
@@ -6443,6 +6554,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         await item.update({ "system.equipped.value": true, [`flags.${MODULE_ID}.limb`]: slot });
       }
       else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
+      if (gearState() !== before) playGearSound(wasEquipped ? "move" : "equip");
     } catch (err) {
       // Система сама показывает уведомление (например, лимит экипированного оружия)
       console.warn(`${MODULE_ID} | equip failed`, err);
@@ -6493,6 +6605,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         "Item",
         current.map((i) => ({ _id: i.id, "system.equipped.value": false, ...(extraSlotOf(i) ? { [`flags.${MODULE_ID}.extraSlot`]: null } : {}) }))
       );
+      playGearSound("unequip");
     } catch (err) {
       console.warn(`${MODULE_ID} | clear slot failed`, err);
     }
@@ -6506,6 +6619,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (prostheticKind(item)) update[`flags.${MODULE_ID}.limb`] = null;
       if (extraSlotOf(item)) update[`flags.${MODULE_ID}.extraSlot`] = null;
       await item.update(update);
+      playGearSound("unequip");
     } catch (err) {
       console.warn(`${MODULE_ID} | unequip failed`, err);
     }
@@ -7736,7 +7850,7 @@ const PD_UTIL = {
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
-  extraSlotOf, isExtraHand, isExtraHead, addonHook
+  extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound
 };
 
 const PD_API = {

@@ -480,6 +480,64 @@ function playCoinSound(gain = true) {
 }
 
 /**
+ * Звук снаряжения без звукового файла: короткий «шорох ткани с металлом» через Web Audio.
+ * kind: equip - надеть (выше и звонче), unequip - снять (ниже и глуше), move - переложить (совсем короткий щелчок).
+ */
+let gearAudio = null;
+function playGearSound(kind = "equip") {
+  if (!option("sounds")) return;
+  try {
+    const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+    if (!AC) return;
+    gearAudio ??= new AC();
+    const ctx = gearAudio;
+    if (ctx.state === "suspended") ctx.resume();
+    let volume = 0.5;
+    try {
+      volume = Number(game.settings.get("core", "globalInterfaceVolume") ?? 0.5);
+    } catch {}
+    volume *= kind === "move" ? 0.12 : 0.2;
+    if (!(volume > 0)) return;
+    const start = ctx.currentTime;
+    const dur = kind === "move" ? 0.06 : 0.13;
+
+    // Шум - «ткань»: короткий всплеск белого шума через полосовой фильтр
+    const frames = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = kind === "unequip" ? 900 : kind === "move" ? 1800 : 1400;
+    band.Q.value = 0.9;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(volume, start);
+    ng.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    noise.connect(band).connect(ng).connect(ctx.destination);
+    noise.start(start);
+    noise.stop(start + dur + 0.02);
+
+    // Призвук пряжки - только у надеть/снять, у перекладывания его нет
+    if (kind !== "move") {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(kind === "equip" ? 620 : 360, start);
+      osc.frequency.exponentialRampToValueAtTime(kind === "equip" ? 880 : 240, start + 0.09);
+      g.gain.setValueAtTime(volume * 0.5, start);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.1);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.12);
+    }
+  } catch {
+    // Звук - украшение: без него всё работает
+  }
+}
+
+/**
  * Дополнения - отдельные модули (магия, травмы, мутации, развитие, группа).
  * Регистрируются через PD_API.registerAddon в хуке «wfrp4e-paperdoll.init».
  * Ядро работает без любого из них: точки расширения вызываются, только если дополнение есть.
@@ -1867,6 +1925,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (item.system.isEquipped) update["system.equipped.value"] = false;
     try {
       await item.update(update);
+      playGearSound("move");
     } catch (err) {
       console.warn(`${MODULE_ID} | move failed`, err);
     }
@@ -2401,6 +2460,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
+    // Уже надетая вещь, переехавшая в другой слот, - это перекладывание, а не надевание: звук другой.
+    // Слепок состояния до операции нужен, чтобы не звучать вхолостую, когда ничего не поменялось
+    const wasEquipped = !!item.system.isEquipped;
+    const gearState = () =>
+      JSON.stringify([!!item.system.isEquipped, !!item.system.offhand?.value, extraSlotOf(item) ?? null, item.system.location?.value ?? ""]);
+    const before = gearState();
     try {
       // Надетая вещь не может лежать в сумке: сначала достаём её
       // (иначе система считает её «в контейнере» - нет AP и нагрузки)
@@ -2424,6 +2489,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         await item.update({ "system.equipped.value": true, [`flags.${MODULE_ID}.limb`]: slot });
       }
       else if (!item.system.isEquipped) await item.update({ "system.equipped.value": true });
+      if (gearState() !== before) playGearSound(wasEquipped ? "move" : "equip");
     } catch (err) {
       // Система сама показывает уведомление (например, лимит экипированного оружия)
       console.warn(`${MODULE_ID} | equip failed`, err);
@@ -2474,6 +2540,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         "Item",
         current.map((i) => ({ _id: i.id, "system.equipped.value": false, ...(extraSlotOf(i) ? { [`flags.${MODULE_ID}.extraSlot`]: null } : {}) }))
       );
+      playGearSound("unequip");
     } catch (err) {
       console.warn(`${MODULE_ID} | clear slot failed`, err);
     }
@@ -2487,6 +2554,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (prostheticKind(item)) update[`flags.${MODULE_ID}.limb`] = null;
       if (extraSlotOf(item)) update[`flags.${MODULE_ID}.extraSlot`] = null;
       await item.update(update);
+      playGearSound("unequip");
     } catch (err) {
       console.warn(`${MODULE_ID} | unequip failed`, err);
     }
@@ -3717,7 +3785,7 @@ export const PD_UTIL = {
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
-  extraSlotOf, isExtraHand, isExtraHead, addonHook
+  extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound
 };
 
 export const PD_API = {

@@ -23,6 +23,40 @@
         "Hint": "A storage actor for shared items. 'Create stash' makes an NPC owned by all players."
       }
     },
+    "Group": {
+      "Title": "Party",
+      "Session": "Start of session",
+      "SessionConfirm": "Restore fortune to the fate value for the whole party?",
+      "SessionNone": "Everyone's fortune is already at max",
+      "Empty": "No players are currently online",
+      "NeedGM": "Only the GM can open the party window",
+      "ViewCard": "Cards",
+      "ViewTable": "Table",
+      "Treasury": "Party treasury",
+      "AddCondition": "Add condition",
+      "AddConditionSearch": "Search...",
+      "AddConditionNone": "The system doesn't provide a condition list",
+      "AddLoading": "Searching compendiums...",
+      "AddFailed": "Couldn't add \"{name}\"",
+      "SectionConditions": "Conditions",
+      "SectionMutations": "Mutations",
+      "SectionInjuries": "Injuries",
+      "Head": "Head",
+      "Torso": "Body",
+      "Armour": "Armour",
+      "Effects": "Effects",
+      "Abbr": {
+        "Head": "H",
+        "Torso": "B",
+        "Arms": "A",
+        "Legs": "L"
+      },
+      "Hotkey": {
+        "Name": "Party window",
+        "Hint": "Open / close the party window: wounds, fortune, armour and effects for everyone. GM only."
+      },
+      "AddNone": "Nothing found in compendiums"
+    },
     "Options": {
       "tokenTransfer": {
         "Name": "Give items by dropping on a token",
@@ -32,7 +66,7 @@
     "Addon": {
       "party": {
         "Title": "Party",
-        "Intro": "Party add-on: give items by dropping on a token, and a shared stash chosen by the GM."
+        "Intro": "Party add-on: give items by dropping on a token, a shared stash, a party overview window for the GM, and a 'Start of session' button."
       }
     }
   }

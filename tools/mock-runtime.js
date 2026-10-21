@@ -134,6 +134,8 @@
       });
       document.getElementById("mock-mount").append(el);
       this.element = el;
+      // В моке окна складываются в столбик, а не плавают поверх, как в настоящем Foundry - прокручиваем новое в поле зрения
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     bringToFront() {}
@@ -345,7 +347,7 @@
       this.uuid = `Actor.${data.id}`;
       this.name = data.name;
       this.img = data.img;
-      this.type = "character";
+      this.type = data.type ?? "character";
       this.isOwner = true;
       this.system = structuredClone(data.system);
       // Навыки и таланты - обычные предметы актёра, как в Foundry
@@ -424,6 +426,19 @@
       if (left > 0 && effect.conditionValue) await effect.update({ conditionValue: left });
       else await effect.delete();
     }
+    /** Как в системе: добавить N уровней состояния, создаёт эффект, если его ещё нет */
+    async addCondition(key, value = 1) {
+      let effect = this.effects.find((e) => e.statuses.has(key));
+      if (effect) {
+        await effect.update({ conditionValue: (effect.conditionValue ?? 1) + value });
+      } else {
+        effect = new FakeEffect(this, { id: `cond-${key}-${Date.now()}`, name: window.__PD_CONFIG__?.conditions?.[key] ?? key, statuses: [key], value });
+        this.effects.push(effect);
+        Hooks.call("createActiveEffect", effect);
+      }
+      window.PaperdollApp?.renderAll?.();
+      return effect;
+    }
     /** Как Actor.update: точечные пути, пересчёт, хук */
     async update(changes) {
       for (const [k, v] of Object.entries(flatten(changes))) setPath(this, k, v);
@@ -480,7 +495,17 @@
   window.__PD_makeActor__ = (data) => {
     const actor = new FakeActor(data);
     (window.__PD_actors ??= []).push(actor);
-    window.fromUuid = async (uuid) => actor.items.find((i) => i.uuid === uuid) ?? null;
+    // Ищем по всем созданным актёрам, а не только по последнему, и понимаем ссылки в компендиум
+    window.fromUuid = async (uuid) => {
+      const inPack = /^Compendium\.[^.]+\.[^.]+\.(.+)$/.exec(uuid ?? "");
+      if (inPack) return (game.packs?.[0])?.getDocument(inPack[1]) ?? null;
+      for (const a of window.__PD_actors ?? []) {
+        if (a.uuid === uuid) return a;
+        const item = a.items.find((i) => i.uuid === uuid);
+        if (item) return item;
+      }
+      return null;
+    };
     return actor;
   };
 
@@ -513,6 +538,27 @@
     }
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
+  game.actors = { get: (id) => (window.__PD_actors ?? []).find((a) => a.id === id) ?? null };
+  game.users = Object.assign([], { get: (id) => null, activeGM: null });
+  // Компендиум-заглушка: окно группы ищет в нём мутации и травмы для меню «+»
+  const PACK_ITEMS = [
+    { _id: "mut-eye", name: "Третий глаз", type: "mutation", system: { mutationType: { value: "physical" }, description: { value: "<p>Лишний глаз во лбу.</p>" } } },
+    { _id: "mut-claw", name: "Когтистая лапа", type: "mutation", system: { mutationType: { value: "physical" }, description: { value: "<p>Рука превратилась в лапу.</p>" } } },
+    { _id: "inj-leg", name: "Перелом ноги", type: "injury", system: { location: { value: "rLeg", key: "rLeg" }, penalty: { value: "-20 к Движению" }, duration: { value: "6", active: true } } }
+  ];
+  game.packs = [
+    {
+      collection: "mock.items",
+      documentName: "Item",
+      async getIndex() {
+        return PACK_ITEMS.map((i) => ({ _id: i._id, name: i.name, type: i.type, img: i.img ?? null }));
+      },
+      async getDocument(id) {
+        const d = PACK_ITEMS.find((i) => i._id === id);
+        return d ? { ...d, toObject: () => JSON.parse(JSON.stringify(d)) } : null;
+      }
+    }
+  ];
   globalThis.Roll ??= class { constructor(f) { this.formula = f; } async evaluate() { this.total = 1 + Math.floor(Math.random() * 100); return this; } };
   globalThis.ChatMessage ??= { getSpeaker: () => ({}), create: async (d) => toast(String(d.content).replace(/<[^>]+>/g, " "), "info") };
 })();
