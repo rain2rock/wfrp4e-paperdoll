@@ -4495,6 +4495,131 @@ function sys(doc) {
   return doc?.system ?? {};
 }
 
+/** Локализация: короткие обёртки, чтобы не объявлять их заново в каждой функции */
+const L = (key) => game.i18n.localize(key);
+const F = (key, data) => game.i18n.format(key, data);
+
+/** Номиналы монет WFRP4e в пенни: 12 п = 1 сш, 20 сш = 1 зк */
+const COIN_VALUE = { gc: 240, ss: 12, bp: 1 };
+
+/** Монеты персонажа по номиналам: стопка каждого вида (может не быть) */
+function actorCoins(actor) {
+  const out = {};
+  for (const k of Object.keys(COIN_VALUE)) {
+    out[k] = (actor?.items ?? []).find((i) => i.type === "money" && Number(i.system.coinValue?.value) === COIN_VALUE[k]);
+  }
+  return out;
+}
+
+/** Все деньги персонажа в пенни */
+function moneyPennies(actor) {
+  return (actor?.items ?? [])
+    .filter((i) => i.type === "money")
+    .reduce((sum, c) => sum + (Number(c.system.quantity?.value) || 0) * (Number(c.system.coinValue?.value) || 1), 0);
+}
+
+/** Пенни -> «N зк M сш K п»; compact - без пробела между числом и обозначением */
+function formatMoney(totalBp, { compact = false } = {}) {
+  const gc = Math.floor(totalBp / COIN_VALUE.gc);
+  const ss = Math.floor((totalBp % COIN_VALUE.gc) / COIN_VALUE.ss);
+  const bp = totalBp % COIN_VALUE.ss;
+  const gap = compact ? "" : " ";
+  return [gc && `${gc}${gap}${L("WFRPPD.Money.gc")}`, ss && `${ss}${gap}${L("WFRPPD.Money.ss")}`, (bp || !totalBp) && `${bp}${gap}${L("WFRPPD.Money.bp")}`]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Что нужно обновить, чтобы изменить деньги на delta монет номинала key.
+ * Чистый расчёт без побочных эффектов: сдача разменивается сама, нехватку и отсутствие монет возвращаем как error.
+ * @returns {{updates?: object[], error?: string}}
+ */
+function coinUpdates(actor, key, delta) {
+  const V = COIN_VALUE;
+  const coins = actorCoins(actor);
+  const missing = Object.keys(V).filter((k) => !coins[k]);
+  if (missing.length) {
+    return { error: F("WFRPPD.Money.NoCoin", { coin: missing.map((k) => L(`WFRPPD.Money.Name.${k}`)).join(", ") }) };
+  }
+  const qty = (k) => Number(coins[k].system.quantity?.value) || 0;
+  let total = Object.keys(V).reduce((n, k) => n + qty(k) * V[k], 0) + delta * V[key];
+  if (total < 0) return { error: L("WFRPPD.Money.NotEnough") };
+  const next = { gc: Math.floor(total / V.gc) };
+  total -= next.gc * V.gc;
+  next.ss = Math.floor(total / V.ss);
+  next.bp = total - next.ss * V.ss;
+  return { updates: Object.keys(V).filter((k) => next[k] !== qty(k)).map((k) => ({ _id: coins[k].id, "system.quantity.value": next[k] })) };
+}
+
+/** Изменить деньги персонажа: расчёт общий с окном снаряжения, звон монет - тоже */
+async function changeActorMoney(actor, key, delta) {
+  const { updates, error } = coinUpdates(actor, key, delta);
+  if (error) {
+    ui.notifications.warn(error);
+    return false;
+  }
+  if (!updates.length) return false;
+  playCoinSound(delta > 0);
+  await actor.updateEmbeddedDocuments("Item", updates);
+  return true;
+}
+
+/** Тир ран по доле оставшегося - общий для полосы ран и для окна группы */
+function woundsTier(value, max) {
+  const r = max ? value / max : 1;
+  return !max ? "full" : value === 0 ? "dying" : r <= 0.25 ? "critical" : r <= 0.5 ? "heavy" : r <= 0.75 ? "wounded" : r < 1 ? "light" : "full";
+}
+
+/**
+ * Запись ленты по собственному ActiveEffect персонажа: состояние или обычный баф/дебаф.
+ * Перенесённые с предметов эффекты сюда не попадают (их источник предмет) - вернём null, их разбирают отдельно.
+ * Общая для ленты окна снаряжения и для окна группы, чтобы вид и подсказки не разъезжались.
+ */
+function effectEntry(effect, actor, { editable = true } = {}) {
+  const cfg = game.wfrp4e?.config ?? {};
+  const statuses = [...(effect.statuses ?? [])];
+  const condition = statuses.find((st) => cfg.conditions?.[st]);
+  const lines = [effect.description ? plainEnrichers(stripTags(effect.description)) : ""];
+  if (condition) {
+    const value = Number(effect.conditionValue ?? effect.system?.condition?.value) || null;
+    return {
+      kind: "condition",
+      id: effect.id,
+      key: condition,
+      name: T(effect.name || L(cfg.conditions[condition])),
+      img: effect.img,
+      value: value && value > 1 ? value : null,
+      left: effectRemaining(effect),
+      debuff: true,
+      lines,
+      hint: L(editable ? "WFRPPD.Effects.HintCondition" : "WFRPPD.Effects.HintOpen")
+    };
+  }
+  if (effect.parent !== actor || (effect.transfer === true && effect.origin)) return null;
+  const pol = effectPolarity(effect);
+  return {
+    kind: pol === "buff" ? "buff" : "effect",
+    id: effect.id,
+    name: effect.name,
+    img: effect.img,
+    disabled: !!effect.disabled,
+    left: effectRemaining(effect),
+    debuff: pol !== "buff",
+    lines,
+    hint: L(editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
+  };
+}
+
+/** Диалог подтверждения снятия эффекта (травмы, криты, болезни, обычные эффекты) */
+async function confirmRemoveEffect(name) {
+  const Dialog = foundry.applications?.api?.DialogV2;
+  if (!Dialog) return true;
+  return Dialog.confirm({
+    window: { title: L("WFRPPD.Effects.DeleteTitle") },
+    content: `<p>${F("WFRPPD.Effects.DeleteConfirm", { name: esc(name) })}</p>`
+  });
+}
+
 function safe(fn, fallback = null) {
   try {
     return fn();
@@ -4724,7 +4849,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.actor;
     const sys = actor.system;
     const cfg = game.wfrp4e.config;
-    const L = (key) => game.i18n.localize(key);
     const editable = this.editable;
 
     const view = (item, extra = {}) => this._itemView(item, editable, extra);
@@ -4955,7 +5079,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Полоски под моделью: раны и удача (перебросы) */
   _vitals() {
     const st = this.actor.system.status ?? {};
-    const F = (k, d) => game.i18n.format(k, d);
     const bar = (value, max) => {
       const v = Math.max(0, Number(value) || 0);
       const m = Math.max(0, Number(max) || 0);
@@ -4963,8 +5086,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
     const wounds = bar(st.wounds?.value, st.wounds?.max);
     // Цвет и состояние по доле оставшихся ран
-    const r = wounds.max ? wounds.value / wounds.max : 1;
-    const tier = !wounds.max ? "full" : wounds.value === 0 ? "dying" : r <= 0.25 ? "critical" : r <= 0.5 ? "heavy" : r <= 0.75 ? "wounded" : r < 1 ? "light" : "full";
+    const tier = woundsTier(wounds.value, wounds.max);
     wounds.tier = tier;
     wounds.status = game.i18n.localize(`WFRPPD.Vitals.Tier.${tier}`);
     wounds.state = `is-${tier} ${tier === "dying" ? "is-down" : tier === "critical" ? "is-low" : ""}`.trim();
@@ -5036,7 +5158,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Бонус характеристики и что от него зависит (раны, нагрузка, урон) */
   _bonusEffects(key) {
-    const L = (k) => game.i18n.localize(k);
     const halfling = /halfling|полурослик/i.test(String(this.actor.system.details?.species?.value ?? ""));
     const map = {
       s: [halfling ? null : ["WFRPPD.Impact.Wounds", 1], ["WFRPPD.Impact.Damage", 1], ["WFRPPD.Impact.Enc", 1]],
@@ -5048,8 +5169,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Подробно про бонус характеристики: как считается, на что влияет, какие таланты им ограничены */
   _bonusInfo(key) {
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
     const c = this.actor.system.characteristics?.[key] ?? {};
     const value = Number(c.value) || 0;
     const bonus = Number(c.bonus ?? Math.floor(value / 10));
@@ -5073,8 +5192,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Отдых и восстановление: проверка Стойкости (+20), успех - [БВ + УУ] ран, день полного покоя - ещё +БВ */
   async _restRecover(fullDay = false) {
     if (!this.editable) return;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
     const actor = this.actor;
     const t = actor.system.characteristics?.t ?? {};
     const tb = Number(t.bonus ?? Math.floor((Number(t.value) || 0) / 10)) || 0;
@@ -5116,7 +5233,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   async _rollTest(kind, ref) {
     const actor = this.actor;
-    const L = (k) => game.i18n.localize(k);
     try {
       let test = null;
       if (kind === "weapon" && actor.setupWeapon) test = await actor.setupWeapon(ref);
@@ -5161,7 +5277,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Подсказка пустого слота оружия: персонаж бьёт кулаками */
   _unarmedHint() {
-    const L = (k) => game.i18n.localize(k);
     return [
       L("WFRPPD.Unarmed.Name"),
       `${L("WFRPPD.Unarmed.Damage")}\t+${this._unarmedDamage()} (${L("WFRPPD.Unarmed.Formula")})`,
@@ -5205,7 +5320,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Подсказка таланта: крупная иконка, название, уровень и описание */
   _talentTooltip(t, lvl) {
-    const L = (k) => game.i18n.localize(k);
     const max = this._talentMax(t);
     const level = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });
     const text = this._talentText(t) || PaperdollApp._talentLib.get(norm(t.name)) || "";
@@ -5241,7 +5355,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _statSets(mainItems, offItems, weapons) {
     const sys = this.actor.system;
     const cfg = game.wfrp4e.config;
-    const L = (key) => game.i18n.localize(key);
     const chars = sys.characteristics ?? {};
     const st = sys.status ?? {};
     const det = sys.details ?? {};
@@ -5342,7 +5455,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Категории для вкладки «Характеристики» справа (как аддон ECS) */
   _statCategories(sets) {
     const sys = this.actor.system;
-    const L = (key) => game.i18n.localize(key);
     const det = sys.details ?? {};
     const exp = det.experience;
     const enc = sys.status?.encumbrance ?? {};
@@ -5466,8 +5578,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * Вес надетых вещей уже уменьшен на 1, вещи в сумках не считаются - это делает сама система.
    */
   _encHint(state, current, max) {
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
     const sys = this.actor.system;
     const cfg = game.wfrp4e.config;
     const move = Number(sys.details?.move?.value) || 0;
@@ -5490,7 +5600,8 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** Номинал монеты в медных пенни */
-  static COIN_VALUE = { gc: 240, ss: 12, bp: 1 };
+  /** Номиналы монет; оставлено как публичное поле - на него могут опираться дополнения */
+  static COIN_VALUE = COIN_VALUE;
 
   /**
    * ЛКМ по монете - +1, ПКМ - -1, с Shift - по 10.
@@ -5498,32 +5609,9 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   async _changeMoney(key, delta) {
     if (!this.editable) return;
-    const V = PaperdollApp.COIN_VALUE;
-    const coins = {};
-    for (const k of Object.keys(V)) coins[k] = this.actor.items.find((i) => i.type === "money" && Number(i.system.coinValue?.value) === V[k]);
-    const missing = Object.keys(V).filter((k) => !coins[k]);
-    if (missing.length) {
-      ui.notifications.warn(game.i18n.format("WFRPPD.Money.NoCoin", { coin: missing.map((k) => game.i18n.localize(`WFRPPD.Money.Name.${k}`)).join(", ") }));
-      return;
-    }
-    const qty = (k) => Number(coins[k].system.quantity?.value) || 0;
-    let total = Object.keys(V).reduce((n, k) => n + qty(k) * V[k], 0) + delta * V[key];
-    if (total < 0) {
-      ui.notifications.warn(game.i18n.localize("WFRPPD.Money.NotEnough"));
-      return;
-    }
-    const next = { gc: Math.floor(total / V.gc) };
-    total -= next.gc * V.gc;
-    next.ss = Math.floor(total / V.ss);
-    next.bp = total - next.ss * V.ss;
-    const updates = Object.keys(V)
-      .filter((k) => next[k] !== qty(k))
-      .map((k) => ({ _id: coins[k].id, "system.quantity.value": next[k] }));
-    if (!updates.length) return;
-    // Анимация и звон после перерисовки: «+1» / «-1» у нажатой монеты
+    // Анимация «+1» / «-1» у нажатой монеты отыграется после перерисовки; сам расчёт и звон - общие с окном группы
     this._moneyFx = { key, delta };
-    playCoinSound(delta > 0);
-    await this.actor.updateEmbeddedDocuments("Item", updates);
+    if (!(await changeActorMoney(this.actor, key, delta))) this._moneyFx = null;
   }
 
   /**
@@ -5603,7 +5691,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Деньги персонажа: монеты по номиналам (1 зк = 20 сш = 240 п) */
   _moneyView() {
-    const L = (k) => game.i18n.localize(k);
     const coins = this.actor.items.filter((i) => i.type === "money");
     if (!coins.length) return null;
     let total = 0;
@@ -5613,18 +5700,13 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const qty = Number(c.system.quantity?.value) || 0;
       const value = Number(c.system.coinValue?.value) || 1;
       total += qty * value;
-      const key = value === 240 ? "gc" : value === 12 ? "ss" : "bp";
-      by[key] += value === 240 || value === 12 || value === 1 ? qty : qty * value;
+      // Нестандартный номинал пересчитываем в пенни, иначе считаем штуки
+      const key = value === COIN_VALUE.gc ? "gc" : value === COIN_VALUE.ss ? "ss" : "bp";
+      by[key] += Object.values(COIN_VALUE).includes(value) ? qty : qty * value;
       img[key] ??= c.img;
     }
     const parts = ["gc", "ss", "bp"].map((k) => ({ key: k, value: by[k], img: img[k] ?? null, label: L(`WFRPPD.Money.${k}`), title: L(`WFRPPD.Money.Name.${k}`) }));
-    const gc = Math.floor(total / 240);
-    const ss = Math.floor((total % 240) / 12);
-    const bp = total % 12;
-    const sum = [gc && `${gc} ${L("WFRPPD.Money.gc")}`, ss && `${ss} ${L("WFRPPD.Money.ss")}`, (bp || !total) && `${bp} ${L("WFRPPD.Money.bp")}`]
-      .filter(Boolean)
-      .join(" ");
-    return { parts, hint: game.i18n.format("WFRPPD.Money.Total", { sum }), rates: game.i18n.localize("WFRPPD.Money.Rates") };
+    return { parts, hint: F("WFRPPD.Money.Total", { sum: formatMoney(total) }), rates: L("WFRPPD.Money.Rates") };
   }
 
   _itemView(item, editable, extra = {}) {
@@ -5787,7 +5869,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * в конце - «При себе» (вещи вне сумок).
    */
   _bagSections(bagAll, assign, view) {
-    const L = (k) => game.i18n.localize(k);
     const containers = this.actor.itemTypes.container ?? [];
     const filter = (i) => this._matchesFilter(i, this._filter);
     const emptyCells = (n) => Array.from({ length: Math.max(0, n) }, (_, i) => i);
@@ -6056,43 +6137,12 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _effectsView() {
     const actor = this.actor;
     const cfg = game.wfrp4e.config;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
     const out = [];
 
     for (const effect of actor.effects ?? []) {
-      const statuses = [...(effect.statuses ?? [])];
-      const condition = statuses.find((st) => cfg.conditions?.[st]);
-      if (condition) {
-        const value = Number(effect.conditionValue ?? effect.system?.condition?.value) || null;
-        out.push({
-          kind: "condition",
-          id: effect.id,
-          key: condition,
-          name: T(effect.name || L(cfg.conditions[condition])),
-          img: effect.img,
-          value: value && value > 1 ? value : null,
-          left: effectRemaining(effect),
-          debuff: true,
-          lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
-          hint: L(this.editable ? "WFRPPD.Effects.HintCondition" : "WFRPPD.Effects.HintOpen")
-        });
-        continue;
-      }
-      // Эффекты, перенесённые с предметов и талантов, - «пассивки»: только с опцией
-      if (effect.parent !== actor || effect.transfer === true && effect.origin) continue;
-      const pol = effectPolarity(effect);
-      out.push({
-        kind: pol === "buff" ? "buff" : "effect",
-        id: effect.id,
-        name: effect.name,
-        img: effect.img,
-        disabled: !!effect.disabled,
-        left: effectRemaining(effect),
-        debuff: pol !== "buff",
-        lines: [effect.description ? plainEnrichers(stripTags(effect.description)) : ""],
-        hint: L(this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
-      });
+      // Перенесённые с предметов эффекты («пассивки») разбираются ниже, отдельным циклом по предметам
+      const entry = effectEntry(effect, actor, { editable: this.editable });
+      if (entry) out.push(entry);
     }
 
     // Эффекты с предметов персонажа (таланты, психология, черты, вещи):
@@ -6204,10 +6254,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /** ЛКМ по эффекту */
   /** Диалог подтверждения снятия (единый для травм/критов/болезней/эффектов) */
   async _confirmRemoveEffect(name) {
-    const Dialog = foundry.applications?.api?.DialogV2;
-    if (!Dialog) return true;
-    const content = `<p>${game.i18n.format("WFRPPD.Effects.DeleteConfirm", { name: foundry.utils.escapeHTML?.(name) ?? name })}</p>`;
-    return Dialog.confirm({ window: { title: game.i18n.localize("WFRPPD.Effects.DeleteTitle") }, content });
+    return confirmRemoveEffect(name);
   }
 
   /** Сама запись ленты как ActiveEffect-документ: с предмета - из его effects, иначе - с самого актёра */
@@ -6309,8 +6356,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * dmg - прибавка к урону, parts - откуда она, info - пометки без влияния на урон.
    */
   _weaponBonuses(item, profile = this._profile()) {
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
     const out = { dmg: 0, parts: [], info: [], score: 0 };
     if (item?.type !== "weapon") return out;
     const ranged = !!safe(() => item.system.isRanged);
@@ -6387,8 +6432,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * warn - можно, но со штрафом (score - насколько это хуже).
    */
   _restrictions(item, slot, profile = this._profile()) {
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
     const sys = item.system;
     const forbid = [];
     const warn = [];
@@ -7121,8 +7164,6 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 function effectRemaining(effect) {
   if (!option("effectDurations")) return null;
   const d = safe(() => effect.duration, null) ?? {};
-  const L = (k) => game.i18n.localize(k);
-  const F = (k, x) => game.i18n.format(k, x);
   let rounds = null;
   let seconds = null;
   if (["turns", "rounds"].includes(d.type) && Number.isFinite(d.remaining)) rounds = Math.max(0, Math.ceil(d.remaining));
@@ -7144,7 +7185,6 @@ function effectRemaining(effect) {
 }
 
 function effectTooltip(entry) {
-  const L = (k) => game.i18n.localize(k);
   const kind = L(`WFRPPD.Effects.Kind.${entry.kind}`);
   const state = entry.disabled ? ` · ${L("WFRPPD.Effects.Disabled")}` : "";
   const value = entry.value ? ` ${entry.value}` : "";
@@ -7165,7 +7205,6 @@ function effectTooltip(entry) {
 
 /** Подсказка значка травмы на слоте: крупная картинка травмы, что с конечностью и чем заменена */
 function maimTooltip(view) {
-  const L = (k) => game.i18n.localize(k);
   const [head, ...rest] = view.lines;
   return `
     <div class="pd-tt-head">
@@ -7241,7 +7280,6 @@ class PaperdollTooltip {
 
   /** Что изменится, если надеть item вместо other */
   static diffLines(item, other) {
-    const L = (k) => game.i18n.localize(k);
     const out = [];
     const sign = (d) => (d > 0 ? `+${d}` : `${d}`);
     if (item.type === "weapon") {
@@ -7263,7 +7301,6 @@ class PaperdollTooltip {
     if (this.mode !== "item" || !cur) return this.hideCompare();
     const targets = this.compareTargets(cur.item, cur.app);
     if (!targets.length) return this.hideCompare();
-    const L = (k) => game.i18n.localize(k);
     this.cmpEls ??= [];
     while (this.cmpEls.length < targets.length) {
       const e = document.createElement("div");
@@ -7438,7 +7475,6 @@ class PaperdollTooltip {
   static build(item, app = null) {
     const sys = item.system;
     const cfg = game.wfrp4e.config;
-    const L = (k) => game.i18n.localize(k);
     const rarity = RARITY[sys.availability?.value] ?? "none";
     const lines = [];
 
@@ -7599,13 +7635,13 @@ class PaperdollTooltip {
    */
   static priceHtml(price, app = null) {
     if (!price || !(game.user?.isGM || option("prices"))) return "";
-    const V = { gc: 240, ss: 12, bp: 1 };
+    const V = COIN_VALUE;
     const coins = app?.actor?.items?.filter?.((i) => i.type === "money") ?? [];
     const parts = Object.keys(V)
       .filter((k) => Number(price[k]) > 0)
       .map((k) => {
         const coin = coins.find((c) => Number(c.system.coinValue?.value) === V[k]);
-        const title = esc(game.i18n.localize(`WFRPPD.Money.Name.${k}`));
+        const title = esc(L(`WFRPPD.Money.Name.${k}`));
         const icon = coin?.img ? `<img src="${esc(coin.img)}" alt="">` : `<i class="pd-coin-dot pd-coin-dot--${k}"></i>`;
         return `<span class="pd-tt-coin" title="${title}">${Number(price[k])}${icon}</span>`;
       });
@@ -7614,7 +7650,6 @@ class PaperdollTooltip {
 
   static formatPrice(price) {
     if (!price) return "";
-    const L = (k) => game.i18n.localize(k);
     const parts = [];
     if (price.gc) parts.push(`${price.gc} ${L("WFRPPD.Money.gc")}`);
     if (price.ss) parts.push(`${price.ss} ${L("WFRPPD.Money.ss")}`);
@@ -7631,7 +7666,6 @@ class PaperdollTooltip {
 function itemMeta(item, app = null) {
   const sys = item.system;
   const cfg = game.wfrp4e.config;
-  const L = (k) => game.i18n.localize(k);
   if (item.type === "weapon") {
     const parts = [];
     const dmg = app ? app._weaponDamage(item) : safe(() => sys.Damage);
@@ -7663,7 +7697,6 @@ class PaperdollFlyout {
     this.app = app;
     this.slot = slot;
 
-    const L = (k) => game.i18n.localize(k);
     const { current, available, worn } = app._swapCandidates(slot);
 
     // Сортировка по силе, BIS - лучший предмет среди всего подходящего (надетые в других слотах не в счёт)
@@ -7850,7 +7883,8 @@ const PD_UTIL = {
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
-  extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound
+  extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound,
+  L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry
 };
 
 const PD_API = {

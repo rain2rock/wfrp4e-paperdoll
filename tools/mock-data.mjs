@@ -291,7 +291,6 @@ const stats = (wounds, s, t) => ({
   corruption: { value: 0, max: 7 }, sin: { value: 0 }, encumbrance: { current: 0, max: 0 }
 });
 const details = (status) => ({ species: { value: "human" }, status: { value: status }, move: { value: 4, walk: "8", run: "16" }, experience: { total: 300, spent: 250, current: 50 } });
-const inBag = (id) => ({ location: { value: id } });
 const xp = (total, spent) => ({ total, spent, current: total - spent });
 /** Карьера солдата из книги: ступени 1-3 (навыки на английском, как в системе) */
 const SOLDIER = [

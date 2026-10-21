@@ -34,6 +34,10 @@ Manifest URL ядра: `https://github.com/rain2rock/wfrp4e-paperdoll/releases/l
   утилиты, реестр дополнений `ADDONS`, `PD_UTIL`, `PD_API`, опции `PD_OPTIONS`.
   Звуки синтезируются через Web Audio, без файлов: `playCoinSound(gain)` - монеты, `playGearSound("equip"|"unequip"|"move")` -
   надеть / снять / переложить. Оба слушают опцию `sounds` и громкость интерфейса Foundry, доступны дополнениям через `PD_UTIL`.
+  Общее для ядра и дополнений (всё в `PD_UTIL`, чтобы логика не двоилась): `L`/`F` - локализация (объявлены на уровне модуля,
+  в функциях заново не создавать), `COIN_VALUE`/`actorCoins`/`moneyPennies`/`formatMoney`/`changeActorMoney` - деньги,
+  `woundsTier` - тир ран, `confirmRemoveEffect` - диалог снятия, `effectEntry(effect, actor, {editable})` - запись ленты эффектов
+  (перенесённую с предмета пассивку возвращает как `null` - её нельзя снимать из ленты).
 - `scripts/main.js` - init: настройки (все `config:false`), меню настроек, `Hooks.callAll("wfrp4e-paperdoll.init", PD_API)`, клавиша.
 - `scripts/settings-menu.js` - окно настроек по вкладкам: категории ядра + вкладка на каждое дополнение.
 - `scripts/translate.js`, `scripts/glossary-ru.js` - перевод терминов и описаний. `icon-index.js`, `icon-rules.js` - подбор иконок.

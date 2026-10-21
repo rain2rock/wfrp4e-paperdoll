@@ -14,9 +14,9 @@
 
   function register(api) {
     const { PaperdollTooltip, util } = api;
-    const { MODULE_ID, itemImg, effectTooltip, effectRemaining, effectPolarity, stripTags, plainEnrichers, playCoinSound } = util;
-    const L = (k) => game.i18n.localize(k);
-    const F = (k, d) => game.i18n.format(k, d);
+    const { MODULE_ID, esc, itemImg, effectTooltip, effectRemaining, effectPolarity, stripTags, plainEnrichers } = util;
+    // Общее с ядром: локализация, деньги, тир ран и диалог снятия эффекта - чтобы логика не разъезжалась
+    const { L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry } = util;
 
     const SOCKET = `module.${MODULE_ID}`;
 
@@ -128,7 +128,6 @@
 
 
     const { ApplicationV2 } = foundry.applications.api;
-    const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
     /** Что лежит в сундуке: только вещи, без навыков, талантов и прочего */
     const PHYSICAL = ["weapon", "armour", "trapping", "ammunition", "container", "money", "cargo"];
 
@@ -274,59 +273,14 @@
     }
     const invalidateParty = () => { partyCache = null; };
 
-    /** Тир ран по доле оставшегося - как в самом окне снаряжения */
-    function woundsTier(value, max) {
-      const r = max ? value / max : 1;
-      return !max ? "full" : value === 0 ? "dying" : r <= 0.25 ? "critical" : r <= 0.5 ? "heavy" : r <= 0.75 ? "wounded" : r < 1 ? "light" : "full";
-    }
-
-    const COIN_VALUE = { gc: 240, ss: 12, bp: 1 };
-
-    /** Деньги персонажа (или сундука) в пенни: сумма qty*coinValue по предметам type=money - как в _moneyView ядра */
-    function moneyInPennies(actor) {
-      return actor.items.filter((i) => i.type === "money").reduce((sum, c) => sum + (Number(c.system.quantity?.value) || 0) * (Number(c.system.coinValue?.value) || 1), 0);
-    }
-
-    /** Пенни -> «N зк M сш K п», для казны группы (не кликабельно) */
-    function formatMoney(totalBp) {
-      const gc = Math.floor(totalBp / 240);
-      const ss = Math.floor((totalBp % 240) / 12);
-      const bp = totalBp % 12;
-      return [gc && `${gc}${L("WFRPPD.Money.gc")}`, ss && `${ss}${L("WFRPPD.Money.ss")}`, (bp || !totalBp) && `${bp}${L("WFRPPD.Money.bp")}`].filter(Boolean).join(" ");
-    }
-
-    /** Монеты персонажа по типам - реальные стопки (как в _moneyView ядра), для кликабельных иконок */
+    /** Монеты персонажа по номиналам для кликабельных иконок: стопка может отсутствовать - тогда ноль */
     function groupCoins(actor) {
-      return Object.keys(COIN_VALUE).map((key) => {
-        const item = actor.items.find((i) => i.type === "money" && Number(i.system.coinValue?.value) === COIN_VALUE[key]);
-        return { key, value: Number(item?.system.quantity?.value) || 0, img: item?.img ?? null };
-      });
-    }
-
-    /** Изменить деньги персонажа на delta монет key, сдача разменивается сама - как _changeMoney в ядре */
-    async function changeMoney(actor, key, delta) {
-      const V = COIN_VALUE;
-      const coins = {};
-      for (const k of Object.keys(V)) coins[k] = actor.items.find((i) => i.type === "money" && Number(i.system.coinValue?.value) === V[k]);
-      const missing = Object.keys(V).filter((k) => !coins[k]);
-      if (missing.length) {
-        ui.notifications.warn(F("WFRPPD.Money.NoCoin", { coin: missing.map((k) => L(`WFRPPD.Money.Name.${k}`)).join(", ") }));
-        return;
-      }
-      const qty = (k) => Number(coins[k].system.quantity?.value) || 0;
-      let total = Object.keys(V).reduce((n, k) => n + qty(k) * V[k], 0) + delta * V[key];
-      if (total < 0) {
-        ui.notifications.warn(L("WFRPPD.Money.NotEnough"));
-        return;
-      }
-      const next = { gc: Math.floor(total / V.gc) };
-      total -= next.gc * V.gc;
-      next.ss = Math.floor(total / V.ss);
-      next.bp = total - next.ss * V.ss;
-      const updates = Object.keys(V).filter((k) => next[k] !== qty(k)).map((k) => ({ _id: coins[k].id, "system.quantity.value": next[k] }));
-      if (!updates.length) return;
-      await actor.updateEmbeddedDocuments("Item", updates);
-      playCoinSound(delta > 0);
+      const coins = actorCoins(actor);
+      return Object.keys(COIN_VALUE).map((key) => ({
+        key,
+        value: Number(coins[key]?.system.quantity?.value) || 0,
+        img: coins[key]?.img ?? null
+      }));
     }
 
     /** Изменить раны в пределах 0..максимум - как клики по полосе ран в основном окне (ЛКМ +1, ПКМ -1) */
@@ -336,49 +290,6 @@
       const now = Number(w.value) || 0;
       const next = Math.max(0, Math.min(max, now + delta));
       if (next !== now) await actor.update({ "system.status.wounds.value": next });
-    }
-
-    /** Entry для effectTooltip (из ядра) по сырому ActiveEffect - условие или обычный эффект, как первый цикл _effectsView ядра */
-    function effectEntry(effect) {
-      const cfg = game.wfrp4e?.config ?? {};
-      const statuses = [...(effect.statuses ?? [])];
-      const condition = statuses.find((st) => cfg.conditions?.[st]);
-      const lines = [effect.description ? plainEnrichers(stripTags(effect.description)) : ""];
-      if (condition) {
-        const value = Number(effect.conditionValue ?? effect.system?.condition?.value) || null;
-        return {
-          kind: "condition",
-          id: effect.id,
-          key: condition,
-          name: effect.name || L(cfg.conditions[condition]),
-          img: effect.img,
-          value: value && value > 1 ? value : null,
-          left: effectRemaining(effect),
-          debuff: true,
-          lines,
-          hint: L("WFRPPD.Effects.HintCondition")
-        };
-      }
-      const pol = effectPolarity(effect);
-      return {
-        kind: pol === "buff" ? "buff" : "effect",
-        id: effect.id,
-        name: effect.name,
-        img: effect.img,
-        disabled: !!effect.disabled,
-        left: effectRemaining(effect),
-        debuff: pol !== "buff",
-        lines,
-        hint: L("WFRPPD.Effects.HintRemovable")
-      };
-    }
-
-    /** Подтвердить снятие эффекта - тот же диалог и ключи, что в основном окне */
-    async function confirmRemoveEffect(name) {
-      const Dialog = foundry.applications?.api?.DialogV2;
-      if (!Dialog) return true;
-      const content = `<p>${F("WFRPPD.Effects.DeleteConfirm", { name: esc(name) })}</p>`;
-      return Dialog.confirm({ window: { title: L("WFRPPD.Effects.DeleteTitle") }, content });
     }
 
     /**
@@ -497,11 +408,12 @@
       const fortune = Number(st.fortune?.value) || 0;
       const ap = (loc) => Number(st.armour?.[loc]?.value) || 0;
       const [rArm, lArm, rLeg, lLeg] = [ap("rArm"), ap("lArm"), ap("rLeg"), ap("lLeg")];
-      // Только собственные эффекты персонажа: перенесённые с предметов и талантов (transfer+origin) не наши -
-      // их источник предмет, и снимать их отсюда нельзя, иначе Shift+ЛКМ снёс бы эффект самого таланта (как и в ядре)
-      const effects = (actor.effects ?? []).filter(
-        (e) => !e.disabled && !e.isSuppressed && e.parent === actor && !(e.transfer === true && e.origin)
-      );
+      // Разбор эффекта общий с лентой окна снаряжения: перенесённые с предметов пассивки оно вернёт как null -
+      // их источник предмет, и снимать их отсюда нельзя, иначе Shift+ЛКМ снёс бы эффект самого таланта
+      const effects = (actor.effects ?? [])
+        .filter((e) => !e.disabled && !e.isSuppressed)
+        .map((e) => effectEntry(e, actor))
+        .filter(Boolean);
       return {
         uuid: actor.uuid,
         name: actor.name,
@@ -510,7 +422,7 @@
         fortune: { value: fortune, max: fate },
         ap: { head: ap("head"), body: ap("body"), rArm, lArm, rLeg, lLeg },
         money: groupCoins(actor),
-        effects: effects.map(effectEntry)
+        effects
       };
     }
 
@@ -652,7 +564,7 @@
             ? `<div class="pd-group-cards">${rows.map(groupCard).join("")}</div>`
             : groupTable(rows);
         const stash = stashActor();
-        const treasury = stash ? `<div class="pd-group-treasury"><i class="fa-solid fa-sack-dollar"></i> ${esc(L("WFRPPD.Group.Treasury"))}: ${esc(formatMoney(moneyInPennies(stash)))}</div>` : "";
+        const treasury = stash ? `<div class="pd-group-treasury"><i class="fa-solid fa-sack-dollar"></i> ${esc(L("WFRPPD.Group.Treasury"))}: ${esc(formatMoney(moneyPennies(stash), { compact: true }))}</div>` : "";
         return `
           <div class="pd-group">
             <div class="pd-group-toolbar">
@@ -750,12 +662,12 @@
           el.addEventListener("click", async (ev) => {
             ev.preventDefault();
             const actor = partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
-            if (actor) await changeMoney(actor, el.dataset.coin, step(ev));
+            if (actor) await changeActorMoney(actor, el.dataset.coin, step(ev));
           });
           el.addEventListener("contextmenu", async (ev) => {
             ev.preventDefault();
             const actor = partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
-            if (actor) await changeMoney(actor, el.dataset.coin, -step(ev));
+            if (actor) await changeActorMoney(actor, el.dataset.coin, -step(ev));
           });
         }
         // «+» у ленты эффектов: поиск и выдача состояния, мутации или травмы (ГМ)
