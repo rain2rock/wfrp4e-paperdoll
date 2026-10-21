@@ -132,7 +132,33 @@
     return out.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
   }
 
-  /** Что вообще нужно для этого заклинания: разобранные дальность, вид цели и сколько целей */
+  /** Мгновенное действие или длящийся эффект: от этого зависит, вешать ли что-то на цель */
+  function parseDuration(raw) {
+    const text = String(raw ?? "").trim();
+    const low = text.toLowerCase();
+    if (!text) return { kind: "none", raw: text };
+    if (/^(instant|мгнов)/.test(low)) return { kind: "instant", raw: text };
+    if (/(permanent|посто[яy]н)/.test(low)) return { kind: "permanent", raw: text };
+    return { kind: "lasting", raw: text };
+  }
+
+  /**
+   * Первое найденное значение из нескольких возможных путей.
+   * Нужно потому, что точные имена полей системы (ингредиент, перекаст) на живом мире не сверены:
+   * вместо догадки об одном имени пробуем все вероятные и честно возвращаем undefined, если нет ничего.
+   */
+  function firstDefined(sys, paths) {
+    for (const path of paths) {
+      const v = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), sys);
+      if (v !== undefined && v !== null && v !== "") return v;
+    }
+    return undefined;
+  }
+
+  /**
+   * Что нужно для каста: дальность, цели, длительность, а для заклинаний ещё ЧС, школа и перекаст.
+   * Логика у заклинаний разная не сама по себе, а по данным - поэтому ветвимся по полям, а не по названиям.
+   */
   function castPlan(actor, item) {
     const sys = item?.system ?? {};
     const range = parseRange(sys.range?.value, actor);
@@ -143,13 +169,51 @@
       targetKind.kind === TARGET_KIND.SELF ||
       parseTargetCount(targetRaw, actor) === 0
     );
-    return {
+    // У площадных число в target - это радиус области, а не количество целей:
+    // «AoE (4 yards)» значит круг радиусом 4, а не четыре цели. Считать его целями нельзя.
+    const area = targetKind.kind === TARGET_KIND.AREA || range.kind === TARGET_KIND.AREA;
+    const plan = {
+      kind: item?.type ?? "spell",
       range,
       needsTarget,
-      count: needsTarget ? parseTargetCount(targetRaw, actor) : 0,
-      area: targetKind.kind === TARGET_KIND.AREA || range.kind === TARGET_KIND.AREA,
-      duration: String(sys.duration?.value ?? "").trim()
+      // В области цели не перечисляют - накрывает всех, кто попал: count null, радиус отдельно
+      count: area ? null : needsTarget ? parseTargetCount(targetRaw, actor) : 0,
+      area,
+      areaRadius: area ? (targetKind.kind === TARGET_KIND.AREA ? targetKind.yards : range.yards) : null,
+      duration: parseDuration(sys.duration?.value)
     };
+    if (plan.kind !== "spell") return plan;
+
+    // Заклинание: ЧС нужно набрать уровнями успеха, излишек идёт в перекаст
+    const cn = Number(firstDefined(sys, ["cn.value", "cn"])) || 0;
+    const damage = firstDefined(sys, ["damage.value", "damage"]);
+    const ingredient = firstDefined(sys, ["ingredient.value", "ingredients.value", "ingredient"]);
+    return {
+      ...plan,
+      cn,
+      lore: firstDefined(sys, ["lore.value", "lore"]) ?? null,
+      memorized: !!firstDefined(sys, ["memorized.value", "memorized"]),
+      damage: damage ?? null,
+      ingredient: ingredient ?? null,
+      // На что можно потратить излишек УУ. Набор выведен из данных, а не зашит по названиям заклинаний:
+      // урон - только если заклинание вообще наносит урон, цели - если цель нужна, и т. д.
+      overcast: {
+        damage: damage !== undefined,
+        targets: needsTarget,
+        duration: plan.duration.kind === "lasting",
+        range: range.kind === TARGET_KIND.RANGED || range.kind === TARGET_KIND.AREA
+      }
+    };
+  }
+
+  /**
+   * Сколько УУ сверх ЧС осталось на перекаст. Сам бросок и его УУ даёт система -
+   * сюда их передают уже посчитанными, мы только вычитаем ЧС.
+   */
+  function overcastBudget(plan, sl) {
+    const need = Number(plan?.cn) || 0;
+    const got = Number(sl) || 0;
+    return { success: got >= need, spare: Math.max(0, got - need), need, got };
   }
 
   /** Навести таргет Foundry на выбранные токены (система прочитает game.user.targets при броске) */
@@ -165,10 +229,12 @@
     TARGET_KIND,
     parseRange,
     parseTargetCount,
+    parseDuration,
     tokenOf,
     distanceBetween,
     targetsInRange,
     castPlan,
+    overcastBudget,
     setTargets
   };
 })();

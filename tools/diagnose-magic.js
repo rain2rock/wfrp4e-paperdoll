@@ -28,30 +28,53 @@
   dump.молитвы = say(actor.itemTypes.prayer ?? []);
   dump.заклинания = say(actor.itemTypes.spell ?? []);
 
-  // 2. Все благословения из компендиумов - по ним строится разбор строк дальности
-  const blessings = [];
+  // 2. Молитвы и заклинания из компендиумов - по ним строится разбор строк дальности
+  const found = [];
   for (const pack of game.packs ?? []) {
     if (pack.documentName !== "Item") continue;
-    const index = await pack.getIndex({ fields: ["type", "system.type.value", "system.range.value", "system.target.value", "system.duration.value"] });
+    const index = await pack.getIndex({
+      fields: [
+        "type", "system.type.value", "system.lore.value", "system.cn.value",
+        "system.range.value", "system.target.value", "system.duration.value", "system.damage.value"
+      ]
+    });
     for (const e of index) {
-      if (e.type !== "prayer") continue;
-      blessings.push({
+      if (e.type !== "prayer" && e.type !== "spell") continue;
+      found.push({
         pack: pack.collection,
+        тип: e.type,
         name: e.name,
-        подтип: e.system?.type?.value ?? null,
+        подтип: e.system?.type?.value ?? e.system?.lore?.value ?? null,
+        cn: e.system?.cn?.value ?? null,
         range: e.system?.range?.value ?? null,
         target: e.system?.target?.value ?? null,
-        duration: e.system?.duration?.value ?? null
+        duration: e.system?.duration?.value ?? null,
+        damage: e.system?.damage?.value ?? null
       });
     }
   }
-  dump.благословенияИзКомпендиумов = blessings;
+  dump.найденоВКомпендиумах = { молитв: found.filter((f) => f.тип === "prayer").length, заклинаний: found.filter((f) => f.тип === "spell").length };
+  dump.примеры = found.slice(0, 40);
 
-  // 3. Уникальные строки дальности и цели - самое ценное для разбора
-  const uniq = (key) => [...new Set(blessings.map((b) => b[key]).filter(Boolean))];
+  // 3. Уникальные строки - самое ценное: по ним дорабатывается разбор дальностей
+  const uniq = (key, type) => [...new Set(found.filter((f) => !type || f.тип === type).map((b) => b[key]).filter(Boolean))].sort();
   dump.уникальныеRange = uniq("range");
   dump.уникальныеTarget = uniq("target");
   dump.уникальныеDuration = uniq("duration");
+  dump.уникальныеDamage = uniq("damage", "spell");
+
+  // 3a. Полная структура одного заклинания: нужны точные имена полей ингредиента и перекаста
+  try {
+    const anySpell = found.find((f) => f.тип === "spell");
+    if (anySpell) {
+      const pack = game.packs.get(anySpell.pack);
+      const idx = (await pack.getIndex()).find((e) => e.name === anySpell.name);
+      const doc = await pack.getDocument(idx._id);
+      dump.образецЗаклинания = { name: doc.name, system: doc.toObject().system };
+    }
+  } catch (err) {
+    dump.образецЗаклинания = `не вышло: ${err?.message}`;
+  }
 
   // 4. Какие методы каста вообще есть у актёра
   dump.методыАктёра = ["setupPrayer", "setupCast", "setupSkill", "setupCharacteristic", "addCondition", "removeCondition"]

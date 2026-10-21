@@ -379,6 +379,44 @@ export const CAST = [
 ];
 
 /**
+ * Маг Огня: заклинания нарочно разных типов - на себя, стрела с уроном, площадь, касание, длящееся.
+ * На них проверяется классификатор castPlan: нужна ли цель, сколько, есть ли урон и перекаст.
+ */
+CAST.push({
+  id: "wizard",
+  name: "Магистр Альбрехт",
+  img: portrait,
+  career: { name: "Волшебник", level: 2, class: "Учёные" },
+  skills: [
+    { name: "Language (Magick)", ch: "int", adv: 25 }, { name: "Channelling (Aqshy)", ch: "wp", adv: 20 },
+    { name: "Melee (Basic)", ch: "ws", adv: 5 }, { name: "Intuition", ch: "i", adv: 10 }
+  ],
+  talents: [{ name: "Arcane Magic (Fire)" }, { name: "Aethyric Attunement" }],
+  spells: [
+    { name: "Огненная стрела", cn: 4, lore: "fire", range: "Willpower Bonus yards", target: "1", duration: "Instant",
+      damage: "+4", memorized: true, desc: "<p>Стрела пламени поражает цель.</p>" },
+    { name: "Огненный шар", cn: 8, lore: "fire", range: "Willpower Bonus x2 yards", target: "AoE (4 yards)", duration: "Instant",
+      damage: "+6", memorized: true, desc: "<p>Взрыв пламени накрывает область.</p>" },
+    { name: "Эфирная броня", cn: 5, lore: "arcane", range: "You", target: "You", duration: "Willpower Bonus rounds",
+      memorized: true, desc: "<p>+1 к броне на все локации, пока держится.</p>" },
+    { name: "Огненное касание", cn: 3, lore: "fire", range: "Touch", target: "1", duration: "Instant",
+      damage: "+3", ingredient: "Уголёк", desc: "<p>Прикосновение обжигает.</p>" },
+    { name: "Полог тьмы", cn: 6, lore: "shadow", range: "12 yards", target: "AoE (Willpower Bonus yards)", duration: "1 hour",
+      desc: "<p>Область затягивает мглой.</p>" }
+  ],
+  system: {
+    characteristics: { ws: ch(26), bs: ch(28), s: ch(25), t: ch(29), i: ch(36, 5), ag: ch(32), dex: ch(35, 5), int: ch(44, 15), wp: ch(42, 10), fel: ch(30) },
+    status: stats(11), details: { ...details("Серебро 3"), experience: xp(5000, 800) }, settings: { equipPoints: 2 }
+  },
+  items: [
+    { id: "w-robe", name: "Мантия мага", type: "trapping", img: icon("🧙", "#3a2a5a"),
+      system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 } }) },
+    { id: "w-staff", name: "Посох мага", type: "weapon", img: icon("🔮", "#5a3a7a"),
+      system: weapon({ equipped: { value: true }, damage: { value: "SB+3" }, reach: { value: "long" }, encumbrance: { value: 1 } }) }
+  ]
+});
+
+/**
  * Токены на «сцене» для проверки выбора целей: позиции в пикселях, клетка 100 px = 1 ярд сцены.
  * Кастер - Эльза, рядом раненый союзник, дальше ещё двое.
  */
@@ -386,5 +424,6 @@ export const MOCK_TOKENS = [
   { id: "tok-priest", actorId: "priest", name: "Сестра Эльза", x: 500, y: 500 },
   { id: "tok-hugo", actorId: "hugo", name: "Хьюго Брандлин", x: 600, y: 500 },
   { id: "tok-vet", actorId: "vet", name: "Ветеран Гюнтер", x: 1100, y: 500 },
+  { id: "tok-wizard", actorId: "wizard", name: "Магистр Альбрехт", x: 700, y: 500 },
   { id: "tok-far", actorId: "hugo", name: "Дальний союзник", x: 2500, y: 500 }
 ];
