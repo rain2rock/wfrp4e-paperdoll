@@ -402,7 +402,12 @@ CAST.push({
     { name: "Огненное касание", cn: 3, lore: "fire", range: "Touch", target: "1", duration: "Instant",
       damage: "+3", ingredient: "Уголёк", desc: "<p>Прикосновение обжигает.</p>" },
     { name: "Полог тьмы", cn: 6, lore: "shadow", range: "12 yards", target: "AoE (Willpower Bonus yards)", duration: "1 hour",
-      desc: "<p>Область затягивает мглой.</p>" }
+      desc: "<p>Область затягивает мглой.</p>" },
+    // Проверка приоритета: система уже посчитала дальность (Range = 30), сырая строка говорит другое.
+    // Модуль обязан взять готовое значение, а не разбирать строку сам.
+    { name: "Зов ветров", cn: 7, lore: "heavens", range: "Willpower Bonus yards", target: "1", duration: "Instant",
+      computed: { Range: "30 yards", Duration: "Instant" },
+      desc: "<p>Дальность этого заклинания система считает по своим правилам школы.</p>" }
   ],
   system: {
     characteristics: { ws: ch(26), bs: ch(28), s: ch(25), t: ch(29), i: ch(36, 5), ag: ch(32), dex: ch(35, 5), int: ch(44, 15), wp: ch(42, 10), fel: ch(30) },

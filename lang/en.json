@@ -471,6 +471,21 @@
     },
     "Career": {
       "Talent": "Talent"
+    },
+    "Range": {
+      "ToTarget": "To target: {name}",
+      "Yards": "yd",
+      "pointBlank": "Point blank",
+      "short": "Short",
+      "normal": "Normal",
+      "long": "Long",
+      "extreme": "Extreme",
+      "outOfRange": "Out of range"
+    },
+    "Target": {
+      "Damage": "Damage vs target",
+      "Chance": "Chance vs target",
+      "ApBody": "body AP"
     }
   }
 }

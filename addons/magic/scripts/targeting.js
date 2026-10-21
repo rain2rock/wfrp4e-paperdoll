@@ -5,9 +5,12 @@
  * (окно модификаторов открывает actor.setupCast / actor.setupPrayer). Система знает дальность строкой,
  * но не сопоставляет её с положением токенов - этим и занимается этот файл.
  *
- * ВАЖНО: строки дальности и цели не проверены на живой системе (её исходников в репозитории нет).
- * Разбор намеренно терпимый: что не распознали - считаем «нужна ручная цель», а не падаем.
- * Диагностический макрос для сверки: tools/diagnose-magic.js
+ * Сначала берём ГОТОВЫЕ значения системы (геттеры Range/Target/Duration/Damage с заглавной буквы -
+ * тот же приём, что у оружия): там дальности уже посчитаны по правилам школы. Свой разбор строк - запасной путь.
+ *
+ * ВАЖНО: наличие этих геттеров у заклинаний на живой системе не подтверждено (её исходников в репозитории нет),
+ * как и имена полей ингредиента и перекаста. Разбор намеренно терпимый: что не распознали -
+ * «нужна ручная цель», а не падение. Сверяет макрос tools/diagnose-magic.js (пункт «сыроеПротивВычисленного»).
  */
 (() => {
   if (typeof globalThis.__PD_MAGIC_TARGETING__ !== "undefined") return;
@@ -82,54 +85,19 @@
     return num ? Math.max(1, Number(num[1])) : 1;
   }
 
-  /** Токен персонажа на текущей сцене (первый, если их несколько) */
-  function tokenOf(actor) {
-    if (!actor) return null;
-    return (canvas?.tokens?.placeables ?? []).find((t) => t.actor?.id === actor.id) ?? null;
-  }
+  /** Общие утилиты ядра. Берём лениво: в Foundry api появляется на init, в моке - при сборке */
+  const core = () => globalThis.__PD_API__?.util ?? game.modules?.get?.("wfrp4e-paperdoll")?.api?.util ?? null;
 
-  /** Дистанция между токенами в единицах сцены (ярдах), null - посчитать нечем */
-  function distanceBetween(a, b) {
-    if (!a || !b) return null;
-    const from = { x: a.center?.x ?? a.x, y: a.center?.y ?? a.y };
-    const to = { x: b.center?.x ?? b.x, y: b.center?.y ?? b.y };
-    const grid = canvas?.grid;
-    try {
-      // Foundry v12+: measurePath, раньше - measureDistance
-      if (typeof grid?.measurePath === "function") return grid.measurePath([from, to])?.distance ?? null;
-      if (typeof grid?.measureDistance === "function") return grid.measureDistance(from, to);
-    } catch (err) {
-      console.warn("wfrp4e-paperdoll | distance", err);
-    }
-    // Запасной путь: евклидово расстояние в клетках, умноженное на размер клетки сцены
-    const size = Number(grid?.size) || 100;
-    const unit = Number(canvas?.scene?.grid?.distance ?? canvas?.dimensions?.distance) || 1;
-    return (Math.hypot(to.x - from.x, to.y - from.y) / size) * unit;
-  }
+  /** Токен персонажа и дистанции считает ядро - там же их берёт оружие, чтобы логика была одна */
+  const tokenOf = (actor) => core()?.tokenOf(actor) ?? null;
+  const distanceBetween = (a, b) => core()?.distanceBetween(a, b) ?? null;
 
   /**
-   * Кандидаты в цели: все видимые токены кроме самого кастера, с дистанцией и признаком «в радиусе».
-   * Сортировка по дистанции, чтобы ближние были сверху.
+   * Кандидаты в цели: токены с дистанцией и признаком «в радиусе» этого заклинания.
+   * Отличие от ядра только в том, что радиус берётся из разобранной дальности заклинания.
    */
   function targetsInRange(actor, range) {
-    const self = tokenOf(actor);
-    const out = [];
-    for (const t of canvas?.tokens?.placeables ?? []) {
-      if (!t.actor || t === self) continue;
-      if (t.document?.hidden && !game.user?.isGM) continue;
-      const distance = distanceBetween(self, t);
-      const yards = range?.yards ?? null;
-      out.push({
-        id: t.id,
-        name: t.name ?? t.actor.name,
-        img: t.document?.texture?.src ?? t.actor.img,
-        distance,
-        // Дистанцию посчитать не вышло (нет сцены) - не врём «далеко», помечаем неизвестной
-        inRange: distance === null || yards === null ? null : distance <= yards,
-        targeted: !!t.isTargeted
-      });
-    }
-    return out.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+    return core()?.tokensInRange(actor, range?.yards ?? null) ?? [];
   }
 
   /** Мгновенное действие или длящийся эффект: от этого зависит, вешать ли что-то на цель */
@@ -161,8 +129,12 @@
    */
   function castPlan(actor, item) {
     const sys = item?.system ?? {};
-    const range = parseRange(sys.range?.value, actor);
-    const targetRaw = sys.target?.value;
+    // Система сама считает дальности и длительности и отдаёт их геттерами с заглавной буквы
+    // (как Damage/Range/Qualities у оружия): «Willpower Bonus yards» там уже превращено в число.
+    // Берём готовое, если оно есть - оно авторитетнее нашего разбора строк; парсер остаётся запасным путём.
+    const rangeSource = firstDefined(sys, ["Range", "range.value"]);
+    const targetRaw = firstDefined(sys, ["Target", "target.value"]);
+    const range = parseRange(rangeSource, actor);
     const targetKind = parseRange(targetRaw, actor);
     const needsTarget = !(
       range.kind === TARGET_KIND.SELF ||
@@ -180,13 +152,13 @@
       count: area ? null : needsTarget ? parseTargetCount(targetRaw, actor) : 0,
       area,
       areaRadius: area ? (targetKind.kind === TARGET_KIND.AREA ? targetKind.yards : range.yards) : null,
-      duration: parseDuration(sys.duration?.value)
+      duration: parseDuration(firstDefined(sys, ["Duration", "duration.value"]))
     };
     if (plan.kind !== "spell") return plan;
 
     // Заклинание: ЧС нужно набрать уровнями успеха, излишек идёт в перекаст
     const cn = Number(firstDefined(sys, ["cn.value", "cn"])) || 0;
-    const damage = firstDefined(sys, ["damage.value", "damage"]);
+    const damage = firstDefined(sys, ["Damage", "damage.value", "damage"]);
     const ingredient = firstDefined(sys, ["ingredient.value", "ingredients.value", "ingredient"]);
     return {
       ...plan,

@@ -70,9 +70,66 @@ const r = await p.evaluate(() => {
     // Длительность: мгновенное против длящегося
     eq("стрела - мгновенное", sp("стрела").duration.kind, "instant");
     eq("броня - длящееся", sp("броня").duration.kind, "lasting");
+
+    // Готовое значение системы важнее сырой строки: у «Зова ветров» Range = 30, хотя в range.value стоит СВБ (5)
+    eq("приоритет вычисленной дальности", sp("ветров").range.yards, 30);
+    eq("вычисленная дальность - не СВБ", sp("ветров").range.yards !== wpbW, true);
   }
 
-  return { fail, checks: 27 };
+  // --- Оружие: полосы дальности (та же машинка дистанций, что у магии, но из ядра) ---
+  const U = window.__PD_API__?.util;
+  const hugo = (window.__PD_actors ?? []).find((a) => a.id === "hugo");
+  const sling = hugo?.items.find((i) => i.id === "sling");
+  if (!U?.weaponRangeBand || !sling) fail.push("в ядре нет weaponRangeBand или в моке нет пращи");
+  else {
+    eq("дальность пращи из системы", U.weaponRangeYards(sling), 60);
+    const band = (d) => { const x = U.weaponRangeBand(sling, d); return [x.key, x.mod]; };
+    // Границы полос для дальности 60: в упор <=6, короткая <=30, обычная <=60, длинная <=120, запредельная <=180
+    eq("6я - в упор", band(6), ["pointBlank", 20]);
+    eq("7я - короткая", band(7), ["short", 10]);
+    eq("30я - ещё короткая", band(30), ["short", 10]);
+    eq("31я - обычная", band(31), ["normal", 0]);
+    eq("60я - ещё обычная", band(60), ["normal", 0]);
+    eq("61я - длинная", band(61), ["long", -10]);
+    eq("120я - ещё длинная", band(120), ["long", -10]);
+    eq("121я - запредельная", band(121), ["extreme", -30]);
+    eq("181я - вне досягаемости", band(181), ["outOfRange", null]);
+    // Нет цели - строки в подсказке просто не будет, а не ошибка
+    eq("без дистанции - null", U.weaponRangeBand(sling, null), null);
+    // Ближний бой: дальности нет, полос тоже
+    const flail = hugo.items.find((i) => i.id === "flail");
+    eq("ближний бой - без дальности", U.weaponRangeYards(flail), null);
+
+    // --- Атака по выбранной цели: итог с учётом цели ---
+    const app = [...window.PaperdollApp.instances.values()].find((a) => a.actor.id === "hugo");
+    if (!app) fail.push("окно Хьюго не открыто");
+    else {
+      // Без цели - считать нечего
+      U.tokensInRange(hugo).forEach(() => {});
+      [...game.user.targets].forEach((t) => t.setTarget(false));
+      eq("без цели - null", U.targetedAttack(app, sling), null);
+
+      // Цель - Гюнтер в 5 ярдах: в упор (+20) для пращи 60я, стойкость 4 и броня корпуса 1
+      const vet = canvas.tokens.placeables.find((t) => t.name.includes("Гюнтер"));
+      vet.setTarget(true);
+      const aim = U.targetedAttack(app, sling);
+      eq("полоса до цели", aim.band.key, "pointBlank");
+      eq("шанс с модификатором", [aim.hit.base, aim.hit.mod, aim.hit.total], [38, 20, 58]);
+      eq("урон за вычетом стойкости и брони", [aim.damage.full, aim.damage.tb, aim.damage.ap, aim.damage.net], [6, 4, 1, 1]);
+      eq("разбор урона непустой", aim.damage.parts.length > 0, true);
+
+      // Ближний бой: полосы нет, но стойкость и броня учитываются
+      const sword = hugo.items.find((i) => i.id === "sword");
+      const melee = U.targetedAttack(app, sword);
+      eq("ближний бой - без полосы", melee.band, null);
+      eq("ближний бой - шанс без модификатора", melee.hit.mod, 0);
+      eq("ближний бой - урон срезан бронёй", melee.damage.net, melee.damage.full - melee.damage.tb - melee.damage.ap);
+
+      [...game.user.targets].forEach((t) => t.setTarget(false));
+    }
+  }
+
+  return { fail, checks: 49 };
 });
 
 console.log(r.error ? `FAIL: ${r.error}` : r.fail.length ? `FAIL:\n${r.fail.join("\n")}` : `all pass (${r.checks} checks)`, "errors:", errs);

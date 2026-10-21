@@ -63,7 +63,24 @@
   dump.уникальныеDuration = uniq("duration");
   dump.уникальныеDamage = uniq("damage", "spell");
 
-  // 3a. Полная структура одного заклинания: нужны точные имена полей ингредиента и перекаста
+  // 3a. ГЛАВНОЕ: есть ли у заклинаний готовые вычисленные поля (как Damage/Range у оружия).
+  // Если да - разбирать строки вручную не нужно, модуль возьмёт готовое.
+  const computed = (actor.itemTypes.spell ?? []).concat(actor.itemTypes.prayer ?? []).map((i) => ({
+    name: i.name,
+    "сырой range": i.system?.range?.value ?? null,
+    "вычисленный Range": i.system?.Range ?? null,
+    "сырой target": i.system?.target?.value ?? null,
+    "вычисленный Target": i.system?.Target ?? null,
+    "сырой duration": i.system?.duration?.value ?? null,
+    "вычисленный Duration": i.system?.Duration ?? null,
+    "вычисленный Damage": i.system?.Damage ?? null
+  }));
+  dump.сыроеПротивВычисленного = computed;
+  dump.ВЫВОД_естьЛиГотовыеПоля = computed.some((c) => c["вычисленный Range"] !== null || c["вычисленный Duration"] !== null)
+    ? "ДА - модуль должен брать готовое, ручной разбор строк не нужен"
+    : "НЕТ - остаётся ручной разбор строк (или поля зовутся иначе, смотри образецЗаклинания ниже)";
+
+  // 3b. Полная структура одного заклинания: нужны точные имена полей ингредиента и перекаста
   try {
     const anySpell = found.find((f) => f.тип === "spell");
     if (anySpell) {

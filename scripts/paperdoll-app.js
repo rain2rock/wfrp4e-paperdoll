@@ -555,6 +555,141 @@ async function confirmRemoveEffect(name) {
   });
 }
 
+/* -------------------------------------------- */
+/*  Токены и дистанции                          */
+/* -------------------------------------------- */
+
+/** Токен персонажа на текущей сцене (первый, если их несколько) */
+function tokenOf(actor) {
+  if (!actor) return null;
+  return (canvas?.tokens?.placeables ?? []).find((t) => t.actor?.id === actor.id) ?? null;
+}
+
+/** Дистанция между токенами в единицах сцены (ярдах), null - посчитать нечем */
+function distanceBetween(a, b) {
+  if (!a || !b) return null;
+  const from = { x: a.center?.x ?? a.x, y: a.center?.y ?? a.y };
+  const to = { x: b.center?.x ?? b.x, y: b.center?.y ?? b.y };
+  const grid = canvas?.grid;
+  try {
+    // Foundry v12+: measurePath, раньше - measureDistance
+    if (typeof grid?.measurePath === "function") return grid.measurePath([from, to])?.distance ?? null;
+    if (typeof grid?.measureDistance === "function") return grid.measureDistance(from, to);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | distance`, err);
+  }
+  // Запасной путь: евклидово расстояние в клетках, умноженное на размер клетки сцены
+  const size = Number(grid?.size) || 100;
+  const unit = Number(canvas?.scene?.grid?.distance ?? canvas?.dimensions?.distance) || 1;
+  return (Math.hypot(to.x - from.x, to.y - from.y) / size) * unit;
+}
+
+/**
+ * Кандидаты в цели: видимые токены кроме самого действующего, с дистанцией и признаком «в пределах yards».
+ * Сортировка по дистанции. yards = null - дальность неизвестна, тогда inRange тоже null (не врём «далеко»).
+ */
+function tokensInRange(actor, yards = null) {
+  const self = tokenOf(actor);
+  const out = [];
+  for (const t of canvas?.tokens?.placeables ?? []) {
+    if (!t.actor || t === self) continue;
+    if (t.document?.hidden && !game.user?.isGM) continue;
+    const distance = distanceBetween(self, t);
+    out.push({
+      id: t.id,
+      name: t.name ?? t.actor.name,
+      img: t.document?.texture?.src ?? t.actor.img,
+      distance,
+      inRange: distance === null || yards === null ? null : distance <= yards,
+      targeted: !!t.isTargeted
+    });
+  }
+  return out.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+}
+
+/**
+ * Полосы дальности стрелкового оружия (WFRP4e, «Стрельба»): доля от дальности оружия -> модификатор к попаданию.
+ * Правила взяты из книги; если в твоей редакции цифры другие - меняется только эта таблица.
+ */
+const RANGE_BANDS = [
+  { key: "pointBlank", limit: 0.1, mod: 20 },
+  { key: "short", limit: 0.5, mod: 10 },
+  { key: "normal", limit: 1, mod: 0 },
+  { key: "long", limit: 2, mod: -10 },
+  { key: "extreme", limit: 3, mod: -30 }
+];
+
+/** Дальность оружия в ярдах: берём посчитанное системой (как Damage), иначе первое число из строки */
+function weaponRangeYards(item) {
+  const raw = safe(() => item?.system?.Range) ?? item?.system?.range?.value;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(String(raw).match(/\d+(\.\d+)?/)?.[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Атака по выбранной цели: итоговый шанс попасть и урон с учётом цели.
+ * Цели нет - null, тогда показываем базовые числа, как раньше.
+ *
+ * Что учитываем: полосу дальности (у стрелкового) в шансе, стойкость и броню цели в уроне.
+ * Чего НЕ учитываем, потому что без броска или без данных это домыслы: уровни успеха (они прибавляются
+ * к урону только после броска), укрытие, освещение, размер цели, прицеливание.
+ */
+function targetedAttack(app, item) {
+  const target = [...(game.user?.targets ?? [])][0];
+  if (!app || !target?.actor) return null;
+  const sys = item?.system ?? {};
+  const ranged = !!safe(() => sys.isRanged);
+
+  // Шанс попасть: база от навыка или характеристики, плюс модификатор полосы дальности
+  const base = app._attackTarget(item);
+  const band = ranged ? weaponRangeBand(item, distanceBetween(tokenOf(app.actor), target)) : null;
+  const hitParts = [];
+  if (base?.from) hitParts.push(base.from);
+  let hitMod = 0;
+  if (band && band.mod !== null) {
+    hitMod = band.mod;
+    if (hitMod) hitParts.push(`${L(`WFRPPD.Range.${band.key}`)} ${hitMod > 0 ? "+" : ""}${hitMod}`);
+  }
+  // Вне досягаемости - попасть нельзя вовсе
+  const unreachable = !!band && band.key === "outOfRange";
+  const hitTotal = unreachable ? 0 : Math.max(0, (base?.target ?? 0) + hitMod);
+
+  // Урон: оружие с бонусами талантов минус стойкость и броня цели.
+  // Часть тела до броска неизвестна, поэтому считаем по корпусу - он выпадает чаще всего.
+  const bonus = app._weaponBonuses(item);
+  const rawDamage = safe(() => sys.Damage);
+  const dmgBase = Number(rawDamage);
+  const tSys = target.actor.system ?? {};
+  const tb = Number(tSys.characteristics?.t?.bonus ?? 0) || 0;
+  const ap = Number(tSys.status?.armour?.body?.value ?? 0) || 0;
+  const full = Number.isFinite(dmgBase) ? dmgBase + bonus.dmg : null;
+  const dmgParts = [...bonus.parts];
+  if (tb) dmgParts.push(`${L("WFRPPD.Stats.TB")} -${tb}`);
+  if (ap) dmgParts.push(`${L("WFRPPD.Target.ApBody")} -${ap}`);
+
+  return {
+    targetName: target.name ?? target.actor.name ?? "",
+    unreachable,
+    band,
+    hit: { base: base?.target ?? 0, mod: hitMod, total: hitTotal, parts: hitParts },
+    // net - сколько ран снимет попадание до учёта уровней успеха; ниже нуля не уходим
+    damage: full === null ? null : { full, tb, ap, net: Math.max(0, full - tb - ap), parts: dmgParts }
+  };
+}
+
+/**
+ * В какую полосу дальности попадает выстрел и какой это модификатор.
+ * Дальше запредельной - выстрела нет вовсе (band = null).
+ */
+function weaponRangeBand(item, distance) {
+  const range = weaponRangeYards(item);
+  if (range === null || distance === null || distance === undefined) return null;
+  const band = RANGE_BANDS.find((b) => distance <= range * b.limit);
+  if (!band) return { key: "outOfRange", mod: null, range, distance };
+  return { ...band, range, distance };
+}
+
 function safe(fn, fallback = null) {
   try {
     return fn();
@@ -3437,22 +3572,53 @@ export class PaperdollTooltip {
       const rows = [];
       const row = (label, val, cls = "", sub = "") =>
         rows.push(`<div class="pd-tt-ap-row"><span>${esc(label)}${sub}</span><span class="pd-tt-val ${cls}">${esc(val)}</span></div>`);
+      // Выбрана цель - считаем по ней: шанс с поправкой на дальность, урон за вычетом стойкости и брони.
+      // Разбор «из чего сложилось» показываем только с опцией «Подробные статы», итог - всегда.
+      const aim = app ? targetedAttack(app, item) : null;
+      const detail = option("detailedStats");
+      const sub = (parts) => (detail && parts.length ? `<small class="pd-tt-bonus">${esc(parts.join(", "))}</small>` : "");
+
       if (base !== null && base !== undefined && base !== "") {
         const total = Number(base) + bonus.dmg;
-        const sub = bonus.parts.length ? `<small class="pd-tt-bonus">${esc(bonus.parts.join(", "))}</small>` : "";
-        row(L("WFRPPD.Tooltip.Damage"), `+${Number.isNaN(total) ? base : total}`, "is-dmg", sub);
+        if (aim?.damage) {
+          // По цели: сколько ран снимет попадание (без уровней успеха - они known только после броска)
+          row(L("WFRPPD.Target.Damage"), `${aim.damage.net}`, aim.damage.net ? "is-dmg" : "is-hurt", sub(aim.damage.parts));
+        } else {
+          row(L("WFRPPD.Tooltip.Damage"), `+${Number.isNaN(total) ? base : total}`, "is-dmg", sub(bonus.parts));
+        }
       }
-      // Шанс попасть: навык группы оружия, без него - ББ / ДБ
+      // Шанс попасть: навык группы оружия, без него - ББ / ДБ; с целью - с учётом полосы дальности
       if (app) {
         const hit = app._attackTarget(item);
-        if (hit) row(L("WFRPPD.Roll.Chance"), `${hit.target}%`, "is-text", `<small class="pd-tt-bonus">${esc(hit.from)}</small>`);
+        if (aim) {
+          row(
+            L("WFRPPD.Target.Chance"),
+            aim.unreachable ? L("WFRPPD.Range.outOfRange") : `${aim.hit.total}%`,
+            aim.unreachable ? "is-hurt" : aim.hit.mod < 0 ? "is-hurt" : aim.hit.mod > 0 ? "is-good" : "is-text",
+            sub(aim.hit.parts)
+          );
+        } else if (hit) {
+          row(L("WFRPPD.Roll.Chance"), `${hit.target}%`, "is-text", sub([hit.from]));
+        }
       }
       if (safe(() => sys.isMelee)) {
         const reach = safe(() => sys.Reach);
         if (reach) row(L("WFRPPD.Tooltip.Reach"), L(reach), "is-text");
       } else {
         const range = safe(() => sys.Range);
-        if (range) row(L("WFRPPD.Tooltip.Range"), game.i18n.format("WFRPPD.Tooltip.Yards", { n: range }), "is-text");
+        if (range) row(L("WFRPPD.Tooltip.Range"), F("WFRPPD.Tooltip.Yards", { n: range }), "is-text");
+        // Дистанция до выбранной цели и её полоса дальности. Сам модификатор уже учтён в шансе выше,
+        // здесь он справочный - поэтому показывается только в подробном режиме
+        const band = aim?.band;
+        if (band) {
+          const mod = !detail || band.mod === null ? "" : `<small class="pd-tt-bonus">${band.mod > 0 ? "+" : ""}${band.mod}</small>`;
+          row(
+            F("WFRPPD.Range.ToTarget", { name: aim.targetName }),
+            `${Math.round(band.distance)} ${L("WFRPPD.Range.Yards")} · ${L(`WFRPPD.Range.${band.key}`)}`,
+            band.mod === null ? "is-hurt" : band.mod < 0 ? "is-hurt" : band.mod > 0 ? "is-good" : "is-text",
+            mod
+          );
+        }
         // Боеприпасы: что подходит и сколько
         const need = weaponAmmoGroup(item);
         if (need && app) {
@@ -3819,7 +3985,8 @@ export const PD_UTIL = {
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound,
-  L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry
+  L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
+  tokenOf, distanceBetween, tokensInRange, RANGE_BANDS, weaponRangeYards, weaponRangeBand, targetedAttack
 };
 
 export const PD_API = {

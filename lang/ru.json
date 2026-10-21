@@ -471,6 +471,21 @@
     },
     "Career": {
       "Talent": "Талант"
+    },
+    "Range": {
+      "ToTarget": "До цели: {name}",
+      "Yards": "я",
+      "pointBlank": "В упор",
+      "short": "Короткая",
+      "normal": "Обычная",
+      "long": "Длинная",
+      "extreme": "Запредельная",
+      "outOfRange": "Вне досягаемости"
+    },
+    "Target": {
+      "Damage": "Урон по цели",
+      "Chance": "Шанс по цели",
+      "ApBody": "броня корпуса"
     }
   }
 }
