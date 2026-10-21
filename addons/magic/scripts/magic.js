@@ -58,10 +58,21 @@
         const row = (it) => {
           const sys = it.system;
           const cn = sys.cn?.value;
-          const bits = [cn !== undefined && cn !== null && cn !== "" ? `${L("WFRPPD.Magic.CN")} ${cn}` : "", sys.range?.value, sys.target?.value, sys.duration?.value]
-            .map((x) => String(x ?? "").trim())
-            .filter(Boolean);
-          return { id: it.id, name: T(it.name), img: itemImg(it.img, it.name), info: bits.join(" · "), memorized: !!sys.memorized?.value };
+          // Голые значения нечитаемы: «6 yards · 1 · 6 Rounds» - что за «1»?
+          // Подписываем то, что само себя не объясняет: число целей и ЧС. Дальность и длительность понятны как есть.
+          const txt = (v) => String(v ?? "").trim();
+          const target = txt(sys.target?.value);
+          const bits = [
+            txt(cn) ? `${L("WFRPPD.Magic.CN")} ${txt(cn)}` : "",
+            txt(sys.range?.value),
+            // «1» -> «цель: 1», но «Special» или «AoE (...)» оставляем как есть - они и так читаются
+            target && /^\d+$/.test(target) ? `${L("WFRPPD.Magic.Target")}: ${target}` : target,
+            txt(sys.duration?.value)
+          ].filter(Boolean);
+          // У заклинаний «на себя» дальность и цель совпадают («You · You») - повтор не несёт смысла
+          const seen = new Set();
+          const uniq = bits.filter((x) => (seen.has(x.toLowerCase()) ? false : seen.add(x.toLowerCase())));
+          return { id: it.id, name: T(it.name), img: itemImg(it.img, it.name), info: uniq.join(" · "), memorized: !!sys.memorized?.value };
         };
         const groups = new Map();
         for (const sp of spells) {
