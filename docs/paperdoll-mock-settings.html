@@ -3224,6 +3224,36 @@ window.__PD_ASSETS__ = {};
   };
   game.modules = new Map([["wfrp4e-paperdoll", {}]]);
   game.actors = { get: (id) => (window.__PD_actors ?? []).find((a) => a.id === id) ?? null };
+  game.user.targets = new Set();
+
+  /**
+   * Сцена-заглушка для проверки выбора целей: клетка 100 px = 1 ярд.
+   * Токены задаёт сборка мока (window.__PD_TOKENS__), без них сцены просто нет - как в обычном окне.
+   */
+  if (window.__PD_TOKENS__?.length) {
+    const placeables = window.__PD_TOKENS__.map((t) => ({
+      id: t.id,
+      name: t.name,
+      x: t.x,
+      y: t.y,
+      center: { x: t.x, y: t.y },
+      document: { hidden: false, sort: 0, texture: { src: null } },
+      isTargeted: false,
+      get actor() {
+        return (window.__PD_actors ?? []).find((a) => a.id === t.actorId) ?? null;
+      },
+      setTarget(on) {
+        this.isTargeted = !!on;
+        if (on) game.user.targets.add(this);
+        else game.user.targets.delete(this);
+      }
+    }));
+    window.canvas = {
+      tokens: { placeables, controlled: [] },
+      grid: { size: 100, measureDistance: (a, b) => Math.hypot(b.x - a.x, b.y - a.y) / 100 },
+      scene: { grid: { distance: 1 } }
+    };
+  }
   game.users = Object.assign([], { get: (id) => null, activeGM: null });
   // Компендиум-заглушка: окно группы ищет в нём мутации и травмы для меню «+»
   const PACK_ITEMS = [

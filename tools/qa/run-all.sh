@@ -13,4 +13,5 @@ node tools/qa/mutchk.mjs "$OUT/mock-all.html"
 node tools/qa/progchk.mjs "$OUT/mock-all.html"
 node tools/qa/partychk.mjs "$OUT/mock-all.html"
 node tools/qa/sfxchk.mjs "$OUT/mock-all.html"
+node tools/qa/magicchk.mjs "$OUT/mock-all.html"
 node tools/qa/smoke.mjs

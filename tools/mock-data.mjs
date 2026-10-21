@@ -342,5 +342,49 @@ export const CAST = [
       { id: "v-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
         system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 } }) }
     ]
+  },
+  // Жрица Шалльи: благословения с разными дальностями и целями - на ней проверяется выбор целей
+  {
+    id: "priest",
+    name: "Сестра Эльза",
+    img: portrait,
+    career: { name: "Жрица", level: 2, class: "Учёные" },
+    skills: [
+      { name: "Pray", ch: "fel", adv: 20 }, { name: "Heal", ch: "int", adv: 18 },
+      { name: "Melee (Basic)", ch: "ws", adv: 5 }, { name: "Cool", ch: "wp", adv: 12 }
+    ],
+    talents: [{ name: "Bless (Shallya)" }, { name: "Invoke (Shallya)" }],
+    // Дальности нарочно разные: на себя, касание, бонус характеристики и фиксированные ярды
+    prayers: [
+      { name: "Благословение исцеления", type: "blessing", range: "Touch", target: "1", duration: "Instant",
+        desc: "<p>Цель восстанавливает 1 рану за каждый уровень успеха.</p>" },
+      { name: "Благословение стойкости", type: "blessing", range: "You", target: "You", duration: "Willpower Bonus rounds",
+        desc: "<p>+10 к Выносливости на СВБ раундов.</p>" },
+      { name: "Благословение защиты", type: "blessing", range: "Willpower Bonus yards", target: "1", duration: "Willpower Bonus rounds",
+        desc: "<p>Цель получает +1 к броне на все локации.</p>" },
+      { name: "Благословение бодрости", type: "blessing", range: "12 yards", target: "Willpower Bonus targets", duration: "1 hour",
+        desc: "<p>Цели не чувствуют усталости.</p>" }
+    ],
+    system: {
+      characteristics: { ws: ch(28), bs: ch(25), s: ch(27), t: ch(30), i: ch(33, 5), ag: ch(29), dex: ch(31), int: ch(38, 10), wp: ch(41, 10), fel: ch(39, 10) },
+      status: stats(12), details: { ...details("Серебро 2"), experience: xp(3000, 600) }, settings: { equipPoints: 2 }
+    },
+    items: [
+      { id: "p-robe", name: "Ряса жрицы", type: "trapping", img: icon("👘", "#d8d8e0"),
+        system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 } }) },
+      { id: "p-staff", name: "Посох", type: "weapon", img: icon("🦯", "#7a5a3a"),
+        system: weapon({ equipped: { value: true }, damage: { value: "SB+3" }, reach: { value: "long" }, encumbrance: { value: 1 } }) }
+    ]
   }
+];
+
+/**
+ * Токены на «сцене» для проверки выбора целей: позиции в пикселях, клетка 100 px = 1 ярд сцены.
+ * Кастер - Эльза, рядом раненый союзник, дальше ещё двое.
+ */
+export const MOCK_TOKENS = [
+  { id: "tok-priest", actorId: "priest", name: "Сестра Эльза", x: 500, y: 500 },
+  { id: "tok-hugo", actorId: "hugo", name: "Хьюго Брандлин", x: 600, y: 500 },
+  { id: "tok-vet", actorId: "vet", name: "Ветеран Гюнтер", x: 1100, y: 500 },
+  { id: "tok-far", actorId: "hugo", name: "Дальний союзник", x: 2500, y: 500 }
 ];

@@ -27,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import crypto from "node:crypto";
-import { actorData as demoActor, blankActor, CAST, config, systemStrings, PROFILES, TEST_EFFECTS } from "./mock-data.mjs";
+import { actorData as demoActor, blankActor, CAST, config, systemStrings, PROFILES, TEST_EFFECTS, MOCK_TOKENS } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT, COINS } from "./mock-loot.mjs";
 import { ownIconFor, talentSlug } from "../scripts/icon-rules.js";
@@ -276,6 +276,7 @@ window.__PD_SYSTEM_STRINGS__ = ${json(systemStrings)};
 window.__PD_CONFIG__ = ${json(config)};
 window.__PD_TEMPLATES__ = ${json({ [tplPath]: template })};
 window.__PD_ASSETS__ = ${json(ASSETS)};
+window.__PD_TOKENS__ = ${json(cast.length ? MOCK_TOKENS : [])};
 </script>
 <script>${runtime}</script>
 <script>

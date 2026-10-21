@@ -38,6 +38,7 @@
     ]
   },
   "esmodules": [
+    "scripts/targeting.js",
     "scripts/magic.js"
   ],
   "styles": [
