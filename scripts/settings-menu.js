@@ -11,6 +11,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 /** Категории ядра. Каждое установленное дополнение добавляет свою вкладку со своими настройками */
 export const SETTINGS_LAYOUT = [
+  // Главный выключатель - настройка мира, поэтому вкладка только у ГМ (см. settingsLayout)
+  { id: "general", icon: "fa-power-off", keys: ["enabled"], gmOnly: true },
   { id: "display", icon: "fa-eye", keys: ["itemIcons", "detailedStats", "passiveBuffs", "effectDurations", "prices", "sounds"] },
   { id: "rules", icon: "fa-scale-balanced", keys: ["unarmed", "restButton"] },
   { id: "controls", icon: "fa-computer-mouse", keys: ["hotkey", "tokenDblClick", "rolls", "shiftCompare"] },
@@ -30,7 +32,8 @@ export function settingsLayout() {
       extra: a.settingsExtra
     }))
     .filter((c) => c.keys.length);
-  return [...SETTINGS_LAYOUT, ...addonCats];
+  const core = SETTINGS_LAYOUT.filter((c) => !c.gmOnly || game.user.isGM);
+  return [...core, ...addonCats];
 }
 
 /** Описание настройки из дополнения (там могут быть свои поля, например actorSelect) */

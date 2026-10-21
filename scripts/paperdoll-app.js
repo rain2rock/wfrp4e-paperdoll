@@ -38,6 +38,8 @@ export const bindMissingImages = (root) => {
 /** Опции куколки и значения по умолчанию: мутации и травмы учитываются, цены скрыты, звуки включены */
 export const PD_OPTIONS = { prices: false, sounds: true, detailedStats: false, tokenDblClick: false, hotkey: true, passiveBuffs: false, translateTerms: false, effectDurations: true, unarmed: true, restButton: true, rolls: true, shiftCompare: true };
 export const option = (key) => setting(key, PD_OPTIONS[key]);
+/** Главный выключатель модуля (настройка мира). Выключен - модуль молчит и ничего не открывает. */
+export const isEnabled = () => setting("enabled", true) !== false;
 /** Игровой термин на русском (опция «Переводить термины», клиент на русском) */
 export const T = (name) =>
   option("translateTerms") && !setting("translateDescOnly", false) && game.i18n?.lang === "ru" ? translateTerm(name) : name;
@@ -880,7 +882,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static openFor(actor) {
-    if (!actor) return null;
+    if (!actor || !isEnabled()) return null;
     let app = this.instances.get(actor.uuid);
     if (!app) {
       app = new this({ actor });
@@ -893,7 +895,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Перерисовать все открытые куколки (смена темы или иконок в настройках) */
   static renderAll() {
-    for (const app of this.instances.values()) if (app.rendered) app.render();
+    // Выключенный модуль не перерисовывает, а закрывает: иначе перерисовка по любой другой
+    // настройке воскресила бы окно, которое только что закрыл главный выключатель
+    const on = isEnabled();
+    for (const app of this.instances.values()) {
+      if (!app.rendered) continue;
+      if (on) app.render();
+      else app.close();
+    }
   }
 
   static DEFAULT_OPTIONS = {
@@ -3530,6 +3539,16 @@ export class PaperdollTooltip {
     }
   }
 
+  /** Докуда можно опускать подсказку: верх панели Foundry (#ui-bottom - хотбар, кубики), иначе низ экрана */
+  static bottomLimit() {
+    const bar = document.getElementById("ui-bottom");
+    // offsetParent тут не годится: у position:fixed он всегда null. Нулевая высота = панель скрыта.
+    if (!bar || !bar.offsetHeight) return window.innerHeight;
+    const top = bar.getBoundingClientRect().top;
+    // Панель может быть свёрнута или уехать за экран - тогда ограничение не нужно
+    return top > 80 && top < window.innerHeight ? top : window.innerHeight;
+  }
+
   static move(event) {
     const el = this.el;
     if (!el?.classList.contains("is-visible")) return;
@@ -3539,7 +3558,13 @@ export class PaperdollTooltip {
     let x = event.clientX + pad;
     let y = event.clientY + pad;
     if (x + rect.width > vw - 8) x = event.clientX - rect.width - pad;
-    if (y + rect.height > vh - 8) y = Math.max(8, vh - rect.height - 8);
+    // Низ экрана занят панелью Foundry (хотбар и кубики) - подсказка не должна её накрывать.
+    // Поэтому при нехватке места раскрываем ВВЕРХ, а не прижимаем к низу окна.
+    const bottomLimit = PaperdollTooltip.bottomLimit() - 8;
+    if (y + rect.height > bottomLimit) {
+      const above = event.clientY - rect.height - pad;
+      y = above >= 8 ? above : Math.max(8, bottomLimit - rect.height);
+    }
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
     if (this.cmpEls?.some((e) => e.classList.contains("is-visible"))) this.placeCompare();
@@ -3764,7 +3789,6 @@ export class PaperdollTooltip {
       if (pen.stealth) notes.push(`<div class="pd-tt-note is-bad">${esc(game.i18n.format("WFRPPD.Restr.Stealth", { n: -pen.stealth }))}</div>`);
       if (pen.perception) notes.push(`<div class="pd-tt-note is-bad">${esc(game.i18n.format("WFRPPD.Restr.Perception", { n: -pen.perception }))}</div>`);
       if (!notes.length && sys.penalty?.value) notes.push(`<div class="pd-tt-note is-bad">${esc(sys.penalty.value)}</div>`);
-      if (aimNote) lines.push(`<div class="pd-tt-mods"><span>${esc(L("WFRPPD.Target.WillApply"))}</span> ${esc(aimNote)}</div>`);
       if (notes.length) lines.push(`<div class="pd-tt-notes">${notes.join("")}</div>`);
     }
 

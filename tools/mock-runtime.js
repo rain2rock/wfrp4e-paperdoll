@@ -578,10 +578,21 @@
         this.isTargeted = !!on;
         if (on) game.user.targets.add(this);
         else game.user.targets.delete(this);
+      },
+      // Выбор токена: нужен окну группы (клик по имени выбирает, двойной - ведёт камеру)
+      control({ releaseOthers = true } = {}) {
+        const list = window.canvas.tokens.controlled;
+        if (releaseOthers) list.length = 0;
+        if (!list.includes(this)) list.push(this);
+        this.controlled = true;
+        return true;
       }
     }));
     window.canvas = {
       tokens: { placeables, controlled: [] },
+      animatePan(o) {
+        window.canvas.__pan = o;
+      },
       grid: { size: 100, measureDistance: (a, b) => Math.hypot(b.x - a.x, b.y - a.y) / 100 },
       scene: { grid: { distance: 1 } }
     };

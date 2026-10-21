@@ -76,6 +76,54 @@ for (let a = 0; a < nActors; a++) {
   }
   ok(`${name} no stuck flyout`, !(await p.$('.wfrp-paperdoll-flyout')));
 }
+// Подсказка не должна накрывать нижнюю панель Foundry (хотбар с кубиками):
+// при нехватке места снизу она раскрывается вверх, а не прижимается к низу экрана.
+await p.evaluate(() => {
+  if (document.getElementById('ui-bottom')) return;
+  const bar = document.createElement('div');
+  bar.id = 'ui-bottom';
+  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:160px;background:#000;z-index:1';
+  document.body.append(bar);
+});
+const barTop = await p.evaluate(() => document.getElementById('ui-bottom').getBoundingClientRect().top);
+const slot = await p.$('.pd-slot[data-slot=mainHand] .pd-slot-frame') ?? await p.$('.pd-slot .pd-slot-frame');
+if (slot) {
+  const box = await slot.boundingBox();
+  // Наводимся у самого низа доступной области - подсказке точно не хватит места снизу
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.waitForTimeout(250);
+  await p.evaluate((y) => {
+    const ev = new MouseEvent('pointermove', { clientX: 400, clientY: y - 20, bubbles: true });
+    document.querySelector('.pd-slot .pd-slot-frame')?.dispatchEvent(ev);
+  }, barTop);
+  await p.waitForTimeout(200);
+  const tip = await p.evaluate(() => {
+    const el = document.querySelector('.wfrp-paperdoll-tooltip.is-visible');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { bottom: Math.round(r.bottom), top: Math.round(r.top) };
+  });
+  ok('tooltip clears hotbar', !tip || tip.bottom <= barTop, tip ? `low=${tip.bottom} bar=${Math.round(barTop)}` : 'no tooltip');
+}
+await p.evaluate(() => document.getElementById('ui-bottom')?.remove());
+
+// Главный выключатель: выключенный модуль закрывает окна и не открывает новые.
+// В самом конце - дальше проверять уже нечего.
+const off = await p.evaluate(async () => {
+  await game.settings.set('wfrp4e-paperdoll', 'enabled', false);
+  await new Promise((r) => setTimeout(r, 300));
+  const closed = document.querySelectorAll('.wfrp-paperdoll .pd-slot').length === 0;
+  const blocked = window.PaperdollApp.openFor(window.__PD_actors[0]) === null;
+  await new Promise((r) => setTimeout(r, 200));
+  await game.settings.set('wfrp4e-paperdoll', 'enabled', true);
+  window.PaperdollApp.openFor(window.__PD_actors[0]);
+  await new Promise((r) => setTimeout(r, 400));
+  const back = document.querySelectorAll('.wfrp-paperdoll .pd-slot').length > 0;
+  return { closed, blocked, back };
+});
+ok('disabled closes windows', off.closed);
+ok('disabled blocks opening', off.blocked);
+ok('re-enabled opens again', off.back);
+
 console.log(results.filter(r => r.startsWith('FAIL')).join('\n') || 'all pass', `(${results.length} checks)`);
 console.log('toasts', (await toasts()).slice(-5));
 console.log('errors', [...new Set(errs)].slice(0, 15));

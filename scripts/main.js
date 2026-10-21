@@ -1,10 +1,27 @@
-import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS, PD_API, option } from "./paperdoll-app.js";
+import { PaperdollApp, MODULE_ID, uiArt, PD_OPTIONS, PD_API, option, isEnabled } from "./paperdoll-app.js";
 import { PaperdollSettings } from "./settings-menu.js";
 
 const SUPPORTED_TYPES = ["character", "npc", "creature"];
 
 Hooks.once("init", () => {
   const rerender = () => PaperdollApp.renderAll();
+
+  // Главный выключатель: модуль остаётся установленным, но не вмешивается в игру -
+  // ни кнопки на листе, ни горячей клавиши, ни перехвата двойного клика по токену.
+  // Настройка мира: выключает для всего стола, поэтому её меняет только ГМ.
+  game.settings.register(MODULE_ID, "enabled", {
+    name: "WFRPPD.Settings.Enabled.Name",
+    hint: "WFRPPD.Settings.Enabled.Hint",
+    scope: "world",
+    config: false,
+    type: Boolean,
+    default: true,
+    onChange: (on) => {
+      if (!on) for (const app of [...PaperdollApp.instances.values()]) app.close();
+      else rerender();
+    }
+  });
+
   game.settings.register(MODULE_ID, "itemIcons", {
     name: "WFRPPD.Settings.ItemIcons.Name",
     hint: "WFRPPD.Settings.ItemIcons.Hint",
@@ -82,7 +99,7 @@ Hooks.once("init", () => {
     editable: [{ key: "KeyI" }],
     precedence: CONST.KEYBINDING_PRECEDENCE?.NORMAL,
     onDown: () => {
-      if (!option("hotkey") || game.system.id !== "wfrp4e") return false;
+      if (!isEnabled() || !option("hotkey") || game.system.id !== "wfrp4e") return false;
       const token = canvas?.tokens?.controlled?.find((t) => t.actor?.isOwner);
       const actor = token?.actor ?? game.user.character;
       if (!actor || !SUPPORTED_TYPES.includes(actor.type)) {
@@ -120,6 +137,7 @@ Hooks.once("setup", () => {
       const actor = this.actor;
       const alt = !!(event?.altKey ?? event?.nativeEvent?.altKey ?? event?.data?.originalEvent?.altKey);
       if (
+        isEnabled() &&
         option("tokenDblClick") &&
         !alt &&
         actor &&
@@ -142,7 +160,7 @@ Hooks.once("setup", () => {
  * включая листы WFRP4e 9.x.
  */
 Hooks.on("renderActorSheetV2", (app, element) => {
-  if (game.system.id !== "wfrp4e") return;
+  if (game.system.id !== "wfrp4e" || !isEnabled()) return;
   const actor = app.document;
   if (!actor || !SUPPORTED_TYPES.includes(actor.type)) return;
 

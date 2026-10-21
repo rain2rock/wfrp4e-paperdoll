@@ -26,8 +26,18 @@
 }
 .wfrp-paperdoll-group .pd-group-viewtoggle button.is-active { background: var(--pd-well); color: var(--pd-text); font-weight: 700; }
 .wfrp-paperdoll-group .pd-group-viewtoggle button + button { border-left: 1px solid var(--pd-frame); }
-.wfrp-paperdoll-group .pd-group-treasury { margin-left: auto; font-size: 12px; color: var(--pd-text-2); white-space: nowrap; }
-.wfrp-paperdoll-group .pd-group-treasury i { color: var(--pd-muted); margin-right: 4px; }
+/* Казна: монеты как у персонажей. padding-right - чтобы блок не прилипал к правому краю окна */
+.wfrp-paperdoll-group .pd-group-treasury {
+  display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 10px;
+  font-size: 12px; color: var(--pd-text-2); white-space: nowrap;
+}
+.wfrp-paperdoll-group .pd-group-stash-btn {
+  display: flex; align-items: center; justify-content: flex-start; gap: 5px; width: auto; height: auto;
+  margin: 0; padding: 3px 8px; font-size: 12px; line-height: 1.2;
+  background: none; border: 1px solid var(--pd-frame); border-radius: 4px; color: var(--pd-text-2); cursor: pointer;
+}
+.wfrp-paperdoll-group .pd-group-stash-btn:hover { background: rgba(122, 76, 8, 0.1); color: var(--pd-text); }
+.wfrp-paperdoll-group .pd-group-stash-btn i { color: var(--pd-muted); }
 
 /* Полоска значения (раны/удача/нагрузка) - общая для карточки и таблицы */
 .wfrp-paperdoll-group .pd-group-bar { position: relative; flex: 1; height: 8px; border-radius: 4px; background: rgba(128, 128, 128, 0.25); overflow: hidden; }
@@ -51,6 +61,11 @@
 
 /* Карточки */
 .wfrp-paperdoll-group .pd-group-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+/* Имя и фото кликабельны: выбрать токен, двойным - перевести камеру */
+.wfrp-paperdoll-group .pd-group-pick { cursor: pointer; border-radius: 4px; }
+.wfrp-paperdoll-group .pd-group-pick:hover span { color: var(--pd-accent, #7a4c08); text-decoration: underline; }
+/* Цель для перетаскивания вещи из окна снаряжения */
+.wfrp-paperdoll-group .pd-group-drop.is-drop { outline: 2px dashed var(--pd-frame); outline-offset: 2px; background: rgba(122, 76, 8, 0.08); }
 .wfrp-paperdoll-group .pd-group-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--pd-well); border: 1px solid var(--pd-frame); border-radius: 6px; }
 .wfrp-paperdoll-group .pd-group-card-head { display: flex; align-items: center; gap: 8px; }
 .wfrp-paperdoll-group .pd-group-card-head img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }

@@ -491,5 +491,13 @@
       "Surrounded": "engaged with {n}",
       "WillApply": "Modifiers:"
     }
-  }
+  },
+  "WFRPPD.Settings.Enabled.Name": "Module enabled",
+  "WFRPPD.Settings.Enabled.Hint": "Turn off to keep the module installed but inactive: no sheet button, no hotkey, no token double-click override. World setting: affects the whole table.",
+  "WFRPPD.SettingsMenu.Tab.general": "General",
+  "WFRPPD.SettingsMenu.Intro.general": "Master switch for the module. The other tabs configure how it behaves.",
+  "WFRPPD.Group.OpenStash": "Party stash",
+  "WFRPPD.Group.TreasuryHint": "LMB adds a coin, RMB removes one. Hold Shift for 10",
+  "WFRPPD.Group.PickHint": "LMB selects the token, double-click pans to it",
+  "WFRPPD.Group.NoToken": "This character has no token on the current scene"
 }

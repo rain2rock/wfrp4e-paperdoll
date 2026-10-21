@@ -187,7 +187,7 @@
         .map(
           (g) => `<div class="pd-magic-group"><div class="pd-ecs-head">${esc(g.label)}</div>${g.rows
             .map(
-              (r) => `<button type="button" class="pd-spell ${r.memorized ? "is-memorized" : ""}" data-item-id="${r.id}"><img src="${esc(r.img)}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"><span class="pd-spell-body"><b>${esc(r.name)}${r.memorized ? ' <i class="pd-star">✦</i>' : ""}</b><small>${esc(r.info)}</small></span></button>`
+              (r) => `<button type="button" class="pd-spell ${r.memorized ? "is-memorized" : ""}" data-item-id="${r.id}"><img src="${esc(itemImg(r.img, r.name))}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"><span class="pd-spell-body"><b>${esc(r.name)}${r.memorized ? ' <i class="pd-star">✦</i>' : ""}</b><small>${esc(r.info)}</small></span></button>`
             )
             .join("")}</div>`
         )

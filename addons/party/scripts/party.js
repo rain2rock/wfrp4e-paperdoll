@@ -16,7 +16,7 @@
     const { PaperdollTooltip, util } = api;
     const { MODULE_ID, esc, itemImg, effectTooltip, effectRemaining, effectPolarity, stripTags, plainEnrichers } = util;
     // Общее с ядром: локализация, деньги, тир ран и диалог снятия эффекта - чтобы логика не разъезжалась
-    const { L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry } = util;
+    const { L, F, COIN_VALUE, actorCoins, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry } = util;
 
     const SOCKET = `module.${MODULE_ID}`;
 
@@ -280,6 +280,25 @@
     }
     const invalidateParty = () => { partyCache = null; };
 
+    /** Персонаж по uuid: участник группы или сундук - на него тоже кликают и бросают вещи */
+    function actorByUuid(uuid) {
+      if (!uuid) return null;
+      const stash = stashActor();
+      if (stash?.uuid === uuid) return stash;
+      return partyMembers().find((a) => a.uuid === uuid) ?? null;
+    }
+
+    /** Токен персонажа на сцене: клик - выбрать, двойной - ещё и перевести камеру */
+    function pickToken(uuid, pan) {
+      const token = (canvas?.tokens?.placeables ?? []).find((t) => t.actor?.uuid === uuid);
+      if (!token) {
+        ui.notifications?.info(L("WFRPPD.Group.NoToken"));
+        return;
+      }
+      token.control({ releaseOthers: true });
+      if (pan) canvas.animatePan({ x: token.center.x, y: token.center.y });
+    }
+
     /** Монеты персонажа по номиналам для кликабельных иконок: стопка может отсутствовать - тогда ноль */
     function groupCoins(actor) {
       const coins = actorCoins(actor);
@@ -495,10 +514,15 @@
 
     /** Монетки персонажа - кликабельные иконки, как в основном окне (ЛКМ +1, ПКМ -1, Shift ×10) */
     function groupCoinsHtml(r) {
-      return r.money
+      return coinsHtml(r.money, r.uuid);
+    }
+
+    /** Кликабельные монеты по номиналам - одинаково у персонажа и у казны группы */
+    function coinsHtml(money, uuid) {
+      return money
         .map(
           (c) =>
-            `<span class="pd-coin pd-coin--${c.key} ${c.img ? "has-img" : ""}" data-actor-uuid="${esc(r.uuid)}" data-coin="${c.key}" title="${esc(L(`WFRPPD.Money.Name.${c.key}`))}">${
+            `<span class="pd-coin pd-coin--${c.key} ${c.img ? "has-img" : ""}" data-actor-uuid="${esc(uuid)}" data-coin="${c.key}" title="${esc(L(`WFRPPD.Money.Name.${c.key}`))}">${
               c.img ? `<img src="${esc(c.img)}" alt="">` : ""
             }${c.value}</span>`
         )
@@ -510,8 +534,8 @@
       const row = (r) => {
         const v = rowVisuals(r);
         return `
-          <div class="pd-group-row">
-            <div class="pd-group-who"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
+          <div class="pd-group-row pd-group-drop" data-actor-uuid="${esc(r.uuid)}">
+            <div class="pd-group-who pd-group-pick" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.PickHint"))}"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
             <div class="pd-group-wounds" data-actor-uuid="${esc(r.uuid)}"><span class="${v.woundsCls}">${r.wounds.value} / ${r.wounds.max}</span></div>
             <div><span class="${v.fortuneCls}">${r.fortune.value} / ${r.fortune.max}</span></div>
             <div class="pd-group-ap">${groupApRow(r)}</div>
@@ -538,8 +562,8 @@
         <div class="pd-group-bar ${cls}"><div class="pd-group-bar-fill" style="width:${p}%"></div></div>
         <span class="pd-group-card-num">${value} / ${max}</span>`;
       return `
-        <div class="pd-group-card">
-          <div class="pd-group-card-head"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
+        <div class="pd-group-card pd-group-drop" data-actor-uuid="${esc(r.uuid)}">
+          <div class="pd-group-card-head pd-group-pick" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.PickHint"))}"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
           <div class="pd-group-card-stat pd-group-wounds" data-actor-uuid="${esc(r.uuid)}">
             <span class="pd-group-card-label">${esc(L("WFRPPD.Wounds"))}</span>${bar(v.woundsCls, v.woundsPct, r.wounds.value, r.wounds.max)}
           </div>
@@ -585,7 +609,15 @@
             ? `<div class="pd-group-cards size-${esc(util.setting("groupCardSize", "m"))}">${rows.map(groupCard).join("")}</div>`
             : groupTable(rows);
         const stash = stashActor();
-        const treasury = stash ? `<div class="pd-group-treasury"><i class="fa-solid fa-sack-dollar"></i> ${esc(L("WFRPPD.Group.Treasury"))}: ${esc(formatMoney(moneyPennies(stash), { compact: true }))}</div>` : "";
+        // Казна - такие же кликабельные монеты, как у персонажей, плюс вход в сам сундук
+        const treasury = stash
+          ? `<div class="pd-group-treasury">
+              <button type="button" class="pd-group-stash-btn" title="${esc(L("WFRPPD.Group.OpenStash"))}">
+                <i class="fa-solid fa-box-archive"></i><span>${esc(L("WFRPPD.Group.Treasury"))}</span>
+              </button>
+              <div class="pd-group-coins" title="${esc(L("WFRPPD.Group.TreasuryHint"))}">${coinsHtml(groupCoins(stash), stash.uuid)}</div>
+            </div>`
+          : "";
         return `
           <div class="pd-group">
             <div class="pd-group-toolbar">
@@ -701,15 +733,58 @@
           const step = (ev) => (ev.shiftKey ? 10 : 1);
           el.addEventListener("click", async (ev) => {
             ev.preventDefault();
-            const actor = partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
+            const actor = actorByUuid(el.dataset.actorUuid);
             if (actor) await changeActorMoney(actor, el.dataset.coin, step(ev));
           });
           el.addEventListener("contextmenu", async (ev) => {
             ev.preventDefault();
-            const actor = partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
+            const actor = actorByUuid(el.dataset.actorUuid);
             if (actor) await changeActorMoney(actor, el.dataset.coin, -step(ev));
           });
         }
+        // Казна: кнопка открывает сам сундук группы - забрать и положить вещи
+        root.querySelector(".pd-group-stash-btn")?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          StashApp.open();
+        });
+
+        // Имя и фото: ЛКМ - выбрать токен на сцене, двойной клик - ещё и перевести к нему камеру.
+        // Таймер не нужен: двойной клик сначала выберет токен (дважды, что безвредно), потом переведёт камеру.
+        for (const el of root.querySelectorAll(".pd-group-pick")) {
+          el.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            pickToken(el.dataset.actorUuid, false);
+          });
+          el.addEventListener("dblclick", (ev) => {
+            ev.preventDefault();
+            pickToken(el.dataset.actorUuid, true);
+          });
+        }
+
+        // Перетаскивание вещи из окна снаряжения (или сундука) прямо на карточку персонажа
+        for (const el of root.querySelectorAll(".pd-group-drop")) {
+          el.addEventListener("dragover", (ev) => {
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = "move";
+            el.classList.add("is-drop");
+          });
+          el.addEventListener("dragleave", () => el.classList.remove("is-drop"));
+          el.addEventListener("drop", async (ev) => {
+            ev.preventDefault();
+            el.classList.remove("is-drop");
+            let data = null;
+            try {
+              data = JSON.parse(ev.dataTransfer.getData("text/plain"));
+            } catch {
+              return;
+            }
+            if (data?.type !== "Item" || !data.uuid) return;
+            const target = actorByUuid(el.dataset.actorUuid);
+            const item = await fromUuid(data.uuid);
+            if (item && target) await requestTransfer(item, target);
+          });
+        }
+
         // «+» у ленты эффектов: поиск и выдача состояния, мутации или травмы (ГМ)
         const addMenu = root.querySelector(".pd-group-addmenu");
         const addSearch = addMenu?.querySelector(".pd-group-addmenu-search");
@@ -780,7 +855,9 @@
           const rerender = foundry.utils.debounce(() => { if (this.rendered) this.render(); }, 50);
           const inParty = (doc) => {
             const actor = doc?.actor ?? doc?.parent?.actor ?? doc?.parent ?? doc;
-            return !!actor?.uuid && this._rows?.some((r) => r.uuid === actor.uuid);
+            if (!actor?.uuid) return false;
+            // Сундука нет среди строк, но его казна висит в шапке - иначе она обновлялась бы только при переоткрытии
+            return actor.uuid === stashActor()?.uuid || !!this._rows?.some((r) => r.uuid === actor.uuid);
           };
           const onParty = (doc) => inParty(doc) && rerender();
           this._hooks = [

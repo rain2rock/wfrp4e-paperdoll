@@ -94,5 +94,62 @@ await p.click(".pd-group-session"); await p.waitForTimeout(500);
 r.fortuneAfter = await p.$eval(".pd-group-row", (e) => e.querySelectorAll("div")[2]?.textContent.trim());
 r.viewKeptAfterRerender = await p.$$eval(".pd-group-row", (e) => e.length) > 0;
 
+// --- Казна группы, сундук, выбор токена и приём вещей на карточку ---
+// Сундук - настоящий NPC, которого НЕТ среди участников: так проверяется и то,
+// что его казна обновляется в шапке без переоткрытия окна.
+await p.evaluate(() => {
+  const coin = (name, value, qty) => ({ id: "coin-" + value, name, type: "money",
+    system: { quantity: { value: qty }, coinValue: { value }, encumbrance: { value: 0 } } });
+  const donor = window.__PD_actors.find((a) => a.type === "character");
+  const stash = window.__PD_makeActor__({
+    id: "stash1", name: "Сундук группы", type: "npc", img: "icons/svg/chest.svg",
+    system: structuredClone(donor.system),
+    items: [coin("Золотая крона", 240, 2), coin("Серебряный шиллинг", 12, 14), coin("Медный пенни", 1, 37)]
+  });
+  game.settings.set("wfrp4e-paperdoll", "stashActor", stash.id);
+});
+await p.click('.pd-group-viewtoggle [data-view="card"]'); await p.waitForTimeout(400);
+r.treasuryCoins = await p.$$eval(".pd-group-treasury .pd-coin", (e) => e.length);
+r.stashBtnInGroup = await p.$$eval(".pd-group-stash-btn", (e) => e.length);
+// Монеты казны не должны прилипать к правому краю окна
+r.treasuryGapRight = await p.evaluate(() => {
+  const coins = document.querySelectorAll(".pd-group-treasury .pd-coin");
+  const last = coins[coins.length - 1];
+  const app = last.closest(".application") ?? last.closest(".wfrp-paperdoll-group");
+  return Math.round(app.getBoundingClientRect().right - last.getBoundingClientRect().right);
+});
+// Клик по казне меняет деньги сундука и сразу виден в шапке (2зк 14сш 37п + 1зк = 3/17/1)
+await p.click(".pd-group-treasury .pd-coin--gc"); await p.waitForTimeout(500);
+r.treasuryAfterClick = await p.$$eval(".pd-group-treasury .pd-coin", (e) => e.map((x) => x.textContent.trim()));
+
+// Имя/фото: ЛКМ выбирает токен, двойной клик ведёт камеру
+await p.evaluate(() => { canvas.tokens.controlled.length = 0; canvas.__pan = null; });
+await p.click(".pd-group-card:nth-child(1) .pd-group-pick"); await p.waitForTimeout(200);
+r.tokenControlled = await p.evaluate(() => canvas.tokens.controlled.length);
+await p.dblclick(".pd-group-card:nth-child(1) .pd-group-pick"); await p.waitForTimeout(200);
+r.tokenPanned = await p.evaluate(() => !!canvas.__pan);
+
+// Перетаскивание вещи на карточку персонажа передаёт её владельцу карточки
+r.dropTargets = await p.$$eval(".pd-group-drop", (e) => e.length);
+await p.evaluate(() => {
+  const chars = window.__PD_actors.filter((a) => a.type === "character");
+  const [donor, target] = chars;
+  const item = donor.items.find((i) => i.type === "trapping" || i.type === "weapon");
+  window.__moved = { name: item?.name, before: target.items.filter((i) => i.name === item?.name).length };
+  const dt = new DataTransfer();
+  dt.setData("text/plain", JSON.stringify({ type: "Item", uuid: item.uuid, fromPaperdoll: true }));
+  const card = document.querySelectorAll(".pd-group-drop")[1];
+  card.dispatchEvent(new DragEvent("dragover", { dataTransfer: dt, bubbles: true, cancelable: true }));
+  window.__dropHighlight = card.classList.contains("is-drop");
+  card.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+});
+await p.waitForTimeout(700);
+r.dropHighlight = await p.evaluate(() => window.__dropHighlight);
+r.dropMoved = await p.evaluate(() => {
+  const m = window.__moved;
+  const target = window.__PD_actors.filter((a) => a.type === "character")[1];
+  return `${m.name} ${m.before}->${target.items.filter((i) => i.name === m.name).length}`;
+});
+
 console.log(JSON.stringify(r), "errors:", errs);
 await b.close();
