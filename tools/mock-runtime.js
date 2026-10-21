@@ -377,9 +377,21 @@
         ...(data.talents ?? []).map((t, i) => ({ id: `talent-${i}`, name: t.name ?? t, img: t.img, type: "talent", system: { advances: { value: t.advances ?? 1 }, max: { value: t.max ?? "1" }, description: { value: t.desc ?? "" } } })),
         ...(data.spells ?? []).map((sp, i) => typeof sp === "string"
           ? { id: `spell-${i}`, name: sp, type: "spell", system: {} }
-          : { id: `spell-${i}`, name: sp.name, img: sp.img, type: "spell", system: { cn: { value: sp.cn }, lore: { value: sp.lore }, range: { value: sp.range }, target: { value: sp.target }, duration: { value: sp.duration }, memorized: { value: !!sp.memorized }, description: { value: sp.desc ?? "" }, ...(sp.damage !== undefined ? { damage: { value: sp.damage } } : {}), ...(sp.ingredient !== undefined ? { ingredient: { value: sp.ingredient } } : {}),
-              // Как в системе: готовые значения отдельными полями с заглавной буквы (Range/Target/Duration/Damage).
-              // В моке задаются явно через computed - так проверяется, что модуль предпочитает их сырым строкам
+          : { id: `spell-${i}`, name: sp.name, img: sp.img, type: "spell", system: {
+              // Форма полей снята с живого мира (tools/diagnose-magic.js): у target есть флаг aoe,
+              // ингредиенты - массив, перекаст - свой объект, есть magicMissile и ritual
+              cn: { value: sp.cn, SL: 0 },
+              lore: { value: sp.lore },
+              range: { value: sp.range, vortex: false },
+              target: { value: sp.target, aoe: !!sp.aoe },
+              duration: { value: sp.duration, extendable: false },
+              damage: { value: sp.damage ?? "", dice: "" },
+              magicMissile: { value: !!sp.magicMissile },
+              ritual: { value: false, type: "", xp: 0 },
+              memorized: { value: !!sp.memorized },
+              ingredients: sp.ingredients ?? [],
+              overcast: sp.overcast ?? { enabled: false, label: "", valuePerOvercast: null, initial: null },
+              description: { value: sp.desc ?? "" },
               ...(sp.computed ?? {}) } }),
         ...(data.prayers ?? []).map((pr, i) => ({ id: `prayer-${i}`, name: pr.name, img: pr.img, type: "prayer", system: { type: { value: pr.type }, range: { value: pr.range }, target: { value: pr.target }, duration: { value: pr.duration }, description: { value: pr.desc ?? "" } } }))
       ];

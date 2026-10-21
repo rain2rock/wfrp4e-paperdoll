@@ -24,47 +24,63 @@
     return Number(c.bonus ?? Math.floor((Number(c.value) || 0) / 10)) || 0;
   }
 
+  /** Характеристики, которые встречаются в дальностях (проверено по компендиумам живого мира) */
+  const CHARS = [
+    [/willpower|\bwp\b|сила воли/, "wp"],
+    [/fellowship|харизма/, "fel"],
+    [/initiative|инициатива/, "i"],
+    [/intelligence|интеллект/, "int"],
+    [/strength|сила/, "s"],
+    [/toughness|выносливость/, "t"],
+    [/agility|проворство/, "ag"],
+    [/dexterity|ловкость/, "dex"]
+  ];
+  const YARDS_IN_MILE = 1760;
+  /** «Особые» дальности: числа нет и быть не может, цель выбирает человек */
+  const SPECIAL = /\b(line of sight|special|see text|see description|random vortex|varies|по описанию|особое)\b/;
+
   /**
-   * Строка дальности или цели -> ярды. Понимает число («20»), бонусы («Willpower Bonus yards»,
-   * «СВБ ярдов»), кратные бонусы («Willpower Bonus x2»), «You»/«Self», «Touch».
-   * @returns {{kind: string, yards: number|null, raw: string}}
+   * Строка дальности или цели -> ярды. Формы взяты из живых компендиумов, а не придуманы:
+   * «Willpower Bonus yards», «Willpower yards» (вся характеристика, не бонус), «Half Willpower yards»,
+   * «Willpower / 2 yards», «2 * Fellowship Bonus yards», «Fellowship Bonus miles», «20 yards (can't be extended)»,
+   * «You», «Self», «Touch», «You or Touch», а также «Line of sight» / «Special» / «See text» - их не считаем.
+   * @returns {{kind: string, yards: number|null, raw: string, special?: boolean}}
    */
   function parseRange(raw, actor) {
     const text = String(raw ?? "").trim();
     if (!text) return { kind: TARGET_KIND.NONE, yards: null, raw: text };
     const low = text.toLowerCase();
 
-    if (/^(you|self|caster|вы|себя|на себя)\b/.test(low)) return { kind: TARGET_KIND.SELF, yards: 0, raw: text };
-    if (/^(touch|касание|прикосновение)\b/.test(low)) return { kind: TARGET_KIND.TOUCH, yards: 1, raw: text };
+    // Касание проверяем ДО «себя»: «You or Touch» - это всё-таки касание, цель нужна
+    if (/\btouch\b|касание|прикосновение/.test(low)) return { kind: TARGET_KIND.TOUCH, yards: 1, raw: text };
+    if (/^(you|self|caster)\b|^(вы|себя|на себя)\b/.test(low)) return { kind: TARGET_KIND.SELF, yards: 0, raw: text };
+    // Особые дальности: не выдумываем число, пусть выбирают руками
+    if (SPECIAL.test(low)) return { kind: TARGET_KIND.NONE, yards: null, raw: text, special: true };
 
-    // Площадь: «AoE (Willpower Bonus yards)», «радиус 10»
-    const area = /\b(aoe|area|радиус|область)\b/.test(low);
+    const area = /\b(aoe|area)\b|радиус|область/.test(low);
+    const miles = /\bmiles?\b|мил[ьия]/.test(low);
 
-    // Бонус характеристики: берём первый совпавший, при необходимости умножаем
-    const BONUS = [
-      [/\b(willpower|wp|св|сила воли)\b/, "wp"],
-      [/\b(strength|сила)\b/, "s"],
-      [/\b(toughness|выносливость)\b/, "t"],
-      [/\b(agility|проворство|ловкость)\b/, "ag"],
-      [/\b(initiative|инициатива)\b/, "i"],
-      [/\b(intelligence|интеллект)\b/, "int"],
-      [/\b(fellowship|харизма)\b/, "fel"],
-      [/\b(dexterity)\b/, "dex"]
-    ];
-    let yards = null;
-    if (/\b(bonus|бонус|б)\b/.test(low) || /\b(wpb|свб|сб|вб)\b/.test(low)) {
-      const hit = BONUS.find(([re]) => re.test(low)) ?? (/\bwpb|свб\b/.test(low) ? [null, "wp"] : null);
-      if (hit) {
-        const mult = Number((low.match(/[x×]\s*(\d+)/) ?? [])[1]) || 1;
-        yards = charBonus(actor, hit[1]) * mult;
-      }
-    }
-    // Обычное число («20 yards», «20 ярдов»)
-    if (yards === null) {
+    // Характеристика: «Willpower Bonus» - бонус, просто «Willpower» - всё значение
+    const hit = CHARS.find(([re]) => re.test(low));
+    let base = null;
+    if (hit) {
+      const c = actor?.system?.characteristics?.[hit[1]] ?? {};
+      const bonus = /bonus|бонус/.test(low);
+      base = bonus
+        ? Number(c.bonus ?? Math.floor((Number(c.value) || 0) / 10)) || 0
+        : Number(c.value) || 0;
+    } else {
       const num = low.match(/(\d+)/);
-      if (num) yards = Number(num[1]);
+      if (num) base = Number(num[1]);
     }
-    if (yards === null) return { kind: TARGET_KIND.NONE, yards: null, raw: text };
+    if (base === null) return { kind: TARGET_KIND.NONE, yards: null, raw: text };
+
+    // Делители и множители: «Half X», «X / 2», «2 * X», «X x2»
+    if (/\bhalf\b|половин/.test(low) || /\/\s*2\b/.test(low)) base = Math.floor(base / 2);
+    const mult = low.match(/(\d+)\s*[*x×]\s*(?=[a-zа-я])/) ?? low.match(/[*x×]\s*(\d+)/);
+    if (mult && hit) base *= Number(mult[1]);
+
+    const yards = miles ? base * YARDS_IN_MILE : base;
     return { kind: area ? TARGET_KIND.AREA : TARGET_KIND.RANGED, yards, raw: text };
   }
 
@@ -124,16 +140,27 @@
   }
 
   /**
+   * Готовое значение системы против сырой строки.
+   *
+   * Геттеры Range/Duration считаются ОТНОСИТЕЛЬНО ВЛАДЕЛЬЦА предмета. У заклинания из компендиума
+   * владельца нет, и геттер отдаёт 0 - это «не посчитано», а не «ноль ярдов». Проверено на живом мире:
+   * у заклинания с range.value = "Touch" геттер Range вернул 0. Поэтому ноль и пустую строку игнорируем,
+   * иначе «касание» превратилось бы в дальнобойное заклинание с радиусом 0, и в радиус не попадал бы никто.
+   */
+  function preferComputed(computed, raw) {
+    if (typeof computed === "number" && computed > 0) return String(computed);
+    if (typeof computed === "string" && computed.trim()) return computed;
+    return raw;
+  }
+
+  /**
    * Что нужно для каста: дальность, цели, длительность, а для заклинаний ещё ЧС, школа и перекаст.
    * Логика у заклинаний разная не сама по себе, а по данным - поэтому ветвимся по полям, а не по названиям.
    */
   function castPlan(actor, item) {
     const sys = item?.system ?? {};
-    // Система сама считает дальности и длительности и отдаёт их геттерами с заглавной буквы
-    // (как Damage/Range/Qualities у оружия): «Willpower Bonus yards» там уже превращено в число.
-    // Берём готовое, если оно есть - оно авторитетнее нашего разбора строк; парсер остаётся запасным путём.
-    const rangeSource = firstDefined(sys, ["Range", "range.value"]);
-    const targetRaw = firstDefined(sys, ["Target", "target.value"]);
+    const rangeSource = preferComputed(sys.Range, sys.range?.value);
+    const targetRaw = preferComputed(sys.Target, sys.target?.value);
     const range = parseRange(rangeSource, actor);
     const targetKind = parseRange(targetRaw, actor);
     const needsTarget = !(
@@ -141,9 +168,9 @@
       targetKind.kind === TARGET_KIND.SELF ||
       parseTargetCount(targetRaw, actor) === 0
     );
-    // У площадных число в target - это радиус области, а не количество целей:
-    // «AoE (4 yards)» значит круг радиусом 4, а не четыре цели. Считать его целями нельзя.
-    const area = targetKind.kind === TARGET_KIND.AREA || range.kind === TARGET_KIND.AREA;
+    // Площадь система отмечает флагом target.aoe - он надёжнее разбора строки.
+    // У площадных число в target - радиус области, а не количество целей: «AoE (4 yards)» - круг радиусом 4.
+    const area = sys.target?.aoe === true || targetKind.kind === TARGET_KIND.AREA || range.kind === TARGET_KIND.AREA;
     const plan = {
       kind: item?.type ?? "spell",
       range,
@@ -152,28 +179,37 @@
       count: area ? null : needsTarget ? parseTargetCount(targetRaw, actor) : 0,
       area,
       areaRadius: area ? (targetKind.kind === TARGET_KIND.AREA ? targetKind.yards : range.yards) : null,
-      duration: parseDuration(firstDefined(sys, ["Duration", "duration.value"]))
+      duration: parseDuration(preferComputed(sys.Duration, sys.duration?.value))
     };
     if (plan.kind !== "spell") return plan;
 
     // Заклинание: ЧС нужно набрать уровнями успеха, излишек идёт в перекаст
     const cn = Number(firstDefined(sys, ["cn.value", "cn"])) || 0;
-    const damage = firstDefined(sys, ["Damage", "damage.value", "damage"]);
-    const ingredient = firstDefined(sys, ["ingredient.value", "ingredients.value", "ingredient"]);
+    // Только скалярные пути: у заклинания без урона damage = { value: "", dice: "" },
+    // и запасной путь на сам объект вернул бы его целиком вместо «урона нет».
+    // Ноль от геттера тоже не урон - у предмета из компендиума он означает «не посчитано»
+    const damage = preferComputed(sys.Damage, sys.damage?.value) || null;
+    // Ингредиенты - массив предметов (так в системе), а не одно поле
+    const ingredients = Array.isArray(sys.ingredients) ? sys.ingredients : [];
+    // Перекаст система описывает сама: enabled, на что и по сколько за уровень.
+    // Берём её данные, а не свои догадки по полям - раньше набор выводился «на глаз».
+    const oc = sys.overcast ?? {};
     return {
       ...plan,
       cn,
       lore: firstDefined(sys, ["lore.value", "lore"]) ?? null,
       memorized: !!firstDefined(sys, ["memorized.value", "memorized"]),
+      // Магический снаряд - отдельный флаг системы: такие заклинания бьют уроном
+      magicMissile: sys.magicMissile?.value === true,
+      ritual: sys.ritual?.value === true,
       damage: damage ?? null,
-      ingredient: ingredient ?? null,
-      // На что можно потратить излишек УУ. Набор выведен из данных, а не зашит по названиям заклинаний:
-      // урон - только если заклинание вообще наносит урон, цели - если цель нужна, и т. д.
+      ingredients,
+      ingredient: ingredients[0]?.name ?? null,
       overcast: {
-        damage: damage !== undefined,
-        targets: needsTarget,
-        duration: plan.duration.kind === "lasting",
-        range: range.kind === TARGET_KIND.RANGED || range.kind === TARGET_KIND.AREA
+        enabled: oc.enabled === true,
+        label: oc.label ?? "",
+        perOvercast: oc.valuePerOvercast ?? null,
+        initial: oc.initial ?? null
       }
     };
   }

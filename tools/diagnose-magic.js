@@ -79,7 +79,29 @@
   dump.уникальныеDamage = uniq("damage", "spell");
 
   // 3a. ГЛАВНОЕ: есть ли у заклинаний готовые вычисленные поля (как Damage/Range у оружия).
-  // Если да - разбирать строки вручную не нужно, модуль возьмёт готовое.
+  // Берём ЖИВОЙ документ из компендиума (не toObject - он срезает геттеры) и смотрим на нём.
+  // Так ответ получится, даже если у персонажа нет ни одного заклинания.
+  try {
+    const anySpell = found.find((f) => f.тип === "spell") ?? found[0];
+    if (anySpell) {
+      const pack = game.packs.get(anySpell.pack);
+      const idx = (await pack.getIndex()).find((e) => e.name === anySpell.name);
+      const live = await pack.getDocument(idx._id);
+      dump.геттерыНаЖивомДокументе = {
+        name: live.name,
+        "system.range.value": live.system?.range?.value ?? null,
+        "system.Range": live.system?.Range ?? null,
+        "system.Target": live.system?.Target ?? null,
+        "system.Duration": live.system?.Duration ?? null,
+        "system.Damage": live.system?.Damage ?? null,
+        "все ключи system": Object.keys(live.system ?? {}),
+        "ключи с заглавной": Object.keys(live.system ?? {}).filter((k) => /^[A-Z]/.test(k))
+      };
+    }
+  } catch (err) {
+    dump.геттерыНаЖивомДокументе = `не вышло: ${err?.message}`;
+  }
+
   const computed = (actor.itemTypes.spell ?? []).concat(actor.itemTypes.prayer ?? []).map((i) => ({
     name: i.name,
     "сырой range": i.system?.range?.value ?? null,
@@ -91,9 +113,15 @@
     "вычисленный Damage": i.system?.Damage ?? null
   }));
   dump.сыроеПротивВычисленного = computed;
-  dump.ВЫВОД_естьЛиГотовыеПоля = computed.some((c) => c["вычисленный Range"] !== null || c["вычисленный Duration"] !== null)
-    ? "ДА - модуль должен брать готовое, ручной разбор строк не нужен"
-    : "НЕТ - остаётся ручной разбор строк (или поля зовутся иначе, смотри образецЗаклинания ниже)";
+  // Вывод делаем ТОЛЬКО если было на чём проверять: у персонажа без заклинаний пустой список
+  // не значит «геттеров нет» - он значит «не проверяли». Смотрим и на живой документ из компендиума.
+  const live = dump.геттерыНаЖивомДокументе;
+  const liveHas = live && typeof live === "object" && (live["system.Range"] !== null || live["system.Duration"] !== null);
+  dump.ВЫВОД_естьЛиГотовыеПоля = computed.length === 0 && !liveHas && typeof live !== "object"
+    ? "НЕ ПРОВЕРЕНО - у персонажа нет заклинаний и живой документ не открылся"
+    : computed.some((c) => c["вычисленный Range"] !== null || c["вычисленный Duration"] !== null) || liveHas
+      ? "ДА - модуль должен брать готовое, ручной разбор строк не нужен"
+      : "НЕТ - готовых полей нет, нужен ручной разбор строк (смотри «ключи с заглавной» выше)";
 
   // 3b. Полная структура одного заклинания: нужны точные имена полей ингредиента и перекаста
   try {

@@ -52,9 +52,9 @@ const r = await p.evaluate(() => {
 
     // Множитель в дальности: «Willpower Bonus x2 yards»
     eq("шар - дальность СВБ x2", sp("шар").range.yards, wpbW * 2);
-    // На себя: цель не нужна, перекаст только в длительность
+    // На себя: цель не нужна. Перекаст теперь берётся из данных системы, а не выводится по полям
     eq("броня - на себя", [sp("броня").needsTarget, sp("броня").count], [false, 0]);
-    eq("броня - перекаст только длительность", Object.entries(sp("броня").overcast).filter(([, v]) => v).map(([k]) => k), ["duration"]);
+    eq("броня - перекаст не включён", sp("броня").overcast.enabled, false);
     // Площадь: число в target - это радиус, а НЕ количество целей
     eq("шар - площадь без счётчика целей", [sp("шар").area, sp("шар").count], [true, null]);
     eq("шар - радиус области", sp("шар").areaRadius, 4);
@@ -62,7 +62,9 @@ const r = await p.evaluate(() => {
     // Урон и ингредиент видны, когда они есть в данных
     eq("стрела - урон", sp("стрела").damage, "+4");
     eq("касание - ингредиент", sp("касание").ingredient, "Уголёк");
-    eq("полог - без урона, перекаст без damage", sp("Полог").overcast.damage, false);
+    eq("полог - без урона", sp("Полог").damage, null);
+    eq("полог - перекаст со своим ярлыком", [sp("Полог").overcast.enabled, sp("Полог").overcast.label], [true, "Distance (yds.)"]);
+    eq("перекаст: источник величины", sp("Полог").overcast.perOvercast.type, "characteristic");
     // ЧС и излишек УУ
     eq("стрела - ЧС", sp("стрела").cn, 4);
     eq("перекаст при 7 УУ", T.overcastBudget(sp("стрела"), 7), { success: true, spare: 3, need: 4, got: 7 });
@@ -74,6 +76,48 @@ const r = await p.evaluate(() => {
     // Готовое значение системы важнее сырой строки: у «Зова ветров» Range = 30, хотя в range.value стоит СВБ (5)
     eq("приоритет вычисленной дальности", sp("ветров").range.yards, 30);
     eq("вычисленная дальность - не СВБ", sp("ветров").range.yards !== wpbW, true);
+
+    // --- Формы дальностей ИЗ ЖИВЫХ КОМПЕНДИУМОВ (снято diagnose-magic.js), а не придуманные ---
+    const wp = wiz.system.characteristics.wp.value;
+    const fel = wiz.system.characteristics.fel;
+    const ini = wiz.system.characteristics.i.value;
+    const rk = (str) => { const x = T.parseRange(str, wiz); return [x.kind, x.yards]; };
+    eq("You or Touch - касание", rk("You or Touch"), ["touch", 1]);
+    eq("Self - на себя", rk("Self"), ["self", 0]);
+    eq("вся характеристика, не бонус", rk("Willpower yards"), ["ranged", wp]);
+    eq("половина характеристики", rk("Half Willpower yards"), ["ranged", Math.floor(wp / 2)]);
+    eq("деление косой чертой", rk("Willpower / 2 yards"), ["ranged", Math.floor(wp / 2)]);
+    eq("множитель звёздочкой", rk("2 * Fellowship Bonus yards"), ["ranged", fel.bonus * 2]);
+    eq("мили в ярды", rk("Fellowship Bonus miles"), ["ranged", fel.bonus * 1760]);
+    eq("просто миля", rk("1 mile"), ["ranged", 1760]);
+    eq("хвост в скобках не мешает", rk("20 yards (can't be extended)"), ["ranged", 20]);
+    eq("слитное написание", rk("FellowshipBonus yards"), ["ranged", fel.bonus]);
+    eq("инициатива пополам", rk("Initiative / 2 yards"), ["ranged", Math.floor(ini / 2)]);
+    // Особые дальности: числа не выдумываем
+    for (const str of ["Line of sight", "Special", "See text", "Random Vortex"]) {
+      eq(`особая дальность «${str}»`, rk(str), ["none", null]);
+    }
+    eq("особая помечена флагом", T.parseRange("Line of sight", wiz).special, true);
+
+    // Посчитанная СТРОКА от геттера (так отдаёт предмет С владельцем, проверено на «Bolt»):
+    // берём 40 из "40 yards", а не 52 из характеристики по сырой строке "Willpower yards"
+    eq("строка геттера важнее характеристики", sp("Молния").range.yards, 40);
+    eq("не пересчитали СВ сами", sp("Молния").range.yards !== wiz.system.characteristics.wp.value, true);
+    eq("урон из геттера числом", sp("Молния").damage, "8");
+
+    // Ноль от геттера - «не посчитано» (у предмета из компендиума нет владельца), а не нулевая дальность.
+    // Проверено на живом мире: у заклинания с range.value "Touch" система отдала Range = 0
+    eq("ноль геттера не перебивает Touch", [sp("Касание без").range.kind, sp("Касание без").range.yards], ["touch", 1]);
+    eq("ноль геттера не ломает длительность", sp("Касание без").duration.kind, "lasting");
+    eq("ноль геттера не создаёт урон", sp("Касание без").damage, null);
+
+    // --- Явные поля системы вместо догадок ---
+    eq("площадь по флагу target.aoe", sp("шар").area, true);
+    eq("перекаст из данных системы", sp("шар").overcast.enabled, true);
+    eq("ярлык перекаста - свободный текст", sp("шар").overcast.label, "Targets");
+    eq("магический снаряд флагом", sp("шар").magicMissile, true);
+    eq("ингредиенты массивом", [sp("касание").ingredients.length, sp("касание").ingredient], [1, "Уголёк"]);
+    eq("без перекаста - enabled false", sp("стрела").overcast.enabled, false);
   }
 
   // --- Оружие: полосы дальности (та же машинка дистанций, что у магии, но из ядра) ---
@@ -129,7 +173,7 @@ const r = await p.evaluate(() => {
     }
   }
 
-  return { fail, checks: 49 };
+  return { fail, checks: 77 };
 });
 
 console.log(r.error ? `FAIL: ${r.error}` : r.fail.length ? `FAIL:\n${r.fail.join("\n")}` : `all pass (${r.checks} checks)`, "errors:", errs);

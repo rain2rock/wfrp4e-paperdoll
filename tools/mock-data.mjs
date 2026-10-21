@@ -395,19 +395,43 @@ CAST.push({
   spells: [
     { name: "Огненная стрела", cn: 4, lore: "fire", range: "Willpower Bonus yards", target: "1", duration: "Instant",
       damage: "+4", memorized: true, desc: "<p>Стрела пламени поражает цель.</p>" },
-    { name: "Огненный шар", cn: 8, lore: "fire", range: "Willpower Bonus x2 yards", target: "AoE (4 yards)", duration: "Instant",
-      damage: "+6", memorized: true, desc: "<p>Взрыв пламени накрывает область.</p>" },
+    { name: "Огненный шар", cn: 8, lore: "fire", range: "2 * Willpower Bonus yards", target: "AoE (4 yards)", aoe: true, duration: "Instant",
+      damage: "+6", memorized: true, magicMissile: true,
+      overcast: { enabled: true, label: "Targets", valuePerOvercast: { type: "value", value: 1, SL: false, characteristic: "", bonus: false }, initial: null },
+      desc: "<p>Взрыв пламени накрывает область.</p>" },
     { name: "Эфирная броня", cn: 5, lore: "arcane", range: "You", target: "You", duration: "Willpower Bonus rounds",
       memorized: true, desc: "<p>+1 к броне на все локации, пока держится.</p>" },
     { name: "Огненное касание", cn: 3, lore: "fire", range: "Touch", target: "1", duration: "Instant",
-      damage: "+3", ingredient: "Уголёк", desc: "<p>Прикосновение обжигает.</p>" },
-    { name: "Полог тьмы", cn: 6, lore: "shadow", range: "12 yards", target: "AoE (Willpower Bonus yards)", duration: "1 hour",
+      damage: "+3", magicMissile: true, ingredients: [{ name: "Уголёк" }], desc: "<p>Прикосновение обжигает.</p>" },
+    { name: "Полог тьмы", cn: 6, lore: "shadow", range: "12 yards", target: "AoE (Willpower Bonus yards)", aoe: true, duration: "1 hour",
+      overcast: { enabled: true, label: "Distance (yds.)", valuePerOvercast: { type: "characteristic", value: 1, SL: false, characteristic: "wp", bonus: true }, initial: null },
       desc: "<p>Область затягивает мглой.</p>" },
     // Проверка приоритета: система уже посчитала дальность (Range = 30), сырая строка говорит другое.
     // Модуль обязан взять готовое значение, а не разбирать строку сам.
     { name: "Зов ветров", cn: 7, lore: "heavens", range: "Willpower Bonus yards", target: "1", duration: "Instant",
       computed: { Range: "30 yards", Duration: "Instant" },
-      desc: "<p>Дальность этого заклинания система считает по своим правилам школы.</p>" }
+      desc: "<p>Дальность этого заклинания система считает по своим правилам школы.</p>" },
+    // Формы дальности из живых компендиумов: вся характеристика (не бонус), половина, мили, особая
+    { name: "Взор провидца", cn: 2, lore: "heavens", range: "Willpower yards", target: "1", duration: "Instant",
+      desc: "<p>Дальность - всё значение Силы воли, а не бонус.</p>" },
+    { name: "Шёпот за холмом", cn: 4, lore: "heavens", range: "Willpower Bonus miles", target: "1", duration: "Instant",
+      desc: "<p>Дальность в милях.</p>" },
+    { name: "Полумера", cn: 3, lore: "shadow", range: "Half Willpower yards", target: "1", duration: "Instant",
+      desc: "<p>Половина характеристики.</p>" },
+    { name: "Воля провидения", cn: 5, lore: "heavens", range: "Line of sight", target: "Special", duration: "Special",
+      desc: "<p>Особая дальность: число не вычисляется, цель выбирают руками.</p>" },
+    // Точная копия «Bolt» из мира Михаила: у предмета С владельцем геттеры отдают ПОСЧИТАННУЮ СТРОКУ
+    // ("Willpower yards" -> "40 yards") и ЧИСЛО урона (4 -> 8, магический снаряд добавляет бонус).
+    // Модуль обязан взять посчитанное, а не пересчитывать характеристику сам
+    { name: "Молния", cn: 4, lore: "", range: "Willpower yards", target: "1", duration: "Instant",
+      damage: "4", magicMissile: true, memorized: true,
+      computed: { Range: "40 yards", Target: "1", Duration: "Instant", Damage: 8 },
+      desc: "<p>Магический снаряд: система сама посчитала и дальность, и урон.</p>" },
+    // Случай из живого мира: у предмета БЕЗ владельца геттеры считают по владельцу и отдают 0.
+    // Ноль - это «не посчитано», а не «ноль ярдов»: касание не должно стать дальнобойным с радиусом 0
+    { name: "Касание без владельца", cn: 1, lore: "petty", range: "Touch", target: "1", duration: "Willpower Bonus minutes",
+      computed: { Range: 0, Duration: 0, Damage: 0 },
+      desc: "<p>Геттеры вернули нули, разбирать надо сырые строки.</p>" }
   ],
   system: {
     characteristics: { ws: ch(26), bs: ch(28), s: ch(25), t: ch(29), i: ch(36, 5), ag: ch(32), dex: ch(35, 5), int: ch(44, 15), wp: ch(42, 10), fel: ch(30) },
