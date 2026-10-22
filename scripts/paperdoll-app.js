@@ -448,6 +448,169 @@ function actorCoins(actor) {
   return out;
 }
 
+/**
+ * Что можно «применить» (выпить, съесть, использовать): зелья, яды, травы и еда.
+ * Названия типов - из системы WFRP4e; если у вещи есть явный признак расходника, верим ему.
+ */
+const USABLE_TRAPPINGS = ["drugsPoisonsHerbsDraughts", "foodAndDrink"];
+function isUsable(item) {
+  const sys = item?.system;
+  if (!sys) return false;
+  if (sys.consumable?.value === true || sys.consumable === true) return true;
+  return item.type === "trapping" && USABLE_TRAPPINGS.includes(sys.trappingType?.value);
+}
+
+// Нейтральные значки для значений в подсказках: кубик у бросков, стопка монет у денег.
+// Рисуем своим SVG по currentColor - подходит и светлой, и тёмной теме, шрифтов не требует.
+// Кубик - ровно тот же, что на кнопке броска у оружия (шаблон берёт его отсюда же через art.diceSvg),
+// чтобы иконки одного смысла не расходились по окнам.
+const DICE_PATH = "M12 2 21 7v10l-9 5-9-5V7z M12 2v20 M3 7l9 5 9-5";
+const diceSvg = (cls = "") =>
+  `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${DICE_PATH}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+const DICE_RE = /\b(\d*d\d+(?:\s*[+-]\s*\d+)?)\b/gi;
+
+// Деньги в описании («Цена ингредиентов: 6 ЗК») показываем монетой и числом - так же, как цену вещи.
+// Словами («6 золотых крон (ЗК)») это занимает полстроки, поэтому номинал до humanizeTerms прячем
+// в метку, а после разбора подставляем ту же разметку, что у цены.
+const COIN_BY_ABBR = { ЗК: "gc", зк: "gc", GC: "gc", gc: "gc", СШ: "ss", сш: "ss", SS: "ss", ss: "ss", МП: "bp", мп: "bp", BP: "bp", bp: "bp" };
+const MONEY_RE = /(\d+)\s*(ЗК|СШ|МП|зк|сш|мп|GC|SS|BP|gc|ss|bp)(?!\p{L})/gu;
+const MARK = "\u0001";
+
+/** Спрятать деньги в метку до humanizeTerms, иначе он развернёт номинал словами */
+function hideMoney(raw) {
+  return String(raw ?? "").replace(MONEY_RE, (m, n, cur) => `${MARK}${COIN_BY_ABBR[cur] ?? "bp"}:${n}${MARK}`);
+}
+
+/** Вернуть деньги на место: число и кружок номинала, как в строке цены */
+function showMoney(escaped) {
+  return String(escaped ?? "").replace(
+    new RegExp(`${MARK}(gc|ss|bp):(\\d+)${MARK}`, "g"),
+    (m, key, n) => `<span class="pd-tt-coin" title="${esc(L(`WFRPPD.Money.Name.${key}`))}">${n}<i class="pd-coin-dot pd-coin-dot--${key}"></i></span>`
+  );
+}
+
+/** Броски в значении подсказки помечаем кубиком. На вход - УЖЕ экранированный текст */
+function valueChips(escaped) {
+  return showMoney(String(escaped ?? "").replace(DICE_RE, (m) => `<span class="pd-chip pd-chip--dice">${diceSvg("pd-chip-ico")}${m}</span>`));
+}
+
+/** Документ эффекта по записи ленты: пассивка лежит на предмете, остальное - на актёре */
+function effectDocOf(actor, entry) {
+  return entry.itemId ? actor?.items.get(entry.itemId)?.effects?.get(entry.id) : actor?.effects.get(entry.id);
+}
+
+/** Лист, который открывает запись ленты: пассивку - через её предмет, остальное - сама запись */
+function effectSheetFor(actor, entry) {
+  if (entry.itemId && entry.passive) actor?.items.get(entry.itemId)?.sheet?.render(true);
+  else if (["condition", "effect", "buff"].includes(entry.kind)) effectDocOf(actor, entry)?.sheet?.render(true);
+  else actor?.items.get(entry.id)?.sheet?.render(true);
+}
+
+/**
+ * Единое действие по записи ленты эффектов - ОДНО на все окна (куколка и окно группы).
+ * Раньше окно группы повторяло эту логику у себя, и поведение разъехалось; теперь зовут общий код.
+ * ЛКМ - снять (у состояния один уровень), Shift+ЛКМ - снять целиком, ПКМ - подробнее.
+ * Травмы, болезни и мутации живут предметами: их ЛКМ по-прежнему открывает, снимает только Shift+ЛКМ.
+ */
+async function effectAction(actor, entry, ev = null, { app = null, editable = true } = {}) {
+  if (!actor || !entry) return;
+  if (!editable) return effectSheetFor(actor, entry);
+  try {
+    // Дополнение может забрать клик себе (вернуть true). Мутациям нужен только actor
+    const ctx = app ?? { actor };
+    for (const a of ADDONS.values()) if (a.effectClick && (await a.effectClick(ctx, entry, ev))) return;
+
+    // Пассивку с предмета снять нельзя - её источник предмет или талант
+    if (entry.itemId && entry.passive) {
+      ui.notifications?.info(L("WFRPPD.Effects.HintItemEffect"));
+      return effectSheetFor(actor, entry);
+    }
+
+    if (["injury", "critical", "disease", "mutation"].includes(entry.kind)) {
+      if (!ev?.shiftKey) return effectSheetFor(actor, entry);
+      const item = actor.items.get(entry.id);
+      if (item && (await confirmRemoveEffect(item.name))) await item.delete();
+      return;
+    }
+
+    if (entry.kind === "condition") {
+      // Shift - снять все уровни разом, обычный клик - один
+      if (ev?.shiftKey || typeof actor.removeCondition !== "function") await effectDocOf(actor, entry)?.delete();
+      else await actor.removeCondition(entry.key, 1);
+      return;
+    }
+
+    const effect = effectDocOf(actor, entry);
+    if (effect && (await confirmRemoveEffect(effect.name))) await effect.delete();
+  } catch (err) {
+    console.warn(`${MODULE_ID} | effect action failed`, err);
+  }
+}
+
+/**
+ * Вторая полоса (удача / решимость / порча / преимущество / опыт) - данные одним кодом
+ * для куколки и окна группы, чтобы максимумы и проценты не разъезжались.
+ */
+function secondBarData(actor, kindRaw) {
+  const st = actor.system.status ?? {};
+  const bar = (value, max) => {
+    const v = Math.max(0, Number(value) || 0);
+    const m = Math.max(0, Number(max) || 0);
+    return { value: v, max: m, pct: m ? Math.clamp((v / m) * 100, 0, 100) : 0 };
+  };
+  const exp = actor.system.details?.experience ?? {};
+  const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
+  const kind = SECOND_BARS.includes(kindRaw) ? kindRaw : "fortune";
+  const src = {
+    // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
+    fortune: () => bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0)),
+    // Решимость восполняется до значения упорства
+    resolve: () => bar(st.resolve?.value, Math.max(Number(st.resilience?.value) || 0, Number(st.resolve?.value) || 0)),
+    corruption: () => bar(st.corruption?.value, st.corruption?.max),
+    advantage: () => bar(st.advantage?.value, Number(st.advantage?.max) || 10),
+    xp: () => bar(free, exp.total)
+  };
+  const second = src[kind]();
+  second.kind = kind;
+  second.label = L(`WFRPPD.Vitals.Second.${kind}`);
+  second.hint = F(`WFRPPD.Vitals.SecondHint.${kind}`, { value: second.value, max: second.max });
+  second.options = SECOND_BARS.map((k) => ({ key: k, label: L(`WFRPPD.Vitals.Second.${k}`), active: k === kind }));
+  return second;
+}
+
+/** Класс редкости вещи для рамки ячейки - общий для сумки и сундука группы */
+function itemRarity(item) {
+  return RARITY[item?.system?.availability?.value] ?? "none";
+}
+
+/** Ключи сортировки вещей - общие для сумки и сундука группы, чтобы логика не двоилась */
+export const SORT_KEYS = ["default", "type", "rarity-desc", "rarity-asc", "name-asc", "name-desc"];
+
+/** Отсортировать вещи по ключу из SORT_KEYS. Неизвестный ключ (и "default") оставляет порядок как есть. */
+function sortItems(list, key) {
+  const rank = (i) => RARITY_RANK[i.system.availability?.value] ?? 0;
+  const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
+  // По типу: оружие ближнего боя, стрелковое, боеприпасы, броня (сверху вниз), одежда, сумки, остальное
+  const typeRank = (i) => {
+    const sys = i.system;
+    if (i.type === "weapon") return safe(() => sys.isRanged) ? 1 : 0;
+    if (i.type === "ammunition") return 2;
+    if (i.type === "armour") return 3 + (["head", "body", "rArm", "lArm", "rLeg", "lLeg"].findIndex((l) => sys.protects?.[l] || (sys.AP?.[l] ?? 0) > 0) + 1) / 10;
+    if (i.type === "trapping" && sys.trappingType?.value === "clothingAccessories") return 4;
+    if (i.type === "container") return 5;
+    if (i.type === "trapping") return 6 + (String(sys.trappingType?.value ?? "misc").charCodeAt(0) % 20) / 100;
+    return 7;
+  };
+  const sorters = {
+    type: (a, b) => typeRank(a) - typeRank(b) || byName(a, b),
+    "rarity-desc": (a, b) => rank(b) - rank(a) || byName(a, b),
+    "rarity-asc": (a, b) => rank(a) - rank(b) || byName(a, b),
+    "name-asc": byName,
+    "name-desc": (a, b) => byName(b, a)
+  };
+  return sorters[key] ? [...list].sort(sorters[key]) : list;
+}
+
 /** Все деньги персонажа в пенни */
 function moneyPennies(actor) {
   return (actor?.items ?? [])
@@ -894,6 +1057,49 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /** Перерисовать все открытые куколки (смена темы или иконок в настройках) */
+  /**
+   * Применить вещь: карточку в чат пишет система (postItem), количество уменьшаем на одну.
+   * Вещь НЕ удаляем даже на последней штуке - оставляем с нулём, чтобы случайный Shift+ПКМ
+   * не стёр предмет безвозвратно; убрать пустую запись игрок может сам.
+   */
+  async _useItem(item) {
+    if (!this.editable || !isUsable(item)) return false;
+    const have = Number(item.system?.quantity?.value ?? 1) || 0;
+    if (have <= 0) {
+      ui.notifications?.info(F("WFRPPD.Use.Empty", { name: item.name }));
+      return false;
+    }
+    PaperdollTooltip.hide();
+    if (typeof item.postItem === "function") await safe(() => item.postItem());
+    else
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker?.({ actor: this.actor }),
+        content: `<div class="wfrp-paperdoll-rest">${esc(F("WFRPPD.Use.Chat", { who: this.actor.name, item: item.name }))}</div>`
+      });
+    // Эффекты зелья или яда (бафф, дебафф) вешаем на персонажа: у расходника они лежат
+    // на самом предмете и сами не применяются - «момент использования» знает только наш клик.
+    // Копируем с origin на предмет, чтобы в ленте было видно, откуда эффект взялся.
+    const carried = [...(item.effects ?? [])].filter((e) => !e.disabled);
+    if (carried.length) {
+      const data = carried.map((e) => {
+        // toObject есть у настоящего документа; в моке собираем копию из полей руками
+        const o =
+          typeof e.toObject === "function"
+            ? e.toObject()
+            : JSON.parse(JSON.stringify({ name: e.name, img: e.img, changes: e.changes ?? [], duration: e.duration ?? {}, statuses: [...(e.statuses ?? [])] }));
+        delete o._id;
+        o.origin = item.uuid;
+        o.transfer = false;
+        o.disabled = false;
+        return o;
+      });
+      await safe(() => this.actor.createEmbeddedDocuments("ActiveEffect", data));
+    }
+    await item.update({ "system.quantity.value": have - 1 });
+    playGearSound("move");
+    return true;
+  }
+
   static renderAll() {
     // Выключенный модуль не перерисовывает, а закрывает: иначе перерисовка по любой другой
     // настройке воскресила бы окно, которое только что закрыл главный выключатель
@@ -1163,6 +1369,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         tabBag: uiArt("ui-tab-bag"),
         tabStats: uiArt("ui-tab-stats"),
         carried: uiArt("ui-carried"),
+        diceSvg: diceSvg(),
         pack: uiArt("ui-pack"),
         unload: uiArt("ui-delta-down"),
         options: uiArt("ui-options")
@@ -1177,7 +1384,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ? game.i18n.format("WFRPPD.Bags.Overflow", { names: bagAssign.overflow.map((i) => i.name).join(", ") })
         : "",
       filters,
-      sortOptions: ["default", "type", "rarity-desc", "rarity-asc", "name-asc", "name-desc"].map((key) => ({
+      sortOptions: SORT_KEYS.map((key) => ({
         key,
         label: L(`WFRPPD.Sort.${key}`),
         active: key === this._sort
@@ -1227,23 +1434,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     wounds.state = `is-${tier} ${tier === "dying" ? "is-down" : tier === "critical" ? "is-low" : ""}`.trim();
     wounds.hint = [wounds.status, F("WFRPPD.Vitals.WoundsHint", { value: wounds.value, max: wounds.max }), this.editable ? `~ ${game.i18n.localize("WFRPPD.Vitals.WoundsClick")}` : ""].filter(Boolean).join("\n");
     // Вторая полоса: что показывать, выбирает игрок (шестерёнка при наведении)
-    const kind = SECOND_BARS.includes(setting("secondBar", "fortune")) ? setting("secondBar", "fortune") : "fortune";
-    const exp = this.actor.system.details?.experience ?? {};
-    const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
-    const src = {
-      // Удача восполняется до значения судьбы в начале сессии: её и считаем максимумом
-      fortune: () => bar(st.fortune?.value, Math.max(Number(st.fate?.value) || 0, Number(st.fortune?.value) || 0)),
-      // Решимость восполняется до значения упорства
-      resolve: () => bar(st.resolve?.value, Math.max(Number(st.resilience?.value) || 0, Number(st.resolve?.value) || 0)),
-      corruption: () => bar(st.corruption?.value, st.corruption?.max),
-      advantage: () => bar(st.advantage?.value, Number(st.advantage?.max) || 10),
-      xp: () => bar(free, exp.total)
-    };
-    const second = src[kind]();
-    second.kind = kind;
-    second.label = game.i18n.localize(`WFRPPD.Vitals.Second.${kind}`);
-    second.hint = F(`WFRPPD.Vitals.SecondHint.${kind}`, { value: second.value, max: second.max });
-    second.options = SECOND_BARS.map((k) => ({ key: k, label: game.i18n.localize(`WFRPPD.Vitals.Second.${k}`), active: k === kind }));
+    const second = secondBarData(this.actor, setting("secondBar", "fortune"));
     return { wounds, second };
   }
 
@@ -2021,28 +2212,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const containers = this.actor.itemTypes.container ?? [];
     const filter = (i) => this._matchesFilter(i, this._filter);
     const emptyCells = (n) => Array.from({ length: Math.max(0, n) }, (_, i) => i);
-    // Сортировка вещей внутри разделов: по редкости или по алфавиту
-    const rank = (i) => RARITY_RANK[i.system.availability?.value] ?? 0;
-    const byName = (a, b) => a.name.localeCompare(b.name, game.i18n.lang);
-    // По типу: оружие ближнего боя, стрелковое, боеприпасы, броня (сверху вниз), одежда, сумки, остальное
-    const typeRank = (i) => {
-      const sys = i.system;
-      if (i.type === "weapon") return safe(() => sys.isRanged) ? 1 : 0;
-      if (i.type === "ammunition") return 2;
-      if (i.type === "armour") return 3 + (["head", "body", "rArm", "lArm", "rLeg", "lLeg"].findIndex((l) => sys.protects?.[l] || (sys.AP?.[l] ?? 0) > 0) + 1) / 10;
-      if (i.type === "trapping" && sys.trappingType?.value === "clothingAccessories") return 4;
-      if (i.type === "container") return 5;
-      if (i.type === "trapping") return 6 + (String(sys.trappingType?.value ?? "misc").charCodeAt(0) % 20) / 100;
-      return 7;
-    };
-    const sorters = {
-      type: (a, b) => typeRank(a) - typeRank(b) || byName(a, b),
-      "rarity-desc": (a, b) => rank(b) - rank(a) || byName(a, b),
-      "rarity-asc": (a, b) => rank(a) - rank(b) || byName(a, b),
-      "name-asc": byName,
-      "name-desc": (a, b) => byName(b, a)
-    };
-    const sorted = (list) => (sorters[this._sort] ? [...list].sort(sorters[this._sort]) : list);
+    const sorted = (list) => sortItems(list, this._sort);
     const section = (c, kind) => {
       const { inside, used, cap } = this._bagLoad(c);
       // Фильтр не прячет вещи в сумке, а гасит их: иначе кажется, что в сумке есть место
@@ -2140,12 +2310,30 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /**
-   * «Разложить по сумкам»: самые тяжёлые вещи «при себе» уходят в надетые сумки.
-   * Жадно по убыванию веса; каждую вещь кладём в сумку, где после неё останется меньше всего места
-   * (так в большие сумки влезает больше). Вещи с нулевым весом не трогаем - нагрузку они не дают.
+   * «Разложить по сумкам»: сперва надеваем самые вместительные из ненадетых сумок
+   * в свободные слоты (чтобы места стало максимум), затем самые тяжёлые вещи «при себе»
+   * уходят в надетые сумки. Жадно по убыванию веса; каждую вещь кладём в сумку, где после
+   * неё останется меньше всего места (так в большие влезает больше). Нулевой вес не трогаем.
    */
   async _autoPack() {
     if (!this.editable) return;
+
+    // Фаза 1: свободные слоты сумок занимаем самыми вместительными ненадетыми сумками
+    {
+      const { bySlot } = this._bagAssignment();
+      const freeSlots = BAG_SLOTS.filter((k) => !bySlot[k]);
+      if (freeSlots.length) {
+        const spare = (this.actor.itemTypes.container ?? [])
+          .filter((c) => !c.system.isEquipped && (Number(c.system.carries?.value) || 0) > 0)
+          .sort((a, b) => (Number(b.system.carries?.value) || 0) - (Number(a.system.carries?.value) || 0));
+        for (const slot of freeSlots) {
+          const bag = spare.shift();
+          if (!bag) break;
+          await this._equipBag(bag, slot);
+        }
+      }
+    }
+
     const { bySlot } = this._bagAssignment();
     const bags = BAG_SLOTS.map((k) => bySlot[k]).filter(Boolean);
     if (!bags.length) return ui.notifications.warn(game.i18n.localize("WFRPPD.Bags.NoBags"));
@@ -2408,14 +2596,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Сама запись ленты как ActiveEffect-документ: с предмета - из его effects, иначе - с самого актёра */
   _effectDoc(entry) {
-    return entry.itemId ? this.actor.items.get(entry.itemId)?.effects?.get(entry.id) : this.actor.effects.get(entry.id);
+    return effectDocOf(this.actor, entry);
   }
 
   /** Лист, который открывает запись ленты эффектов: пассивку - через её предмет, всё остальное - сама запись */
   _effectSheet(entry) {
-    if (entry.itemId && entry.passive) this.actor.items.get(entry.itemId)?.sheet?.render(true);
-    else if (["condition", "effect", "buff"].includes(entry.kind)) this._effectDoc(entry)?.sheet?.render(true);
-    else this.actor.items.get(entry.id)?.sheet?.render(true);
+    effectSheetFor(this.actor, entry);
   }
 
   /**
@@ -2423,44 +2609,14 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * и пассивки с предмета - их снять нельзя, у них нет своего «снять»), без Shift - открыть лист.
    * Исключение - состояние: ЛКМ без Shift снимает 1 уровень (как было), это самое частое действие с ним.
    */
+  /** Клик по эффекту - общая логика (effectAction), одна с окном группы */
   async _onEffectClick(entry, ev = null) {
-    if (!this.editable) return;
-    try {
-      // Дополнение может забрать клик себе (вернуть true)
-      for (const a of ADDONS.values()) if (a.effectClick && (await a.effectClick(this, entry, ev))) return;
-
-      if (ev?.shiftKey) {
-        if (["injury", "critical", "disease"].includes(entry.kind)) {
-          const item = this.actor.items.get(entry.id);
-          if (item && (await this._confirmRemoveEffect(item.name))) await item.delete();
-          return;
-        }
-        if (entry.kind === "condition") {
-          await this.actor.effects.get(entry.id)?.delete();
-          return;
-        }
-        if (entry.kind === "effect" || entry.kind === "buff") {
-          if (entry.itemId && entry.passive) return; // пассивку с предмета так не снять - её источник предмет/талант
-          const effect = this._effectDoc(entry);
-          if (effect && (await this._confirmRemoveEffect(effect.name))) await effect.delete();
-        }
-        return;
-      }
-
-      if (entry.kind === "condition") {
-        if (typeof this.actor.removeCondition === "function") await this.actor.removeCondition(entry.key, 1);
-        else await this.actor.effects.get(entry.id)?.delete();
-        return;
-      }
-      this._effectSheet(entry);
-    } catch (err) {
-      console.warn(`${MODULE_ID} | effect action failed`, err);
-    }
+    await effectAction(this.actor, entry, ev, { app: this, editable: this.editable });
   }
 
   /** ПКМ по эффекту - всегда открыть лист (эффекта или его предмета-источника) */
   _onEffectContext(entry) {
-    this._effectSheet(entry);
+    effectSheetFor(this.actor, entry);
   }
 
   /* -------------------------------------------- */
@@ -2915,6 +3071,9 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     bindMissingImages(document);
     root.classList.remove("pd-theme-dark", "pd-theme-parchment");
     root.classList.add(themeClass());
+    // Описания в самом окне (например список покупки талантов) переводим тем же кодом,
+    // что и подсказки: иначе в ховере текст по-русски, а в списке - по-английски
+    PaperdollTooltip.translate(root);
 
     for (const el of root.querySelectorAll(".pd-item")) {
       const item = this.actor.items.get(el.dataset.itemId);
@@ -2927,6 +3086,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       el.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         PaperdollTooltip.hide();
+        // Shift+ПКМ - применить (выпить, съесть). Без Shift - как раньше, открыть лист вещи
+        if (ev.shiftKey && isUsable(item)) {
+          this._useItem(item);
+          return;
+        }
         item.sheet?.render(true);
       });
 
@@ -3472,7 +3636,8 @@ export class PaperdollTooltip {
             .join("")}</div>`
         : "";
       e.className = `wfrp-paperdoll-tooltip ${themeClass()} is-compare is-visible`;
-      e.innerHTML = `<div class="pd-cmp-head">${esc(L("WFRPPD.Tooltip.CurrentlyEquipped"))}</div>${this.build(other, null)}${diffHtml}`;
+      // app передаём тот же: без него у сравниваемого оружия пропадал «Шанс попасть» и бонусы талантов
+      e.innerHTML = `<div class="pd-cmp-head">${esc(L("WFRPPD.Tooltip.CurrentlyEquipped"))}</div>${this.build(other, cur.app)}${diffHtml}`;
     });
     this.placeCompare();
   }
@@ -3585,7 +3750,7 @@ export class PaperdollTooltip {
     // «текст<TAB>значение» - значение прижато вправо
     const cell = (l) => {
       const [a, b] = l.split("\t");
-      return b === undefined ? esc(a.trim()) : `<span>${esc(a.trim())}</span><b>${esc(b.trim())}</b>`;
+      return b === undefined ? esc(a.trim()) : `<span>${esc(a.trim())}</span><b>${valueChips(esc(hideMoney(b.trim())))}</b>`;
     };
     const body = rest
       .map((l) => {
@@ -3806,7 +3971,7 @@ export class PaperdollTooltip {
     if (desc.props.length) {
       const rows = desc.props
         .slice(0, 8)
-        .map(([k, v]) => `<div class="pd-tt-prop"><span>${esc(k)}</span><span>${esc(humanizeTerms(v))}</span></div>`)
+        .map(([k, v]) => `<div class="pd-tt-prop"><span>${esc(k)}</span><span>${valueChips(esc(humanizeTerms(hideMoney(v))))}</span></div>`)
         .join("");
       lines.push(`<div class="pd-tt-props">${rows}</div>`);
     }
@@ -3832,7 +3997,8 @@ export class PaperdollTooltip {
     // Двойной клик имеет смысл только для того, что вообще можно надеть
     const wearable = !!sys.isEquippable && safe(() => sys.canEquip, true) !== false;
     const cmpHint = app && option("shiftCompare") && this.compareTargets(item, app).length ? ` · ${L("WFRPPD.Tooltip.CompareHint")}` : "";
-    lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}${esc(cmpHint)}</div>`);
+    const useHint = isUsable(item) ? ` · ${L("WFRPPD.Use.Hint")}` : "";
+    lines.push(`<div class="pd-tt-hint">${esc(L(wearable ? "WFRPPD.Tooltip.Hint" : "WFRPPD.Tooltip.HintOpen"))}${esc(useHint)}${esc(cmpHint)}</div>`);
     return lines.join("");
   }
 
@@ -4092,6 +4258,7 @@ export const PD_UTIL = {
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound, fitDropdown,
   L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
+  sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS,
   tokenOf, distanceBetween, tokensInRange, RANGE_BANDS, weaponRangeYards, weaponRangeBand, targetedAttack
 };
 

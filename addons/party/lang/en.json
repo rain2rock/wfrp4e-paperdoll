@@ -71,7 +71,27 @@
         "s": "Small",
         "m": "Medium",
         "l": "Large"
-      }
+      },
+      "OpenStash": "Party stash",
+      "TreasuryHint": "LMB adds a coin, RMB removes one. Hold Shift for 10",
+      "PickHint": "LMB selects the token, double-click pans to it",
+      "NoToken": "This character has no token on the current scene",
+      "Display": "Display",
+      "DisplayHint": "View, roster and which data to show",
+      "Show": "Show",
+      "View": "View",
+      "ScopeTitle": "Roster",
+      "ShowWounds": "Wounds",
+      "ShowFortune": "Fortune",
+      "ShowMoney": "Money",
+      "ShowEffects": "Effects",
+      "OpenStashBlock": "Open party stash",
+      "Character": "Character",
+      "FxSize": "Effect icons",
+      "FxBig": "Large",
+      "FxSmall": "Small",
+      "ShowTable": "Table columns",
+      "ShowSecond": "Second bar (fortune etc.)"
     },
     "Options": {
       "tokenTransfer": {
@@ -81,6 +101,38 @@
       "groupCardSize": {
         "Name": "Party card size",
         "Hint": "Card width in the GM party window"
+      },
+      "groupView": {
+        "Name": "Group window view",
+        "Hint": "Cards or table"
+      },
+      "groupScope": {
+        "Name": "Group roster",
+        "Hint": "All player characters, or only those whose players are online"
+      },
+      "groupShowWounds": {
+        "Name": "Show wounds",
+        "Hint": "Wounds bar in the group window"
+      },
+      "groupShowFortune": {
+        "Name": "Show fortune",
+        "Hint": "Fortune bar in the group window"
+      },
+      "groupShowArmour": {
+        "Name": "Show armour",
+        "Hint": "Armour by location in the group window"
+      },
+      "groupShowMoney": {
+        "Name": "Show money",
+        "Hint": "Character coins in the group window"
+      },
+      "groupShowEffects": {
+        "Name": "Show effects",
+        "Hint": "Conditions and buffs in the group window"
+      },
+      "groupBigFx": {
+        "Name": "Large effect icons",
+        "Hint": "Large icons show effect duration and rating"
       }
     },
     "Addon": {

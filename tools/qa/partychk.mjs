@@ -13,7 +13,7 @@ const r = { openedAsPlayer: await p.$$eval(".wfrp-paperdoll-group", (e) => e.len
 await p.check("#mock-gm"); await p.waitForTimeout(150);
 await p.click("#mock-group"); await p.waitForTimeout(500);
 r.cards = await p.$$eval(".pd-group-card", (e) => e.length);
-r.names = await p.$$eval(".pd-group-card-head span", (e) => e.map((x) => x.textContent));
+r.names = await p.$$eval(".pd-group-card-head .pd-group-name", (e) => e.map((x) => x.textContent));
 r.fx = await p.$$eval(".pd-group-fx-icon", (e) => e.length);
 r.coins = await p.$$eval(".pd-group-card-money .pd-coin", (e) => e.map((x) => x.textContent.trim()));
 
@@ -25,14 +25,14 @@ r.gcBefore = gcBefore;
 r.gcAfterClick = await p.$eval(".pd-group-card:nth-child(1) .pd-coin--gc", (e) => e.textContent.trim());
 
 // Раны: ЛКМ у второй карточки должен прибавить +1 (restore), ПКМ -1 (remove) - как в основной карточке
-const woundsBefore = await p.$eval(".pd-group-card:nth-child(2) .pd-group-wounds .pd-group-card-num", (e) => e.textContent.trim());
+const woundsBefore = await p.$eval(".pd-group-card:nth-child(2) .pd-group-wounds .pd-vital span", (e) => e.textContent.trim());
 await p.click(".pd-group-card:nth-child(2) .pd-group-wounds");
 await p.waitForTimeout(400);
 r.woundsBefore = woundsBefore;
-r.woundsAfterHeal = await p.$eval(".pd-group-card:nth-child(2) .pd-group-wounds .pd-group-card-num", (e) => e.textContent.trim());
+r.woundsAfterHeal = await p.$eval(".pd-group-card:nth-child(2) .pd-group-wounds .pd-vital span", (e) => e.textContent.trim());
 await p.click(".pd-group-card:nth-child(2) .pd-group-wounds", { button: "right" });
 await p.waitForTimeout(400);
-r.woundsAfterDamage = await p.$eval(".pd-group-card:nth-child(2) .pd-group-wounds .pd-group-card-num", (e) => e.textContent.trim());
+r.woundsAfterDamage = await p.$eval(".pd-group-card:nth-child(2) .pd-group-wounds .pd-vital span", (e) => e.textContent.trim());
 
 // «+» у ленты: поиск и добавление состояния (на второй карточке). Каждый раз берём свежий $$,
 // т.к. добавление эффекта вызывает полный ре-рендер окна и старые хендлы элементов отвязываются от DOM.
@@ -84,15 +84,34 @@ r.passiveShown = await p.evaluate(() =>
 r.passiveStillOnActor = await p.evaluate(() => (window.__PD_actors[0].effects ?? []).some((e) => e.transfer === true && e.origin));
 
 // Переключение на «Таблица»
-await p.click('.pd-group-viewtoggle [data-view="table"]'); await p.waitForTimeout(300);
+// Вид переключается из панели «Отображение» - одна настройка на вид, состав и поля
+// Панель после выбора остаётся открытой - можно щёлкнуть несколько полей подряд
+const openDisplay = async () => {
+  if (!(await p.$('.pd-group-displaymenu.is-open'))) await p.click('.pd-group-display-btn');
+  await p.waitForTimeout(250);
+};
+const pickDisplay = async (sel) => {
+  await openDisplay();
+  await p.click(`.pd-group-displaymenu ${sel}`); await p.waitForTimeout(400);
+};
+await pickDisplay('[data-view="table"]'); await p.waitForTimeout(300);
 r.rows = await p.$$eval(".pd-group-row", (e) => e.length);
 r.cardsAfterSwitch = await p.$$eval(".pd-group-card", (e) => e.length);
 
 // Начало сессии: удача первого персонажа должна подняться до судьбы
-r.fortuneBefore = await p.$eval(".pd-group-row", (e) => e.querySelectorAll("div")[2]?.textContent.trim());
+r.fortuneBefore = await p.$eval(".pd-group-row .pd-group-cell--fortune", (e) => e.textContent.trim());
 await p.click(".pd-group-session"); await p.waitForTimeout(500);
-r.fortuneAfter = await p.$eval(".pd-group-row", (e) => e.querySelectorAll("div")[2]?.textContent.trim());
+r.fortuneAfter = await p.$eval(".pd-group-row .pd-group-cell--fortune", (e) => e.textContent.trim());
 r.viewKeptAfterRerender = await p.$$eval(".pd-group-row", (e) => e.length) > 0;
+// Таблица по макету: монеты под именем, без колонки денег, эффекты сеткой общего с карточками размера
+r.tableMoneyUnderName = await p.$$eval(".pd-group-row .pd-group-card-id .pd-group-coins", (e) => e.length);
+r.tableNoMoneyColumn = await p.$$eval(".pd-group-col--money", (e) => e.length) === 0;
+// Таблица: доп. колонка опыта включается своей галкой (раздельные настройки с карточками)
+await pickDisplay('[data-show-table="Xp"]'); await p.waitForTimeout(400);
+r.tableXpCol = await p.$$eval(".pd-group-head .pd-group-cell--extra", (e) => e.map((x) => x.textContent.trim()));
+await pickDisplay('[data-show-table="Xp"]'); await p.waitForTimeout(300);
+r.tableXpColOff = await p.$$eval(".pd-group-head .pd-group-cell--extra", (e) => e.length);
+r.tableFxSizedBySetting = await p.$$eval(".pd-group-row .pd-group-fx.is-big, .pd-group-row .pd-group-fx:not(.is-big)", (e) => e.length) > 0;
 
 // --- Казна группы, сундук, выбор токена и приём вещей на карточку ---
 // Сундук - настоящий NPC, которого НЕТ среди участников: так проверяется и то,
@@ -108,9 +127,8 @@ await p.evaluate(() => {
   });
   game.settings.set("wfrp4e-paperdoll", "stashActor", stash.id);
 });
-await p.click('.pd-group-viewtoggle [data-view="card"]'); await p.waitForTimeout(400);
+await pickDisplay('[data-view="card"]'); await p.waitForTimeout(400);
 r.treasuryCoins = await p.$$eval(".pd-group-treasury .pd-coin", (e) => e.length);
-r.stashBtnInGroup = await p.$$eval(".pd-group-stash-btn", (e) => e.length);
 // Монеты казны не должны прилипать к правому краю окна
 r.treasuryGapRight = await p.evaluate(() => {
   const coins = document.querySelectorAll(".pd-group-treasury .pd-coin");
@@ -128,6 +146,13 @@ await p.click(".pd-group-card:nth-child(1) .pd-group-pick"); await p.waitForTime
 r.tokenControlled = await p.evaluate(() => canvas.tokens.controlled.length);
 await p.dblclick(".pd-group-card:nth-child(1) .pd-group-pick"); await p.waitForTimeout(200);
 r.tokenPanned = await p.evaluate(() => !!canvas.__pan);
+// Клик по монете в шапке - про деньги, токен выбираться не должен
+r.coinClickNoPick = await p.evaluate(async () => {
+  canvas.tokens.controlled.length = 0;
+  document.querySelector(".pd-group-card .pd-group-card-money .pd-coin")?.click();
+  await new Promise((res) => setTimeout(res, 250));
+  return canvas.tokens.controlled.length === 0;
+});
 
 // Перетаскивание вещи на карточку персонажа передаёт её владельцу карточки
 r.dropTargets = await p.$$eval(".pd-group-drop", (e) => e.length);
@@ -150,6 +175,174 @@ r.dropMoved = await p.evaluate(() => {
   const target = window.__PD_actors.filter((a) => a.type === "character")[1];
   return `${m.name} ${m.before}->${target.items.filter((i) => i.name === m.name).length}`;
 });
+
+// --- Окно сундука: деньги сверху, сетка как «При себе», сортировка, выдача и живое обновление ---
+await p.evaluate(() => {
+  // кладём в сундук пару вещей, чтобы было что показывать и забирать
+  const stash = game.actors.get("stash1");
+  const donor = window.__PD_actors.find((a) => a.type === "character");
+  for (const i of donor.items.filter((x) => ["trapping", "weapon"].includes(x.type)).slice(0, 3)) {
+    stash.items.push({ id: "st-" + i.id, name: i.name, type: i.type, img: i.img, parent: stash,
+                       uuid: `Actor.stash1.Item.st-${i.id}`, system: structuredClone(i.system),
+                       toDragData: () => ({ type: "Item", uuid: `Actor.stash1.Item.st-${i.id}` }),
+                       update: async function (d) { for (const [k, v] of Object.entries(d)) foundry.utils.setProperty(this, k, v); },
+                       delete: async function () { stash.items.splice(stash.items.indexOf(this), 1); Hooks.call("deleteItem", this); },
+                       toObject: function () { return { name: this.name, type: this.type, img: this.img, system: structuredClone(this.system) }; } });
+    Hooks.call("createItem", stash.items.at(-1));   // в живом Foundry этот хук шлёт сама система
+  }
+});
+// Сундук теперь «под катом» прямо в окне группы: заголовок с числом предметов
+await p.evaluate(() => [...window.PaperdollApp?.instances?.values?.() ?? []]); // no-op, ждём перерисовку
+await p.waitForTimeout(400);
+r.stashCut = await p.$$eval(".pd-group-stashcut", (e) => e.length);
+r.stashCutCount = await p.$eval(".pd-group-stashcount", (e) => e.textContent.trim()).catch(() => null);
+await p.click(".pd-group-stashcut summary"); await p.waitForTimeout(500);
+r.stashCutOpen = await p.$$eval(".pd-group-stashcut[open]", (e) => e.length);
+// Отступ окна: в ядре есть правило с !important и большей специфичностью, из-за него
+// содержимое окна группы прилипало к краю.
+r.padGroup = await p.evaluate(() => getComputedStyle(document.querySelector(".wfrp-paperdoll-group .window-content")).padding);
+// Кнопки шапки должны быть одного размера - за это отвечает общий класс .pd-btn
+r.btnHeights = await p.evaluate(() =>
+  [...document.querySelectorAll(".pd-group-toolbar .pd-btn")].map((b) => Math.round(b.getBoundingClientRect().height))
+);
+r.stashSortBtnCut = await p.$$eval(".pd-group-stashcut .pd-stash-sortbtn", (e) => e.length);
+
+r.stashCells = await p.$$eval(".pd-group-stashcut .pd-bag-grid .pd-item", (e) => e.length);
+r.stashEmptyCells = await p.$$eval(".pd-group-stashcut .pd-bag-cell", (e) => e.length);
+// деньги в сетку попадать не должны - они показаны сверху
+r.stashNoMoneyInGrid = await p.$$eval(".pd-group-stashcut .pd-bag-grid .pd-item img", (e) => e.length) === r.stashCells;
+// сундук - отдельный блок под «При себе», внутри кнопка «Открыть сундук группы»
+r.stashSection = await p.$$eval(".pd-bag-list .pd-stash-section", (e) => e.length);
+r.stashOpenBtn = await p.$$eval(".pd-stash-section .pd-stash-open", (e) => e.length);
+r.stashSectionLast = await p.evaluate(() => {
+  const secs = [...document.querySelectorAll(".pd-bag-list .pd-bagsec")];
+  return secs.at(-1)?.classList.contains("pd-stash-section") ?? false;
+});
+// сортировка переключается
+await p.click(".pd-group-stashcut .pd-stash-sortbtn"); await p.waitForTimeout(250);
+r.stashSortMenuOpen = await p.$$eval(".pd-group-stashcut .pd-sortmenu.is-open", (e) => e.length);
+await p.click('.pd-group-stashcut [data-stash-sort="name-asc"]'); await p.waitForTimeout(400);
+r.stashSortApplied = await p.evaluate(() => {
+  const names = [...document.querySelectorAll(".pd-group-stashcut .pd-item-name")].map((e) => e.textContent.trim());
+  return JSON.stringify(names) === JSON.stringify([...names].sort((a, b) => a.localeCompare(b, "ru")));
+});
+r.stashStillOpenAfterSort = await p.$$eval(".pd-group-stashcut[open]", (e) => e.length);
+// Вид «список с названиями» - как в сумке игрока; действует и на отдельное окно
+await p.evaluate(() => [...document.querySelectorAll('.pd-stash-sumsort [data-stash-view="list"]')].at(0)?.click());
+await p.waitForTimeout(400);
+r.stashListView = await p.evaluate(() => {
+  const n = document.querySelector(".pd-group-stashbody .pd-bag-list.is-list .pd-item-name");
+  return !!n && getComputedStyle(n).display !== "none" && n.textContent.trim().length > 0;
+});
+await p.evaluate(() => [...document.querySelectorAll('.pd-stash-sumsort [data-stash-view="grid"]')].at(0)?.click());
+await p.waitForTimeout(400);
+r.stashGridBack = await p.evaluate(() => !document.querySelector(".pd-group-stashbody .pd-bag-list.is-list"));
+// Кнопка сортировки - в конце аккордеона, ниже сетки с вещами
+r.stashSortAtBottom = await p.evaluate(() => {
+  const top = document.querySelector(".pd-group-stashbody .pd-stash-top");
+  const grid = document.querySelector(".pd-group-stashbody .pd-bag-grid");
+  return !!top && !!grid && top.getBoundingClientRect().top > grid.getBoundingClientRect().bottom;
+});
+// живое обновление: удаление вещи из сундука перерисовывает окно само
+r.stashLive = await p.evaluate(async () => {
+  const before = document.querySelectorAll(".pd-group-stashcut .pd-bag-grid .pd-item").length;
+  await game.actors.get("stash1").items.find((i) => i.type !== "money").delete();
+  await new Promise((res) => setTimeout(res, 400));
+  return `${before} -> ${document.querySelectorAll(".pd-group-stashcut .pd-bag-grid .pd-item").length}`;
+});
+// отдельное окно сундука по-прежнему открывается из блока «При себе» (api.openStash)
+await p.evaluate(() => window.__PD_API__?.addons?.get("party") && window.__PD_API__.openStash?.());
+r.stashWindow = await p.evaluate(() => document.querySelectorAll(".wfrp-paperdoll-stash").length);
+
+// --- Консистентность эффектов: ЛКМ снимает бафф/дебафф так же, как в основном окне ---
+await p.evaluate(() => {
+  // подтверждение снятия в моке отвечаем «да», иначе диалог повиснет
+  const D = foundry.applications?.api?.DialogV2;
+  if (D) D.confirm = async () => true;
+  const a = window.__PD_actors.find((x) => x.type === "character");
+  a.effects.push({ id: "fx-curse", name: "Проклятая топь", img: null, disabled: false, transfer: false,
+                   statuses: [], changes: [], parent: a,
+                   delete: async function () { a.effects.splice(a.effects.indexOf(this), 1); Hooks.call("deleteActiveEffect", this); Hooks.call("updateActor", a, {}); } });
+  a.effects.get = (id) => a.effects.find((e) => e.id === id);
+});
+await p.waitForTimeout(500);
+await pickDisplay('[data-view="card"]'); await p.waitForTimeout(400);
+r.fxBeforeRemove = await p.evaluate(() => window.__PD_actors.find((x) => x.type === "character").effects.length);
+const curse = await p.$('.pd-group-fx-icon[data-effect-id="fx-curse"]');
+if (curse) { await curse.click(); await p.waitForTimeout(600); }
+r.fxAfterLmb = await p.evaluate(() => window.__PD_actors.find((x) => x.type === "character").effects.length);
+
+// Длительность и уровень эффекта в окне ГМ - те же значки, что в ленте основного окна
+await p.evaluate(() => {
+  const a = window.__PD_actors.find((x) => x.type === "character");
+  a.effects.push({ id: "fx-timed", name: "Благословение стойкости", img: null, disabled: false, transfer: false,
+                   statuses: [], changes: [], parent: a,
+                   duration: { rounds: 6, startRound: 1, startTime: 0 },
+                   delete: async function () { a.effects.splice(a.effects.indexOf(this), 1); Hooks.call("updateActor", a, {}); } });
+  [...window.PaperdollApp.instances.values()].forEach((x) => x.render());
+  game.combat = { round: 2, started: true };
+});
+await pickDisplay('[data-view="card"]'); await p.waitForTimeout(500);
+r.fxDurationShown = await p.$$eval(".pd-group-fx-icon .pd-effect-left", (e) => e.map((x) => x.textContent.trim()));
+r.fxIsWrapper = await p.$$eval(".pd-group-fx-icon img", (e) => e.length);
+
+// Крупные иконки эффектов: с настройкой бейджи видны, без неё - спрятаны
+r.bigFxDefault = await p.$$eval(".pd-group-card-fx.is-big", (e) => e.length) > 0;
+// «+» стоит в той же сетке, что иконки: совпадает по верху с первым рядом или стоит в колонке сетки
+r.plusAlignedInGrid = await p.evaluate(() => {
+  const grid = [...document.querySelectorAll(".pd-group-card-fx")].find((g) => g.querySelector(".pd-group-fx-icon"));
+  if (!grid) return "нет сетки с иконками";
+  const btn = grid.querySelector(".pd-group-addfx-btn");
+  const icons = [...grid.querySelectorAll(".pd-group-fx-icon")];
+  const bw = btn.getBoundingClientRect();
+  const iw = icons[0].getBoundingClientRect();
+  const gridRect = grid.getBoundingClientRect();
+  const cs = getComputedStyle(grid);
+  const step = iw.width + (parseFloat(cs.columnGap) || 0);
+  // «+» того же размера и стоит на шаге сетки от её левого края
+  const sameSize = Math.round(bw.width) === Math.round(iw.width);
+  const onGrid = Math.abs(((bw.left - gridRect.left) % step + step) % step) <= 1;
+  return sameSize && onGrid;
+});
+await pickDisplay('[data-bigfx="small"]'); await p.waitForTimeout(400);
+r.bigFxOff = await p.$$eval(".pd-group-card-fx.is-big", (e) => e.length);
+r.badgeHiddenWhenSmall = await p.evaluate(() => {
+  const b = document.querySelector(".pd-group-card-fx:not(.is-big) .pd-effect-left");
+  return !b || getComputedStyle(b).display === "none";
+});
+await pickDisplay('[data-bigfx="big"]'); await p.waitForTimeout(400);
+r.bigFxBackOn = await p.$$eval(".pd-group-card-fx.is-big", (e) => e.length) > 0;
+// Брони больше нет ни в карточке, ни в таблице, ни в панели «Отображение»
+// Раздел размера иконок виден только при включённых эффектах
+await pickDisplay('[data-show="Effects"]'); await p.waitForTimeout(300);
+r.fxSizeHiddenWithoutFx = await p.$$eval(".pd-group-displaymenu [data-bigfx]", (e) => e.length) === 0;
+await pickDisplay('[data-show="Effects"]'); await p.waitForTimeout(300);
+r.fxSizeBackWithFx = await p.$$eval(".pd-group-displaymenu [data-bigfx]", (e) => e.length) === 2;
+r.armourGone = await p.evaluate(() =>
+  !document.querySelector(".pd-group-card-ap") && !document.querySelector(".pd-group-col--ap") && !document.querySelector('[data-show="Armour"]'));
+
+// Полосы карточек - разметка .pd-vital ядра; вторая полоса переключается шестерёнкой
+r.cardVitalBars = await p.$$eval(".pd-group-card .pd-vital", (e) => e.length);
+r.secondBarDefault = await p.$eval(".pd-group-card .pd-vital--second span", (e) => e.textContent.trim()).catch(() => null);
+// закрываем панель «Отображение», если открыта - иначе она перекрывает шестерёнку
+await p.evaluate(() => document.querySelector(".pd-group-displaymenu")?.classList.remove("is-open"));
+await p.waitForTimeout(150);
+await p.click(".pd-group-card .pd-group-vopts"); await p.waitForTimeout(250);
+await p.click('.pd-group-barmenu.is-open [data-gbar="resolve"]'); await p.waitForTimeout(500);
+r.secondBarSwitched = await p.$eval(".pd-group-card .pd-vital--second span", (e) => e.textContent.trim()).catch(() => null);
+// Выбор персональный: у остальных карточек полоса не изменилась
+r.secondBarOthersKept = await p.$eval(".pd-group-card:nth-child(2) .pd-vital--second span", (e) => e.textContent.trim()).catch(() => null);
+await p.evaluate(() => game.settings.set("wfrp4e-paperdoll", "groupSecondBars", {})); await p.waitForTimeout(400);
+
+// --- Панель «Отображение»: скрытие данных, сортировка и значок статуса ---
+r.dotAlwaysShown = await p.$$eval(".pd-group-card-head .pd-group-dot", (e) => e.length);
+r.dotInsidePortrait = await p.$$eval(".pd-group-portrait .pd-group-dot", (e) => e.length);
+r.moneyBeforeHide = await p.$$eval(".pd-group-card-money", (e) => e.length);
+await pickDisplay('[data-show="Money"]'); await p.waitForTimeout(300);
+r.moneyAfterHide = await p.$$eval(".pd-group-card-money", (e) => e.length);
+r.nameStillShown = await p.$$eval(".pd-group-card-head .pd-group-name", (e) => e.length);
+await pickDisplay('[data-show="Money"]'); await p.waitForTimeout(300);
+r.moneyBackAfterToggle = await p.$$eval(".pd-group-card-money", (e) => e.length);
 
 console.log(JSON.stringify(r), "errors:", errs);
 await b.close();

@@ -43,9 +43,26 @@ for (let a = 0; a < nActors; a++) {
   await p.click('.pd-sortbtn'); await p.click('.pd-sortopt[data-view="list"]'); await p.waitForTimeout(150);
   ok(`${name} list view`, !!await p.$('.pd-bag-list.is-list'));
   await p.click('.pd-sortbtn'); await p.click('.pd-sortopt[data-view="grid"]'); await p.waitForTimeout(150);
-  // 3. Разложить
-  const pack = await p.$('.pd-pack:not(.is-idle)');
-  if (pack) { await pack.click(); await p.waitForTimeout(300); ok(`${name} pack`, true); }
+  // 3. Разложить: сперва сам надевает самые вместительные сумки в свободные слоты
+  const packState = await p.evaluate(async () => {
+    const app = [...window.PaperdollApp.instances.values()].find((x) => x.rendered);
+    const a = app.actor;
+    const worn = () => a.items.filter((i) => i.type === 'container' && i.system.isEquipped);
+    const before = worn().length;
+    const spareCaps = a.items
+      .filter((i) => i.type === 'container' && !i.system.isEquipped)
+      .map((i) => Number(i.system.carries?.value) || 0)
+      .sort((x, y) => y - x);
+    await app._autoPack();
+    await new Promise((r) => setTimeout(r, 400));
+    const after = worn();
+    return { before, spare: spareCaps.length, after: after.length,
+             caps: after.map((c) => Number(c.system.carries?.value) || 0).sort((x, y) => y - x), topSpare: spareCaps[0] ?? 0 };
+  });
+  // если были свободные слоты и запасные сумки - самая вместительная должна оказаться надетой
+  const grew = packState.after >= packState.before;
+  const bestUsed = packState.before >= 3 || !packState.spare || packState.caps.includes(packState.topSpare);
+  ok(`${name} pack equips best bags`, grew && bestUsed, JSON.stringify(packState));
   // 4. переполнение сумки: проверка, что used <= cap для всех надетых сумок
   // 5. деньги
   const m0 = await p.$$eval('.pd-coin', e => e.map(x => x.textContent.trim()).join(' '));
@@ -106,6 +123,138 @@ if (slot) {
 }
 await p.evaluate(() => document.getElementById('ui-bottom')?.remove());
 
+// Применение вещи (Shift+ПКМ) и значки бросков/денег в подсказке
+await p.check('#mock-gm').catch(() => {});   // цены в описании видит только ГМ
+await p.waitForTimeout(200);
+// К этому месту прогон заканчивается на последнем персонаже (у мага сумка пустая),
+// поэтому возвращаемся к первому, затем к сумке и фильтру «Всё»
+if (await p.$('#mock-cast')) { await p.selectOption('#mock-cast', '0'); await p.waitForTimeout(600); }
+await p.click('.pd-tab[data-tab="bag"]').catch(() => {});
+await p.click('.pd-filter[data-filter="all"]').catch(() => {});
+await p.waitForTimeout(300);
+const useId = await p.evaluate(() => {
+  // берём актёра ОТКРЫТОГО окна: в сборке с переключателем это не обязательно первый в списке
+  const app = [...window.PaperdollApp.instances.values()].find((x) => x.rendered);
+  const a = app?.actor ?? window.__PD_actors[0];
+  window.__useActor = a.id;
+  const inBag = new Set([...document.querySelectorAll('.pd-bag-grid .pd-item[data-item-id]:not(.is-ghost)')].map((e) => e.dataset.itemId));
+  // Предпочитаем снаряжение (проверяет разбор по типу), иначе любую вещь с признаком расходника
+  const it = a.items.find((i) => i.type === 'trapping' && inBag.has(i.id)) ?? a.items.find((i) => inBag.has(i.id));
+  if (!it) return null;
+  if (it.type === 'trapping') it.system.trappingType = { value: 'drugsPoisonsHerbsDraughts' };
+  else it.system.consumable = true;
+  it.system.quantity = { value: 2 };
+  it.system.description = { value: '<p><strong>Начало действия:</strong> 1d10 раундов</p><p><strong>Цена ингредиентов:</strong> 6 ЗК</p>' };
+  window.__chat = [];
+  const oc = ChatMessage.create;
+  ChatMessage.create = (d) => { window.__chat.push(d); return oc?.(d); };
+  [...window.PaperdollApp.instances.values()].forEach((x) => x.render());
+  return it.id;
+});
+ok('usable item found', !!useId, String(useId));
+if (useId) {
+  await p.waitForTimeout(500);
+  const fire = (type, shift) => p.evaluate(([id, type, shift]) => {
+    const el = document.querySelector(`.pd-bag-grid .pd-item[data-item-id="${id}"]:not(.is-ghost)`);
+    el?.dispatchEvent(type === 'pointerenter'
+      ? new PointerEvent(type, { bubbles: true, clientX: 500, clientY: 420 })
+      : new MouseEvent(type, { bubbles: true, cancelable: true, shiftKey: shift }));
+  }, [useId, type, shift]);
+  await fire('pointerenter'); await p.waitForTimeout(400);
+  const dice = await p.$$eval('.wfrp-paperdoll-tooltip .pd-chip--dice', (e) => e.map((x) => x.textContent.trim()));
+  const coin = await p.$$eval('.wfrp-paperdoll-tooltip .pd-tt-prop .pd-tt-coin .pd-coin-dot', (e) => e.length);
+  const hint = await p.$eval('.wfrp-paperdoll-tooltip .pd-tt-hint', (e) => e.textContent).catch(() => '');
+  ok('tooltip dice chip', dice.includes('1d10'), JSON.stringify(dice));
+  const samePath = await p.evaluate(() => {
+    const chip = document.querySelector('.wfrp-paperdoll-tooltip .pd-chip--dice svg path');
+    const roll = document.querySelector('.pd-roll svg path');
+    return !!chip && !!roll && chip.getAttribute('d') === roll.getAttribute('d');
+  });
+  ok('dice icon matches weapon roll', samePath);
+  ok('ingredient price as coin', coin > 0, `coins=${coin}`);
+  ok('use hint shown', /Shift/i.test(hint) && !hint.includes('WFRPPD'), hint);
+  const qty = () => p.evaluate((id) => {
+    const a = window.__PD_actors.find((x) => x.id === window.__useActor);
+    return a.items.find((i) => i.id === id).system.quantity.value;
+  }, useId);
+  const before = await qty();
+  await fire('contextmenu', true); await p.waitForTimeout(600);
+  const after = await qty();
+  ok('shift+rmb uses item', after === before - 1, `${before} -> ${after}`);
+  ok('use posts to chat', (await p.evaluate(() => window.__chat.length)) > 0);
+  await fire('contextmenu', false); await p.waitForTimeout(400);
+  ok('plain rmb does not use', (await qty()) === after);
+}
+
+// Лента эффектов основного окна: ЛКМ снимает бафф/дебафф - то же поведение, что в окне группы
+const fxRemoved = await p.evaluate(async () => {
+  const D = foundry.applications?.api?.DialogV2;
+  if (D) D.confirm = async () => true;
+  const app = [...window.PaperdollApp.instances.values()].find((x) => x.rendered);
+  const a = app?.actor;
+  if (!a) return null;
+  const fx = { id: 'fx-test', name: 'Тестовый дебафф', img: null, disabled: false, transfer: false,
+               statuses: [], changes: [], parent: a,
+               delete: async function () { a.effects.splice(a.effects.indexOf(this), 1); Hooks.call('updateActor', a, {}); } };
+  a.effects.push(fx);
+  if (!a.effects.get) a.effects.get = (id) => a.effects.find((e) => e.id === id);
+  app.render();
+  await new Promise((r) => setTimeout(r, 500));
+  const before = a.effects.length;
+  const el = [...document.querySelectorAll('.pd-effect')].at(-1);
+  el?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  await new Promise((r) => setTimeout(r, 600));
+  return `${before} -> ${a.effects.length}`;
+});
+if (fxRemoved) ok('lmb removes effect in main window', /^(\d+) -> (\d+)$/.test(fxRemoved) && Number(fxRemoved.split(' -> ')[1]) < Number(fxRemoved.split(' -> ')[0]), fxRemoved);
+
+// Сравнение по Shift: у сравниваемого оружия тоже есть «Шанс попасть».
+// К этому месту прогон мог переодеть персонажа - надеваем цеп сами, иначе сравнивать не с чем
+await p.evaluate(async () => {
+  const a = window.__PD_actors.find((x) => x.id === (window.__useActor ?? 'hugo')) ?? window.__PD_actors[0];
+  // прогон мог надеть меч и снять цеп - возвращаем: цеп в руке, меч в сумке
+  const sword = a.items.find((i) => i.id === 'sword');
+  if (sword?.system.equipped?.value) await sword.update({ 'system.equipped.value': false });
+  const flail = a.items.find((i) => i.id === 'flail');
+  if (flail && !flail.system.equipped?.value) await flail.update({ 'system.equipped.value': true });
+  [...window.PaperdollApp.instances.values()].forEach((x) => x.render());
+});
+await p.waitForTimeout(500);
+await p.evaluate(() => {
+  const el = [...document.querySelectorAll('.pd-bag-grid .pd-item')].find((e) => e.dataset.itemId === 'sword');
+  el?.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true, clientX: 600, clientY: 400, shiftKey: true }));
+});
+await p.waitForTimeout(600);
+const cmpChance = await p.evaluate(() => {
+  const cmp = document.querySelector('.wfrp-paperdoll-tooltip.is-compare.is-visible');
+  if (!cmp) {
+    const a = window.__PD_actors.find((x) => x.id === (window.__useActor ?? 'hugo'));
+    return 'окна нет: меч=' + !!document.querySelector('.pd-bag-grid .pd-item[data-item-id=sword]') +
+      ' цеп=' + a?.items.find((i) => i.id === 'flail')?.system.equipped?.value +
+      ' осн.подсказка=' + !!document.querySelector('.wfrp-paperdoll-tooltip.is-visible') +
+      ' опция=' + game.settings.get('wfrp4e-paperdoll', 'shiftCompare');
+  }
+  return [...cmp.querySelectorAll('.pd-tt-ap-row')].some((r) => /Шанс|chance/i.test(r.textContent)) ? 'есть' : 'НЕТ СТРОКИ';
+});
+ok('compare shows hit chance', cmpChance === 'есть', cmpChance);
+await p.evaluate(() => document.querySelectorAll('.wfrp-paperdoll-tooltip').forEach((e) => e.classList.remove('is-visible')));
+
+// Применение яда вешает его дебафф на персонажа (эффект лежит на предмете, transfer: false)
+const poisonFx = await p.evaluate(async () => {
+  const a = window.__PD_actors.find((x) => x.id === (window.__useActor ?? 'hugo')) ?? window.__PD_actors[0];
+  const el = document.querySelector('.pd-bag-grid .pd-item[data-item-id="poison"]:not(.is-ghost)');
+  if (!el) return null;
+  const before = a.effects.length;
+  el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, shiftKey: true }));
+  await new Promise((r) => setTimeout(r, 700));
+  const fx = a.effects.at(-1);
+  return { grew: a.effects.length === before + 1, name: fx?.name, origin: fx?.origin ?? null };
+});
+if (poisonFx) {
+  ok('use applies item effect', poisonFx.grew && poisonFx.name === 'Чёрный лотос', JSON.stringify(poisonFx));
+  ok('applied effect keeps origin', /Item\.poison/.test(poisonFx.origin ?? ''), String(poisonFx.origin));
+}
+
 // Главный выключатель: выключенный модуль закрывает окна и не открывает новые.
 // В самом конце - дальше проверять уже нечего.
 const off = await p.evaluate(async () => {
@@ -124,6 +273,7 @@ ok('disabled closes windows', off.closed);
 ok('disabled blocks opening', off.blocked);
 ok('re-enabled opens again', off.back);
 
+if (process.env.PD_QA_LIST) console.log(results.join('\n'));
 console.log(results.filter(r => r.startsWith('FAIL')).join('\n') || 'all pass', `(${results.length} checks)`);
 console.log('toasts', (await toasts()).slice(-5));
 console.log('errors', [...new Set(errs)].slice(0, 15));

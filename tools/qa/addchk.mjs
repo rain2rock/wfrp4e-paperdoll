@@ -12,7 +12,7 @@ for (const who of ["Хьюго", "Гюнтер"]) {
   const tabs = await p.$$eval(".pd-tab", (e) => e.map((x) => x.dataset.tab));
   for (const t of tabs) { await p.click(`.pd-tab[data-tab="${t}"]`); await p.waitForTimeout(250); }
   await p.click('.pd-tab[data-tab="stats"]'); await p.waitForTimeout(200);
-  out[who] = { tabs, maim: await p.$$eval(".pd-maim", (e) => e.length), extra: await p.$$eval(".pd-slot.is-extra", (e) => e.length), adv: await p.$$eval(".pd-adv", (e) => e.length), stashBtn: await p.$$eval(".pd-stashbtn", (e) => e.length), effects: await p.$$eval(".pd-effect", (e) => e.length), talentAdd: await p.$$eval(".pd-talent-add", (e) => e.length) };
+  out[who] = { tabs, maim: await p.$$eval(".pd-maim", (e) => e.length), extra: await p.$$eval(".pd-slot.is-extra", (e) => e.length), adv: await p.$$eval(".pd-adv", (e) => e.length), stashBtn: await p.$$eval(".pd-stash-section .pd-stash-open", (e) => e.length), effects: await p.$$eval(".pd-effect", (e) => e.length), talentAdd: await p.$$eval(".pd-talent-add", (e) => e.length) };
 }
 console.log(JSON.stringify(out), "errors:", errs);
 await b.close();

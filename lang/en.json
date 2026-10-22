@@ -201,7 +201,7 @@
       "HintCondition": "LMB - remove 1 level · Shift+LMB - remove all · RMB - details",
       "HintOpen": "Click to open",
       "HintSheet": "Right-click for details",
-      "HintRemovable": "LMB - open · Shift+LMB - remove · RMB - details",
+      "HintRemovable": "LMB removes · RMB for details",
       "DeleteConfirm": "Remove «{name}» from the character? This cannot be undone.",
       "DeleteTitle": "Remove effect",
       "From": "Source: {name}",
@@ -269,6 +269,10 @@
       "ItemIcons": {
         "Name": "Module item icons",
         "Hint": "Replace wfrp4e-core placeholder icons (sack, sword, bow) with the module's drawn icons."
+      },
+      "Enabled": {
+        "Name": "Module enabled",
+        "Hint": "Turn off to keep the module installed but inactive: no sheet button, no hotkey, no token double-click override. World setting: affects the whole table."
       }
     },
     "Article": {
@@ -460,13 +464,15 @@
         "display": "Display",
         "rules": "Rules",
         "controls": "Controls",
-        "translate": "Translation"
+        "translate": "Translation",
+        "general": "General"
       },
       "Intro": {
         "display": "What the window shows. Each player has their own settings.",
         "rules": "Which WFRP rules the module handles for you.",
         "controls": "Hotkeys, clicks and drag & drop. The window key is changed in Foundry's Configure Controls.",
-        "translate": "Translating English compendium data."
+        "translate": "Translating English compendium data.",
+        "general": "Master switch for the module. The other tabs configure how it behaves."
       }
     },
     "Career": {
@@ -490,14 +496,11 @@
       "Advantage": "advantage {n}",
       "Surrounded": "engaged with {n}",
       "WillApply": "Modifiers:"
+    },
+    "Use": {
+      "Hint": "Shift+right-click to use",
+      "Chat": "{who} uses {item}",
+      "Empty": "{name} - none left"
     }
-  },
-  "WFRPPD.Settings.Enabled.Name": "Module enabled",
-  "WFRPPD.Settings.Enabled.Hint": "Turn off to keep the module installed but inactive: no sheet button, no hotkey, no token double-click override. World setting: affects the whole table.",
-  "WFRPPD.SettingsMenu.Tab.general": "General",
-  "WFRPPD.SettingsMenu.Intro.general": "Master switch for the module. The other tabs configure how it behaves.",
-  "WFRPPD.Group.OpenStash": "Party stash",
-  "WFRPPD.Group.TreasuryHint": "LMB adds a coin, RMB removes one. Hold Shift for 10",
-  "WFRPPD.Group.PickHint": "LMB selects the token, double-click pans to it",
-  "WFRPPD.Group.NoToken": "This character has no token on the current scene"
+  }
 }

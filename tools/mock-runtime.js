@@ -419,6 +419,15 @@
       this.prepare();
     }
     async createEmbeddedDocuments(type, list) {
+      // Эффекты: применение зелья вешает его бафф или дебафф на актёра
+      if (type === "ActiveEffect") {
+        const made = list.map((d, i) => new FakeEffect(this, { ...JSON.parse(JSON.stringify(d)), id: `fx-${Date.now()}-${i}`, transfer: false }));
+        this.effects.push(...made);
+        Hooks.call("createActiveEffect", made[0]);
+        Hooks.call("updateActor", this, {});
+        window.PaperdollApp?.renderAll?.();
+        return made;
+      }
       const made = list.map((d, i) => new FakeItem(this, { ...JSON.parse(JSON.stringify(d)), id: `new-${Date.now()}-${i}` }));
       this.items.push(...made);
       Hooks.call("createItem", made[0]);

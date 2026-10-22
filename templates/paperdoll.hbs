@@ -16,7 +16,7 @@
             {{#if showAP}}<span class="pd-ap" title="AP: {{label}}">{{ap}}</span>{{/if}}
             {{#if maim}}<span class="pd-maim {{#if maim.ok}}is-ok{{/if}} {{#if maim.partial}}is-partial{{/if}}" data-maim="{{maim.loc}}"><img src="{{maim.img}}" alt=""></span>{{/if}}
             {{#if warn}}<span class="pd-slot-warn" title="{{warn.title}}"></span>{{/if}}
-            {{#if rollId}}<button type="button" class="pd-roll" data-roll-item="{{rollId}}" title="{{localize "WFRPPD.Roll.Attack"}}" aria-label="{{localize "WFRPPD.Roll.Attack"}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 21 7v10l-9 5-9-5V7z M12 2v20 M3 7l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>{{/if}}
+            {{#if rollId}}<button type="button" class="pd-roll" data-roll-item="{{rollId}}" title="{{localize "WFRPPD.Roll.Attack"}}" aria-label="{{localize "WFRPPD.Roll.Attack"}}">{{{@root.art.diceSvg}}}</button>{{/if}}
           </div>
         </div>
 {{/inline}}
@@ -229,7 +229,7 @@
             <button type="button" class="pd-talentopt {{#unless can}}is-off{{/unless}}" data-buy="{{name}}">
               <img src="{{img}}" alt="">
               <span class="pd-talentopt-body"><b>{{label}}</b> <i>{{lvl}}{{#if max}} / {{max}}{{/if}}</i><span class="pd-talentopt-cost">{{#if capped}}max{{else}}{{costLabel}}{{/if}}</span>
-                {{#if text}}<small>{{text}}</small>{{/if}}</span>
+                {{#if text}}<small class="pd-tr">{{text}}</small>{{/if}}</span>
             </button>
             {{/each}}
           </div>{{/if}}

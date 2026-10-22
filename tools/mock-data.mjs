@@ -61,31 +61,35 @@ export const actorData = {
     settings: { equipPoints: 2 }
   },
   items: [
+    // --- Оружие. Держим ровно четыре: ближний бой со шкалой от характеристики, стрелковое
+    // с фиксированным уроном, двуручное и щит. Больше для проверки макета не нужно.
     { id: "flail", name: "Цеп", type: "weapon", img: icon("⛓️", "#6a5a4a"),
       system: weapon({ equipped: { value: true }, twohanded: { value: true }, weaponGroup: { value: "flail" }, damage: { value: "SB+5" },
         _qualities: ["Отвлекающее", "Обвивающее"], _flaws: ["Опасное"], availability: { value: "scarce" }, encumbrance: { value: 1 }, price: { gc: 2 },
         description: { value: "<p>Тяжёлые цепи с шипами, которыми флагеллант бичует себя и врагов Сигмара.</p>" } }) },
+    // Урон считается от Бонуса Силы - видно, как подсказка складывает итог
     { id: "sword", name: "Меч охотника на ведьм", type: "weapon", img: icon("⚔️", "#8a8a9a"),
       system: weapon({ damage: { value: "SB+4" }, _qualities: ["Пробивающее"], availability: { value: "rare" }, encumbrance: { value: 1 }, price: { gc: 1 },
         description: { value: "<p>Подарок храмовника, который не дожил до утра.</p>" } }) },
-    { id: "dagger", name: "Кинжал", type: "weapon", img: icon("🗡️", "#5a6a7a"),
-      system: weapon({ damage: { value: "SB+2" }, reach: { value: "vshort" }, price: { ss: 16 } }) },
-    { id: "whip", name: "Плеть", type: "weapon", img: icon("〰️", "#5a3020"),
-      system: weapon({ weaponGroup: { value: "flail" }, reach: { value: "long" }, damage: { value: "SB+2" }, _qualities: ["Быстрое", "Обвивающее"], _flaws: ["Слабое"], price: { ss: 5 } }) },
-    { id: "buckler", name: "Баклер", type: "weapon", img: icon("🔰", "#7a6a3a"),
-      system: weapon({ weaponGroup: { value: "parry" }, reach: { value: "personal" }, damage: { value: "SB+1" }, _qualities: ["Щит 1", "Защитное"], price: { ss: 18 } }) },
+    // Урон фиксированный, без характеристики - пара к мечу для сравнения
     { id: "sling", name: "Праща", type: "weapon", img: icon("🪨", "#6a6a5a"),
       system: weapon({ weaponGroup: { value: "sling" }, damage: { value: "+6" }, _ranged: true, _range: "60", price: { ss: 1 } }) },
+    { id: "buckler", name: "Баклер", type: "weapon", img: icon("🔰", "#7a6a3a"),
+      system: weapon({ weaponGroup: { value: "parry" }, reach: { value: "personal" }, damage: { value: "SB+1" }, _qualities: ["Щит 1", "Защитное"], price: { ss: 18 } }) },
+    { id: "bullets", name: "Свинцовые пули", type: "ammunition", img: icon("⚫", "#7a7a7a"),
+      system: trapping({ quantity: { value: 12 }, encumbrance: { value: 0 }, price: { bp: 2 },
+        description: { value: "<p>Литые пули для пращи. Тяжелее камней и летят ровнее.</p>" } }) },
+
+    // --- Броня: по одной на локацию, без дублей ---
     { id: "hood", name: "Кожаный капюшон", type: "armour", img: icon("🪖", "#5a4030"),
       system: armour({ head: 1 }, { equipped: { value: true }, _flaws: ["Частичное"], price: { ss: 5 } }) },
     { id: "jack", name: "Кожаная куртка", type: "armour", img: icon("🧥", "#7a5230"),
       system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 12 },
         description: { value: "<p>Потёртая кожаная куртка, пропитанная кровью и воском.</p>" } }) },
-    { id: "mail", name: "Кольчужная рубаха", type: "armour", img: icon("🛡️", "#7a7a8a"),
-      system: armour({ body: 2 }, { armorType: { value: "mail" }, _qualities: ["Гибкая"], availability: { value: "scarce" }, encumbrance: { value: 2 }, price: { gc: 3 },
-        description: { value: "<p>Снята с мёртвого рыцаря у дороги на Убершрейк.</p>" } }) },
     { id: "legs", name: "Кожаные штаны", type: "armour", img: icon("👖", "#6a4a2a"),
       system: armour({ rLeg: 1, lLeg: 1 }, { encumbrance: { value: 1 }, price: { ss: 14 } }) },
+
+    // --- Одежда и мелочи ---
     { id: "robe", name: "Рваная ряса", type: "trapping", img: icon("👘", "#4a3a5a"),
       system: trapping({ equipped: { value: true }, trappingType: { value: "clothingAccessories" }, encumbrance: { value: 1 }, price: { ss: 2 },
         description: { value: "<p>Ряса, порванная плетьми. На спине вышит молот Сигмара.</p>" } }) },
@@ -94,14 +98,41 @@ export const actorData = {
         description: { value: "<p>Серебряный молот Сигмара на чёрном шнуре. Тёплый на ощупь.</p>" } }) },
     { id: "sack", name: "Котомка", type: "container", img: icon("🎒", "#6a5530"),
       system: base({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 4 }, carries: { value: 2 } }) },
-    { id: "relic", name: "Палец святого", type: "trapping", img: icon("☝️", "#c9a45c"),
-      system: trapping({ availability: { value: "exotic" }, price: { gc: 10 },
-        description: { value: "<p>Высохший палец в серебряном ковчежце. Говорят, принадлежал мученику из Нульна.</p>" } }) },
+
+    // --- Применимое (Shift+ПКМ). У каждого своё: лечение, бафф и дебафф ---
+    { id: "potion-heal", name: "Лечебное зелье", type: "trapping", img: icon("🧪", "#6a2a4a"),
+      system: trapping({ trappingType: { value: "drugsPoisonsHerbsDraughts" }, quantity: { value: 3 }, availability: { value: "rare" }, price: { gc: 1 },
+        description: { value: "<p><strong>Начало действия:</strong> 1d10 раундов</p><p><strong>Цена ингредиентов:</strong> 6 ЗК</p><p>Горькое на вкус. Лечит 1d10 ран.</p>" } }) },
+    // Несёт настоящий эффект: применение (Shift+ПКМ) вешает бафф на персонажа
+    { id: "potion-rage", name: "Зелье ярости", type: "trapping", img: icon("🔥", "#8a3a1a"),
+      effects: [{ id: "fx-rage", name: "Зелье ярости", _icon: null, transfer: false, disabled: false,
+        duration: { rounds: 6 }, changes: [{ key: "system.characteristics.s.modifier", mode: 2, value: 10 }] }],
+      system: trapping({ trappingType: { value: "drugsPoisonsHerbsDraughts" }, availability: { value: "exotic" }, price: { gc: 3 },
+        description: { value: "<p><strong>Длительность:</strong> 6 раундов</p><p>Бафф: +10 к Силе, но -10 к Хладнокровию, пока действует.</p>" } }) },
+    // Несёт дебафф: после применения в ленте появляется «Чёрный лотос» со сроком
+    { id: "poison", name: "Яд «Чёрный лотос»", type: "trapping", img: icon("☠️", "#2a3a2a"),
+      effects: [{ id: "fx-lotus", name: "Чёрный лотос", _icon: null, transfer: false, disabled: false,
+        duration: { seconds: 7200 }, changes: [{ key: "system.characteristics.t.modifier", mode: 2, value: -20 }] }],
+      system: trapping({ trappingType: { value: "drugsPoisonsHerbsDraughts" }, quantity: { value: 2 }, availability: { value: "exotic" }, price: { gc: 5 },
+        description: { value: "<p><strong>Длительность:</strong> 2d6 часов</p><p>Дебафф: -20 к Стойкости. Нанести на клинок или подмешать в питьё.</p>" } }) },
+
+    // --- Нарочно «неудобные» случаи для проверки макета ---
+    // Без картинки: должна встать заглушка
+    { id: "splint", name: "Лубок", type: "trapping", img: null,
+      system: trapping({ trappingType: { value: "toolsAndKits" }, price: { bp: 8 },
+        description: { value: "<p>Две дощечки и ремешок. Держит сломанную кость, пока не найдётся врач.</p>" } }) },
+    // Без описания вовсе: подсказка должна остаться опрятной
+    { id: "chalk", name: "Мел", type: "trapping", img: icon("🖍️", "#c0c0b0"), system: trapping({ quantity: { value: 5 }, price: { bp: 1 } }) },
+    // Длинное название: проверяем обрезку в ячейке и в подсказке
+    { id: "indulgence", name: "Заверенная индульгенция Храма Сигмара с печатью лектора Альтдорфа", type: "trapping", img: icon("📜", "#c9b08a"),
+      system: trapping({ trappingType: { value: "booksAndDocuments" }, availability: { value: "rare" }, price: { gc: 2 },
+        description: { value: "<p>Бумага, отпускающая грехи за деньги. Стоила дороже, чем весит.</p>" } }) },
     { id: "tome", name: "Молитвенник Сигмара", type: "trapping", img: icon("📖", "#8a3a2a"),
       system: trapping({ availability: { value: "rare" }, trappingType: { value: "booksAndDocuments" }, price: { gc: 1 } }) },
+
+    // --- Внутри котомки: стопки, чтобы проверить счётчик количества ---
     { id: "candle", name: "Свечи", type: "trapping", img: icon("🕯️", "#a08050"), system: trapping({ location: { value: "sack" }, quantity: { value: 6 }, price: { bp: 1 } }) },
-    { id: "bandage", name: "Бинты", type: "trapping", img: icon("🩹", "#a09080"), system: trapping({ location: { value: "sack" }, quantity: { value: 4 }, price: { bp: 2 } }) },
-    { id: "water", name: "Фляга с водой", type: "trapping", img: icon("🫗", "#4a6a7a"), system: trapping({ availability: { value: "None" }, price: { bp: 3 } }) }
+    { id: "bandage", name: "Бинты", type: "trapping", img: icon("🩹", "#a09080"), system: trapping({ location: { value: "sack" }, quantity: { value: 4 }, price: { bp: 2 } }) }
   ]
 };
 
@@ -449,6 +480,38 @@ CAST.push({
  * Токены на «сцене» для проверки выбора целей: позиции в пикселях, клетка 100 px = 1 ярд сцены.
  * Кастер - Эльза, рядом раненый союзник, дальше ещё двое.
  */
+/**
+ * Сундук группы - отдельный NPC, которым владеют все игроки.
+ * Без него в моке не видно ни окна сундука, ни казны в окне группы: и кнопка, и казна
+ * появляются, только когда в настройках выбран актёр-сундук.
+ */
+export const STASH = {
+  id: "stash",
+  name: "Сундук группы",
+  img: icon("📦", "#7a5a2a"),
+  type: "npc",
+  career: null,
+  skills: [],
+  talents: [],
+  system: blankActor.system,
+  items: [
+    { id: "st-rope", name: "Верёвка (10 м)", type: "trapping", img: icon("🪢", "#8a7a4a"),
+      system: trapping({ encumbrance: { value: 1 }, price: { ss: 1 },
+        description: { value: "<p>Пеньковая верёвка. Держит взрослого человека.</p>" } }) },
+    { id: "st-lantern", name: "Фонарь", type: "trapping", img: icon("🏮", "#c9a45c"),
+      system: trapping({ trappingType: { value: "toolsAndKits" }, encumbrance: { value: 1 }, price: { ss: 9 },
+        description: { value: "<p>Масляный фонарь со ставнями.</p>" } }) },
+    { id: "st-draught", name: "Лечебное зелье", type: "trapping", img: icon("🧪", "#6a2a4a"),
+      system: trapping({ trappingType: { value: "drugsPoisonsHerbsDraughts" }, quantity: { value: 3 },
+        availability: { value: "rare" }, price: { gc: 1 },
+        description: { value: "<p><strong>Начало действия:</strong> 1d10 раундов</p><p><strong>Цена ингредиентов:</strong> 6 ЗК</p><p>Горькое на вкус, лечит 1d10 ран.</p>" } }) },
+    { id: "st-axe", name: "Топор", type: "weapon", img: icon("🪓", "#8a6a3a"),
+      system: weapon({ weaponGroup: { value: "basic" }, damage: { value: "SB+4" }, encumbrance: { value: 1 }, price: { ss: 10 } }) },
+    { id: "st-jerkin", name: "Кожаный жилет", type: "armour", img: icon("🦺", "#6a4a2a"),
+      system: armour({ body: 1 }, { encumbrance: { value: 1 }, price: { ss: 12 } }) }
+  ]
+};
+
 export const MOCK_TOKENS = [
   { id: "tok-priest", actorId: "priest", name: "Сестра Эльза", x: 500, y: 500 },
   { id: "tok-hugo", actorId: "hugo", name: "Хьюго Брандлин", x: 600, y: 500 },

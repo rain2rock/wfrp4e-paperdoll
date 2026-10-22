@@ -1,90 +1,132 @@
 /* Дополнение «Группа»: сундук и передача вещей */
-.wfrp-paperdoll .pd-stashbtn {
-  width: 24px; height: 24px; min-height: 0; margin: 0 6px 0 0; padding: 0; line-height: 22px; font-size: 12px;
-  color: var(--pd-text-2); background: rgba(255, 255, 255, 0.35); border: 1px solid var(--pd-frame); border-radius: 50%; cursor: pointer;
+/* Сундук группы - отдельный блок под «При себе (вне сумок)»: рамка та же, внутри одна кнопка */
+.wfrp-paperdoll .pd-stash-section-body { display: block; }
+/* Кнопка на всю ширину блока; остальное - из .pd-btn */
+.wfrp-paperdoll .pd-stash-open { width: 100%; padding: var(--pd-space-4); border-style: dashed; color: var(--pd-text-2); }
+.application.wfrp-paperdoll-stash .window-content { padding: var(--pd-window-pad) !important; }
+.wfrp-paperdoll-stash .pd-stash { display: flex; flex-direction: column; gap: var(--pd-space-3); min-height: 100%; }
+/* Деньги сверху - как в карточке персонажа; справа сортировка, как в сумке */
+.wfrp-paperdoll-stash .pd-stash-top { display: flex; align-items: center; gap: var(--pd-space-3); }
+.wfrp-paperdoll-stash .pd-stash-money { margin-right: auto; display: flex; gap: var(--pd-space-2); align-items: center; }
+.wfrp-paperdoll-stash .pd-stash-drop { flex: 1 1 auto; }
+.wfrp-paperdoll .pd-stash-hint {
+  font-size: 12px; color: var(--pd-muted); text-align: center;
+  margin: var(--pd-space-3) 0 var(--pd-space-2); padding: 0 var(--pd-space-4);
 }
-.wfrp-paperdoll .pd-stashbtn:hover { color: var(--pd-text); }
-.wfrp-paperdoll-stash .window-content { padding: 10px !important; }
-.wfrp-paperdoll-stash .pd-stash-drop { min-height: 100%; }
-.wfrp-paperdoll-stash .pd-stash-hint { font-size: 12px; color: var(--pd-muted); margin-bottom: 8px; }
-.wfrp-paperdoll-stash .pd-stash-grid { display: grid; grid-template-columns: repeat(auto-fill, 48px); gap: 6px; }
-.wfrp-paperdoll-stash .pd-stash-item { position: relative; width: 48px; height: 48px; background: var(--pd-well); border: 1px solid var(--pd-frame); cursor: grab; }
-.wfrp-paperdoll-stash .pd-stash-item img { width: 100%; height: 100%; border: none; object-fit: cover; }
-.wfrp-paperdoll-stash .pd-stash-empty { grid-column: 1 / -1; color: var(--pd-muted); font-style: italic; }
+.wfrp-paperdoll-stash .pd-stash-drop.is-drop { outline: 2px dashed var(--pd-frame); outline-offset: 2px; }
+.wfrp-paperdoll-stash .pd-stash-item { cursor: grab; }
 
 /* Окно группы: раны/удача/броня/нагрузка/эффекты всех персонажей разом (только ГМ) */
-.wfrp-paperdoll-group .window-content { padding: 10px !important; overflow: auto; }
-.wfrp-paperdoll-group .pd-group-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.wfrp-paperdoll-group .pd-group-session {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
-  background: var(--pd-well); border: 1px solid var(--pd-frame); border-radius: 4px; color: var(--pd-text); cursor: pointer;
-}
-.wfrp-paperdoll-group .pd-group-session:hover { color: var(--pd-text-2); }
-.wfrp-paperdoll-group .pd-group-viewtoggle { display: inline-flex; border: 1px solid var(--pd-frame); border-radius: 4px; overflow: hidden; }
-.wfrp-paperdoll-group .pd-group-viewtoggle button {
-  padding: 6px 10px; background: transparent; border: none; color: var(--pd-muted); cursor: pointer; font-size: 12px;
-}
-.wfrp-paperdoll-group .pd-group-viewtoggle button.is-active { background: var(--pd-well); color: var(--pd-text); font-weight: 700; }
-.wfrp-paperdoll-group .pd-group-viewtoggle button + button { border-left: 1px solid var(--pd-frame); }
+.application.wfrp-paperdoll-group .window-content { padding: var(--pd-window-pad) !important; overflow: auto; }
+.wfrp-paperdoll-group .pd-group-toolbar { display: flex; align-items: center; gap: var(--pd-space-3); margin-bottom: var(--pd-space-4); }
 /* Казна: монеты как у персонажей. padding-right - чтобы блок не прилипал к правому краю окна */
 .wfrp-paperdoll-group .pd-group-treasury {
-  display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 10px;
+  display: flex; align-items: center; gap: var(--pd-space-3); margin-left: auto;
   font-size: 12px; color: var(--pd-text-2); white-space: nowrap;
 }
-.wfrp-paperdoll-group .pd-group-stash-btn {
-  display: flex; align-items: center; justify-content: flex-start; gap: 5px; width: auto; height: auto;
-  margin: 0; padding: 3px 8px; font-size: 12px; line-height: 1.2;
-  background: none; border: 1px solid var(--pd-frame); border-radius: 4px; color: var(--pd-text-2); cursor: pointer;
-}
-.wfrp-paperdoll-group .pd-group-stash-btn:hover { background: rgba(122, 76, 8, 0.1); color: var(--pd-text); }
-.wfrp-paperdoll-group .pd-group-stash-btn i { color: var(--pd-muted); }
 
-/* Полоска значения (раны/удача/нагрузка) - общая для карточки и таблицы */
-.wfrp-paperdoll-group .pd-group-bar { position: relative; flex: 1; height: 8px; border-radius: 4px; background: rgba(128, 128, 128, 0.25); overflow: hidden; }
-.wfrp-paperdoll-group .pd-group-bar-fill { height: 100%; background: var(--pd-text-2); }
-.wfrp-paperdoll-group .pd-group-bar.is-up .pd-group-bar-fill { background: var(--pd-up); }
-.wfrp-paperdoll-group .pd-group-bar.is-down .pd-group-bar-fill { background: var(--pd-down); }
 
 /* Таблица */
+/* ---- Таблица: CSS Grid, один шаблон колонок (инлайн из JS) на шапку и все строки ----
+   Строки - display: contents, поэтому ячейки ложатся в общую сетку и колонки не пляшут. */
+.wfrp-paperdoll-group .pd-group-table { overflow-x: auto; }
+.wfrp-paperdoll-group .pd-group-tbl { display: grid; align-items: center; column-gap: var(--pd-space-4); }
 .wfrp-paperdoll-group .pd-group-head,
-.wfrp-paperdoll-group .pd-group-row {
-  display: grid; grid-template-columns: 1.6fr 0.9fr 0.9fr 1.5fr 1fr 1.3fr; gap: 8px; align-items: center;
+.wfrp-paperdoll-group .pd-group-row { display: contents; }
+.wfrp-paperdoll-group .pd-group-cell {
+  display: flex; align-items: center; min-height: 100%;
+  padding: var(--pd-space-3) 0; border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+  font-size: 13px;
 }
-.wfrp-paperdoll-group .pd-group-head { font-size: 11px; text-transform: uppercase; color: var(--pd-muted); padding: 0 0 6px; border-bottom: 1px solid var(--pd-frame); }
-.wfrp-paperdoll-group .pd-group-row { padding: 6px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.15); }
-.wfrp-paperdoll-group .pd-group-who { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.wfrp-paperdoll-group .pd-group-who img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
-.wfrp-paperdoll-group .pd-group-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wfrp-paperdoll-group .pd-group-ap { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font-size: 11px; color: var(--pd-muted); }
+.wfrp-paperdoll-group .pd-group-head .pd-group-cell {
+  padding: 0 0 var(--pd-space-2); border-bottom: 1px solid var(--pd-frame);
+  font-size: 11px; font-weight: 400; text-transform: uppercase; color: var(--pd-muted);
+}
+/* Значения - один шрифт во всех колонках; числа не переносятся */
+.wfrp-paperdoll-group .pd-group-cell--num { font-weight: 600; white-space: nowrap; justify-content: flex-start; }
+.wfrp-paperdoll-group .is-warn { color: var(--pd-warn, #c07820); }
+/* Персонаж: фото, рядом имя и монеты - имя тем же 13px, что и значения */
+.wfrp-paperdoll-group .pd-group-who { gap: var(--pd-space-2); cursor: pointer; min-width: 0; }
+.wfrp-paperdoll-group .pd-group-who .pd-group-card-id { min-width: 0; }
 .wfrp-paperdoll-group .pd-group-wounds { cursor: pointer; }
-.wfrp-paperdoll-group .pd-group-coins { display: flex; gap: 6px; align-items: center; }
+.wfrp-paperdoll-group .pd-group-who img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+.wfrp-paperdoll-group .pd-group-who .pd-group-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wfrp-paperdoll-group .pd-group-coins { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+/* Размер монет одинаковый во всех местах окна группы - как в карточках */
+.wfrp-paperdoll-group .pd-coin img { width: 18px; height: 18px; border: none; object-fit: contain; }
 
 /* Карточки */
 .wfrp-paperdoll-group .pd-group-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-/* Имя и фото кликабельны: выбрать токен, двойным - перевести камеру */
+/* Имя и фото кликабельны: выбрать токен, двойным - перевести камеру.
+   Подсветка - только на имени: монеты тоже span, без уточнения подчёркивались и они */
 .wfrp-paperdoll-group .pd-group-pick { cursor: pointer; border-radius: 4px; }
-.wfrp-paperdoll-group .pd-group-pick:hover span { color: var(--pd-accent, #7a4c08); text-decoration: underline; }
+.wfrp-paperdoll-group .pd-group-pick:hover .pd-group-name { color: var(--pd-accent, #7a4c08); text-decoration: underline; }
 /* Цель для перетаскивания вещи из окна снаряжения */
 .wfrp-paperdoll-group .pd-group-drop.is-drop { outline: 2px dashed var(--pd-frame); outline-offset: 2px; background: rgba(122, 76, 8, 0.08); }
-.wfrp-paperdoll-group .pd-group-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--pd-well); border: 1px solid var(--pd-frame); border-radius: 6px; }
-.wfrp-paperdoll-group .pd-group-card-head { display: flex; align-items: center; gap: 8px; }
-.wfrp-paperdoll-group .pd-group-card-head img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
-.wfrp-paperdoll-group .pd-group-card-head span { font-weight: 700; color: var(--pd-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wfrp-paperdoll-group .pd-group-card-stat { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--pd-muted); }
-.wfrp-paperdoll-group .pd-group-card-label { flex: 0 0 56px; }
-.wfrp-paperdoll-group .pd-group-card-num { flex: 0 0 auto; color: var(--pd-text-2); font-weight: 600; font-size: 11px; }
-.wfrp-paperdoll-group .pd-group-card-ap { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 11px; color: var(--pd-muted); padding-top: 2px; border-top: 1px solid rgba(128, 128, 128, 0.15); }
-.wfrp-paperdoll-group .pd-group-fx,
-.wfrp-paperdoll-group .pd-group-card-fx { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+/* У строки таблицы бокса нет (display: contents) - подсвечиваем её ячейки */
+.wfrp-paperdoll-group .pd-group-row.is-drop > .pd-group-cell { background: rgba(122, 76, 8, 0.08); }
+.wfrp-paperdoll-group .pd-group-card {
+  display: flex; flex-direction: column; gap: var(--pd-space-3);
+  padding: var(--pd-space-4); background: var(--pd-well); border: 1px solid var(--pd-frame); border-radius: var(--pd-radius-lg);
+}
+/* Шапка по макету: крупное фото со статусом, справа имя и монеты */
+.wfrp-paperdoll-group .pd-group-card-head { display: flex; align-items: center; gap: var(--pd-space-4); }
+/* Крупный портрет в карточке - с той же рамкой, что портрет в основном окне */
+.wfrp-paperdoll-group .pd-group-portrait.is-large { padding: 4px; background: var(--pd-well); }
+.wfrp-paperdoll-group .pd-group-portrait.is-large::after {
+  content: ""; position: absolute; inset: 0;
+  background: url("../../../assets/ui/frame-portrait.png") center / 100% 100% no-repeat; pointer-events: none;
+}
+.wfrp-paperdoll-group .pd-group-portrait.is-large img { width: 52px; height: 52px; border-radius: 0; object-position: top; }
+.wfrp-paperdoll-group .pd-group-portrait.is-large .pd-group-dot { width: 15px; height: 15px; right: 1px; bottom: 1px; z-index: 1; }
+.wfrp-paperdoll-group .pd-group-card-id { display: flex; flex-direction: column; gap: var(--pd-space-1); min-width: 0; }
+.wfrp-paperdoll-group .pd-group-card-head .pd-group-name { font-weight: 700; font-size: 14px; color: var(--pd-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.wfrp-paperdoll-group .pd-group-fx-icon { box-sizing: border-box; width: 20px; height: 20px; border-radius: 3px; cursor: pointer; border: 1px solid var(--pd-frame); object-fit: cover; }
-.wfrp-paperdoll-group .pd-group-fx-none { color: var(--pd-muted); }
+/* Полосы в карточке - разметка .pd-vital ядра: градиентные текстуры, шрифт и цвет как в основном окне.
+   Меню выбора второй полосы раскрывается под ней */
+.wfrp-paperdoll-group .pd-vital { cursor: default; }
+/* Полосы ран и удачи стоят парой - зазор между ними меньше общего */
+.wfrp-paperdoll-group .pd-group-wounds:has(+ .pd-vital--second) { margin-bottom: calc(-1 * var(--pd-space-2)); }
+.wfrp-paperdoll-group .pd-group-wounds .pd-vital { cursor: pointer; }
+.wfrp-paperdoll-group .pd-group-barmenu { right: 0; left: auto; }
+/* В карточке эффекты могут переноситься - высота карточки и так своя у каждой.
+   В ТАБЛИЦЕ переносить нельзя: от одного персонажа с эффектами разъезжались все строки.
+   Поэтому в таблице полоса фиксированной ширины, в одну строку, с прокруткой при избытке. */
+.wfrp-paperdoll-group .pd-group-card-fx {
+  display: grid; grid-template-columns: repeat(auto-fill, 24px); gap: var(--pd-space-2); align-items: start;
+}
+/* Крупные иконки (настройка groupBigFx): бейджи торчат за края - зазоры больше */
+.wfrp-paperdoll-group .pd-group-card-fx.is-big { grid-template-columns: repeat(auto-fill, 42px); gap: var(--pd-space-4); padding: var(--pd-space-1) 0; }
+.wfrp-paperdoll-group .pd-group-card-fx.is-big .pd-group-fx-icon,
+.wfrp-paperdoll-group .pd-group-card-fx.is-big .pd-group-addfx-btn { width: 42px; height: 42px; border-radius: var(--pd-radius); font-size: 18px; }
+/* На мелких иконках бейджи не читаются - прячем, они доступны в подсказке */
+.wfrp-paperdoll-group .pd-group-card-fx:not(.is-big) .pd-effect-left,
+.wfrp-paperdoll-group .pd-group-card-fx:not(.is-big) .pd-effect-value { display: none; }
+/* Эффекты - СЕТКА фиксированных ячеек (не флекс): иконки и «+» стоят ровно в любом ряду.
+   В крупном режиме зазоры больше - бейджи длительности и уровня торчат за края иконок. */
+.wfrp-paperdoll-group .pd-group-fx {
+  display: grid; grid-template-columns: repeat(auto-fill, 24px); gap: var(--pd-space-2);
+  width: 100%; align-items: start;
+}
+.wfrp-paperdoll-group .pd-group-fx.is-big { grid-template-columns: repeat(auto-fill, 42px); gap: var(--pd-space-4) var(--pd-space-4); padding: var(--pd-space-1) 0; }
+.wfrp-paperdoll-group .pd-group-fx.is-big .pd-group-fx-icon,
+.wfrp-paperdoll-group .pd-group-fx.is-big .pd-group-addfx-btn { width: 42px; height: 42px; border-radius: var(--pd-radius); font-size: 18px; }
+.wfrp-paperdoll-group .pd-group-fx:not(.is-big) .pd-effect-left,
+.wfrp-paperdoll-group .pd-group-fx:not(.is-big) .pd-effect-value { display: none; }
+
+/* Иконка эффекта - обёртка, чтобы поместились значки уровня и длительности, как в ленте основного окна */
+.wfrp-paperdoll-group .pd-group-fx-icon {
+  position: relative; box-sizing: border-box; display: inline-block; width: 24px; height: 24px;
+  border: 1px solid var(--pd-frame); border-radius: 3px; cursor: pointer; overflow: visible;
+}
+.wfrp-paperdoll-group .pd-group-fx-icon img { width: 100%; height: 100%; border: none; border-radius: 2px; object-fit: cover; display: block; }
 .wfrp-paperdoll-group .pd-group-empty { color: var(--pd-muted); font-style: italic; padding: 12px 0; }
 
 /* «+» добавить состояние и панель поиска */
 .wfrp-paperdoll-group .pd-group { position: relative; }
+/* «+» всегда того же размера, что иконки эффектов рядом (24px мелкие, 42px крупные) */
 .wfrp-paperdoll-group .pd-group-addfx-btn {
-  box-sizing: border-box; flex: 0 0 auto; width: 20px; height: 20px; min-height: 0; padding: 0; line-height: 18px; font-size: 13px; font-weight: 700;
+  box-sizing: border-box; flex: 0 0 auto; width: 24px; height: 24px; min-height: 0; padding: 0; font-size: 13px; font-weight: 700;
   color: var(--pd-muted); background: transparent; border: 1px dashed var(--pd-frame); border-radius: 3px; cursor: pointer;
 }
 .wfrp-paperdoll-group .pd-group-addfx-btn:hover { color: var(--pd-text); border-color: var(--pd-text-2); }
@@ -126,7 +168,12 @@
 .wfrp-paperdoll-group .pd-group-cards.size-l { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 
 /* Значок «в сети / не в сети» (режим «все со статусом») */
-.wfrp-paperdoll-group .pd-group-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+/* Фото со значком статуса в правом нижнем углу - значок виден всегда */
+.wfrp-paperdoll-group .pd-group-portrait { position: relative; display: inline-flex; flex: 0 0 auto; }
+.wfrp-paperdoll-group .pd-group-dot {
+  position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px;
+  border: 2px solid var(--pd-well, #cfc7b4); border-radius: 50%; box-sizing: border-box;
+}
 .wfrp-paperdoll-group .pd-group-dot.is-on { background: var(--pd-up); }
 .wfrp-paperdoll-group .pd-group-dot.is-off { background: var(--pd-muted); opacity: 0.5; }
 
@@ -134,12 +181,37 @@
 @media (max-width: 720px) {
   .wfrp-paperdoll-group .pd-group-toolbar { flex-wrap: wrap; }
   .wfrp-paperdoll-group .pd-group-treasury { margin-left: 0; width: 100%; }
-  .wfrp-paperdoll-group .pd-group-head,
-  .wfrp-paperdoll-group .pd-group-row { grid-template-columns: 1.4fr 0.8fr 0.8fr 1.2fr; }
-  /* Колонки «Деньги» и «Эффекты» в узком окне не помещаются - прячем, они есть в карточках */
-  .wfrp-paperdoll-group .pd-group-head > :nth-child(5),
-  .wfrp-paperdoll-group .pd-group-head > :nth-child(6),
-  .wfrp-paperdoll-group .pd-group-row > :nth-child(5),
-  .wfrp-paperdoll-group .pd-group-row > :nth-child(6) { display: none; }
+
   .wfrp-paperdoll-group .pd-group-cards { grid-template-columns: 1fr !important; }
 }
+
+/* Панель «Отображение»: вид, состав и какие данные показывать - одной кнопкой */
+.wfrp-paperdoll-group .pd-group-display { position: relative; }
+.wfrp-paperdoll-group .pd-group-displaymenu { min-width: 190px; }
+
+/* Сундук «под катом» в окне группы: заголовок-аккордеон с числом предметов */
+.wfrp-paperdoll-group .pd-group-stashcut { margin-top: var(--pd-space-4); border: 1px solid var(--pd-frame); border-radius: var(--pd-radius-lg); background: var(--pd-well); }
+.wfrp-paperdoll-group .pd-group-stashcut summary {
+  display: flex; align-items: center; gap: var(--pd-space-2); padding: var(--pd-space-3) var(--pd-space-4);
+  font-size: 13px; font-weight: 700; color: var(--pd-text); cursor: pointer; list-style: none; user-select: none;
+}
+.wfrp-paperdoll-group .pd-group-stashcut summary::-webkit-details-marker { display: none; }
+.wfrp-paperdoll-group .pd-group-stashcut summary::before { content: "▸"; color: var(--pd-muted); transition: transform 0.15s; }
+.wfrp-paperdoll-group .pd-group-stashcut[open] summary::before { transform: rotate(90deg); }
+.wfrp-paperdoll-group .pd-group-stashcut summary i { color: var(--pd-muted); }
+.wfrp-paperdoll-group .pd-group-stashcount { margin-left: var(--pd-space-1); padding: 0 var(--pd-space-2); font-size: 11px; font-weight: 400; color: var(--pd-muted); border: 1px solid var(--pd-frame); border-radius: 8px; }
+.wfrp-paperdoll-group .pd-group-stashweight { margin-left: var(--pd-space-1); font-size: 11px; font-weight: 400; color: var(--pd-muted); }
+/* Вес уже в заголовке ката - внутренняя строка с ним не нужна */
+.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-cap { display: none; }
+.wfrp-paperdoll-group .pd-group-stashbody { padding: 0 var(--pd-space-4) var(--pd-space-4); }
+.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec { padding: var(--pd-space-3); }
+/* Внутри аккордеона свои деньги, заголовок и сортировка сундука не нужны:
+   казна в шапке окна, имя - на кате, сортировка - в строке заголовка ката */
+.wfrp-paperdoll-group .pd-group-stashbody .pd-stash-top { display: none; }
+.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head .pd-bagsec-icon,
+.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head .pd-bagsec-name { display: none; }
+/* Сортировка в заголовке ката: видна только когда аккордеон раскрыт */
+.wfrp-paperdoll-group .pd-stash-sumsort { position: relative; margin-left: auto; }
+.wfrp-paperdoll-group .pd-group-stashcut:not([open]) .pd-stash-sumsort { display: none; }
+.wfrp-paperdoll-group .pd-stash-sumsort .pd-sortbtn { padding: var(--pd-space-1) var(--pd-space-2); }
+.wfrp-paperdoll-group .pd-stash-sumsort svg { width: 14px; height: 14px; display: block; }

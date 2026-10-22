@@ -17,4 +17,28 @@ r.offers = await p.$$eval('.pd-talentmenu [data-buy]', e=>e.length);
 const t0 = await p.$$eval('.pd-ecs-cat--talents .pd-ecs-row, .pd-ecs-cat--talents [data-talent]', e=>e.length);
 await p.click('.pd-talentmenu [data-buy]:not(.is-off)'); await p.waitForTimeout(500);
 r.talentsBefore=t0; r.talentsAfter = await p.$$eval('.pd-ecs-cat--talents .pd-ecs-row, .pd-ecs-cat--talents [data-talent]', e=>e.length); r.xp2 = await xp();
+// Описания в списке покупки талантов должны проходить через тот же перевод, что и подсказки:
+// для этого они помечены классом .pd-tr, а окно прогоняется через PaperdollTooltip.translate
+// В моке компендиум талантов пуст, поэтому описания подкладываем сами - тем же ключом (norm)
+await p.evaluate(() => {
+  const norm = (x) => String(x ?? "").toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+  for (const b of document.querySelectorAll(".pd-talentmenu [data-buy]"))
+    window.PaperdollApp._talentLib.set(norm(b.dataset.buy), "You gain a permanent bonus to your Wounds, equal to your Toughness Bonus.");
+  [...window.PaperdollApp.instances.values()].forEach((x) => x.render());
+});
+await p.waitForTimeout(500);
+await p.click('.pd-talent-add').catch(() => {}); await p.waitForTimeout(300);
+r.offerDescTagged = await p.$$eval('.pd-talentmenu [data-buy] small.pd-tr', (e) => e.length);
+r.offerDescTotal = await p.$$eval('.pd-talentmenu [data-buy] small', (e) => e.length);
+// Включаем перевод описаний и смотрим наблюдаемый признак: ядро помечает текст
+// классом is-translating ровно перед отправкой провайдеру. Сеть при этом не нужна.
+r.offerDescTranslating = await p.evaluate(async () => {
+  await game.settings.set("wfrp4e-paperdoll", "translateText", "google");
+  const app = [...window.PaperdollApp.instances.values()][0];
+  app.render();
+  await new Promise((res) => setTimeout(res, 500));
+  const n = document.querySelectorAll(".pd-talentmenu small.pd-tr.is-translating, .pd-talentmenu small.pd-tr[title]").length;
+  await game.settings.set("wfrp4e-paperdoll", "translateText", "off");
+  return n;
+});
 console.log(JSON.stringify(r), errs); await b.close();

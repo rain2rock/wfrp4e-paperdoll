@@ -27,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import crypto from "node:crypto";
-import { actorData as demoActor, blankActor, CAST, config, systemStrings, PROFILES, TEST_EFFECTS, MOCK_TOKENS } from "./mock-data.mjs";
+import { actorData as demoActor, blankActor, CAST, config, systemStrings, PROFILES, TEST_EFFECTS, MOCK_TOKENS, STASH } from "./mock-data.mjs";
 import { PLACEHOLDER_HASHES, NAME_RULES } from "./icon-fallbacks.mjs";
 import { LOOT, COINS } from "./mock-loot.mjs";
 import { ownIconFor, talentSlug } from "../scripts/icon-rules.js";
@@ -195,6 +195,8 @@ function finishActor(actor) {
 }
 actor = finishActor(actor);
 const cast = "cast" in args ? CAST.map((a) => finishActor(structuredClone(a))) : [];
+// Сундук группы есть всегда: без него в моке не видно ни его окна, ни казны в окне группы
+const stash = finishActor(structuredClone(STASH));
 
 // ---------- Сборка ----------
 const require = createRequire(import.meta.url);
@@ -291,6 +293,9 @@ ${addonSrc.replace(/^export /gm, "").replace(/<\/script/gi, "<\\/script")}
 <script>
 const PaperdollApp = window.PaperdollApp;
 const actors = ${json([actor, ...cast])}.map((a) => window.__PD_makeActor__(a));
+// Сундук - не играбельный персонаж, в переключатель не попадает, но лежит среди актёров мира
+window.__PD_makeActor__(${json(stash)});
+game.settings.set("wfrp4e-paperdoll", "stashActor", ${json(stash.id)});
 let actor = actors[0];
 const open = () => { document.getElementById("mock-reopen").hidden = true; PaperdollApp.openFor(actor); };
 document.getElementById("mock-cast")?.addEventListener("change", async (ev) => {

@@ -10,13 +10,16 @@
  */
 (() => {
   const ADDON = "party";
-  const ADDON_MODULE_ID = "wfrp4e-paperdoll-party";
 
   function register(api) {
     const { PaperdollTooltip, util } = api;
-    const { MODULE_ID, esc, itemImg, effectTooltip, effectRemaining, effectPolarity, stripTags, plainEnrichers } = util;
+    const { MODULE_ID, esc, itemImg, effectTooltip } = util;
     // Общее с ядром: локализация, деньги, тир ран и диалог снятия эффекта - чтобы логика не разъезжалась
-    const { L, F, COIN_VALUE, actorCoins, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry } = util;
+    const { L, F, COIN_VALUE, actorCoins, changeActorMoney, woundsTier, effectEntry } = util;
+    // Сундок рисуем разметкой ядра (сетка «При себе»), поэтому берём оттуда же сортировку, редкость и арт
+    const { sortItems, SORT_KEYS, itemRarity, uiArt, fitDropdown } = util;
+    // Действие по эффекту берём из ядра - одно на все окна
+    const { effectAction, effectSheetFor, secondBarData } = util;
 
     const SOCKET = `module.${MODULE_ID}`;
 
@@ -56,7 +59,9 @@
       if (!item?.parent || !target || item.parent === target) return;
       if (userId !== undefined) {
         const user = game.users.get(userId);
-        const mayTake = user && (user.isGM || item.parent.testUserPermission?.(user, "OWNER"));
+        // Из общего сундука брать можно, но только СЕБЕ: иначе клиент мог бы гонять чужие вещи между актёрами
+        const fromStash = item.parent.id === stashActor()?.id && target.testUserPermission?.(user, "OWNER");
+        const mayTake = user && (user.isGM || item.parent.testUserPermission?.(user, "OWNER") || fromStash);
         if (!mayTake) {
           console.warn(`${MODULE_ID} | передача отклонена: у пользователя нет прав на «${item.parent.name}»`);
           return;
@@ -93,8 +98,15 @@
     /** Передать вещь персонажу: спросить количество, выполнить сам или через ГМ */
     async function requestTransfer(item, target) {
       if (!item?.parent || !target || item.parent === target) return false;
-      if (!item.parent.isOwner) {
+      // Сундук группы - общий ящик: из него берут все, даже без прав на самого актёра-сундук.
+      // В этом случае просим ГМ, он и проверит права. Без ГМ в сети взять нечем - честно говорим об этом.
+      const fromStash = item.parent.id === stashActor()?.id;
+      if (!item.parent.isOwner && !fromStash) {
         ui.notifications.warn(L("WFRPPD.Transfer.NotYours"));
+        return false;
+      }
+      if (!item.parent.isOwner && !game.users.activeGM) {
+        ui.notifications.warn(L("WFRPPD.Transfer.NeedGM"));
         return false;
       }
       if (item.type === "container" && item.parent.items.some((i) => i.system?.location?.value === item.id)) {
@@ -104,7 +116,7 @@
       const qty = await askQuantity(item);
       if (!qty) return false;
       const payload = { itemUuid: item.uuid, targetUuid: target.uuid, qty };
-      if (target.isOwner) await doTransfer(payload);
+      if (target.isOwner && item.parent.isOwner) await doTransfer(payload);
       // ГМ проверит права по userId: подпись сокетов Foundry не даёт, но без заявленного автора принимать запрос нельзя
       else if (game.users.activeGM) game.socket.emit(SOCKET, { action: "transfer", payload: { ...payload, userId: game.user.id } });
       else {
@@ -117,7 +129,6 @@
     /** Сброс на стол: вещь из окна снаряжения на токен */
     async function onDropCanvas(cnv, data) {
       if (data?.type !== "Item" || !(data.fromPaperdoll || data.fromStash) || !data.uuid) return;
-      if (!game.settings.get(MODULE_ID, "tokenTransfer")) return;
       const token = tokenAt(data.x, data.y);
       if (!token) return;
       const item = await fromUuid(data.uuid);
@@ -150,6 +161,179 @@
       return actor;
     }
 
+    /** Вещи сундука (без денег - они показаны монетами) и их суммарный вес */
+    function stashContents(stash) {
+      const items = (stash?.items ?? []).filter((i) => PHYSICAL.includes(i.type) && i.type !== "money");
+      const weight = Math.round(items.reduce((n, i) => n + (Number(i.system?.encumbrance?.value) || 0) * (Number(i.system?.quantity?.value) || 1), 0) * 100) / 100;
+      return { items, weight };
+    }
+
+    /** Меню сортировки сундука - одно и в его окне, и в заголовке ката окна группы */
+    function stashSortMenuHtml() {
+      return `
+        <div class="pd-sortmenu-title">${esc(L("WFRPPD.Sort.Title"))}</div>
+        ${SORT_KEYS.map((k) => `<button type="button" class="pd-sortopt ${k === StashApp.sort ? "is-active" : ""}" data-stash-sort="${k}">${esc(L(`WFRPPD.Sort.${k}`))}</button>`).join("")}
+        ${stashViewMenu()}`;
+    }
+
+    /** Раздел «Вид» меню сундука: сетка или список с названиями - ключи локализации ядра */
+    function stashViewMenu() {
+      return `
+        <div class="pd-sortmenu-title">${esc(L("WFRPPD.View.Title"))}</div>
+        <button type="button" class="pd-sortopt ${StashApp.view !== "list" ? "is-active" : ""}" data-stash-view="grid">${esc(L("WFRPPD.View.grid"))}</button>
+        <button type="button" class="pd-sortopt ${StashApp.view === "list" ? "is-active" : ""}" data-stash-view="list">${esc(L("WFRPPD.View.list"))}</button>`;
+    }
+
+    /** Разметка сундука - одна и для своего окна, и для «ката» в окне группы */
+    function stashHtml() {
+      const stash = stashActor();
+  // Деньги показываем отдельной строкой сверху, как в карточке персонажа, а не ячейками в сетке
+  const items = sortItems(stashContents(stash).items, StashApp.sort);
+  const cells = items
+    .map((i) => {
+      const q = Number(i.system?.quantity?.value ?? 1);
+      return `<div class="pd-item pd-stash-item rarity-${esc(itemRarity(i))}" draggable="true" data-item-id="${esc(i.id)}">
+        <img src="${esc(itemImg(i.img, i.name))}" alt="">
+        ${q > 1 ? `<span class="pd-qty">${q}</span>` : ""}
+        <span class="pd-item-name rarity-${esc(itemRarity(i))}">${esc(i.name)}</span>
+      </div>`;
+    })
+    .join("");
+  // Пустые ячейки, как в блоке «При себе»: сетка всегда дорисована до ряда
+  const perRow = 5;
+  const empty = items.length ? (perRow - (items.length % perRow)) % perRow : perRow;
+  const money = stash ? coinsHtml(groupCoins(stash), stash.uuid) : "";
+  const weight = stashContents(stash).weight;
+
+  return `<div class="pd-stash">
+    <div class="pd-stash-top">
+      <div class="pd-group-coins pd-stash-money" title="${esc(L("WFRPPD.Group.TreasuryHint"))}">${money}</div>
+      <div class="pd-sort">
+        <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="pd-sortmenu ${StashApp.sortOpen ? "is-open" : ""}">
+          ${stashSortMenuHtml()}
+        </div>
+      </div>
+    </div>
+    <section class="pd-bagsec pd-bagsec--loose pd-stash-drop">
+      <header class="pd-bagsec-head">
+        <img class="pd-bagsec-icon is-carried" src="${esc(uiArt("ui-carried"))}" alt="">
+        <div class="pd-bagsec-title"><span class="pd-bagsec-name">${esc(stash?.name ?? L("WFRPPD.Stash.Title"))}</span></div>
+        <span class="pd-bagsec-cap">${esc(L("WFRPPD.Bags.LooseShort"))} ${Math.round(weight * 100) / 100}</span>
+      </header>
+      <div class="pd-bag-list ${StashApp.view === "list" ? "is-list" : ""}">
+        <div class="pd-bag-grid">
+          ${cells}
+          ${Array.from({ length: empty }, () => `<div class="pd-bag-cell"></div>`).join("")}
+        </div>
+      </div>
+      <div class="pd-stash-hint">${esc(L("WFRPPD.Stash.Hint"))}</div>
+    </section>
+  </div>`;
+    }
+
+    /**
+     * Обработчики сундука: подсказки, перетаскивание, забрать двойным кликом, монеты и сортировка.
+     * Одни и те же для своего окна и для «ката» в окне группы - логика не двоится.
+     * bindCoins=false, если окно уже обрабатывает .pd-coin само (окно группы).
+     */
+    function bindStash(root, { forActor = null, rerender = () => {}, bindCoins = true } = {}) {
+      const stash = stashActor();
+      for (const el of root.querySelectorAll(".pd-stash-item")) {
+        const item = stash?.items.get(el.dataset.itemId);
+        if (!item) continue;
+        el.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev, null));
+        el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
+        el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
+        el.addEventListener("dragstart", (ev) => {
+            PaperdollTooltip.hide();
+            ev.dataTransfer.setData("text/plain", JSON.stringify({ ...item.toDragData(), fromStash: true }));
+          });
+        // Двойной клик - забрать себе
+        el.addEventListener("dblclick", async () => {
+            PaperdollTooltip.hide();
+            if (forActor) await requestTransfer(item, forActor);
+          });
+        el.addEventListener("contextmenu", (ev) => {
+            ev.preventDefault();
+            item.sheet?.render(true);
+          });
+      }
+      // Монеты казны: ЛКМ прибавить, ПКМ убавить, с Shift - по 10 (как в карточке персонажа).
+      // В окне группы (bindCoins: false) не вешаем - там свой общий обработчик всех .pd-coin
+      for (const el of bindCoins ? root.querySelectorAll(".pd-stash-money .pd-coin") : []) {
+        const step = (ev) => (ev.shiftKey ? 10 : 1);
+        el.addEventListener("click", async (ev) => {
+            ev.preventDefault();
+            const a = actorByUuid(el.dataset.actorUuid);
+            if (a) await changeActorMoney(a, el.dataset.coin, step(ev));
+          });
+        el.addEventListener("contextmenu", async (ev) => {
+            ev.preventDefault();
+            const a = actorByUuid(el.dataset.actorUuid);
+            if (a) await changeActorMoney(a, el.dataset.coin, -step(ev));
+          });
+      }
+
+      // Сортировка - та же, что в сумке
+      const sortMenu = root.querySelector(".pd-sortmenu");
+      if (StashApp.sortOpen && sortMenu) fitDropdown(sortMenu);
+      root.querySelector(".pd-stash-sortbtn")?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          StashApp.sortOpen = !StashApp.sortOpen;
+          sortMenu?.classList.toggle("is-open", StashApp.sortOpen);
+          if (StashApp.sortOpen && sortMenu) fitDropdown(sortMenu);
+        });
+      for (const b of root.querySelectorAll("[data-stash-view]")) {
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          StashApp.view = b.dataset.stashView;
+          StashApp.sortOpen = false;
+          rerender();
+        });
+      }
+      for (const b of root.querySelectorAll("[data-stash-sort]")) {
+        b.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            StashApp.sort = b.dataset.stashSort;
+            StashApp.sortOpen = false;
+            rerender();
+          });
+      }
+      if (!root.dataset.pdStashBound) {
+        root.dataset.pdStashBound = "1";
+        root.addEventListener("click", (ev) => {
+            if (ev.target.closest(".pd-sort")) return;
+            StashApp.sortOpen = false;
+            root.querySelector(".pd-sortmenu")?.classList.remove("is-open");
+          });
+      }
+
+      // Положить: вещь из окна снаряжения (или листа) своего персонажа
+      const drop = root.querySelector(".pd-stash-drop");
+      drop?.addEventListener("dragover", (ev) => {
+          ev.preventDefault();
+          drop.classList.add("is-drop");
+        });
+      drop?.addEventListener("dragleave", (ev) => {
+          if (!drop.contains(ev.relatedTarget)) drop.classList.remove("is-drop");
+        });
+      drop?.addEventListener("drop", async (ev) => {
+          ev.preventDefault();
+          drop.classList.remove("is-drop");
+          const TE = foundry.applications.ux.TextEditor.implementation;
+          const data = TE.getDragEventData(ev);
+          if (data?.type !== "Item" || !data.uuid || data.fromStash) return;
+          const item = await fromUuid(data.uuid);
+          if (item?.parent && item.parent !== stash) await requestTransfer(item, stash);
+        });
+    }
+
     class StashApp extends ApplicationV2 {
       static DEFAULT_OPTIONS = {
         id: "wfrp4e-paperdoll-stash",
@@ -172,19 +356,13 @@
         return stashActor()?.name ?? L("WFRPPD.Stash.Title");
       }
 
+      /** Сортировка и вид сундука - свои, но ключи и код общие с сумкой (PD_UTIL) */
+      static sort = "type";
+      static sortOpen = false;
+      static view = "grid";
+
       async _renderHTML() {
-        const stash = stashActor();
-        const items = (stash?.items ?? []).filter((i) => PHYSICAL.includes(i.type)).sort((a, b) => a.name.localeCompare(b.name));
-        const cells = items
-          .map((i) => {
-            const q = Number(i.system?.quantity?.value ?? 1);
-            return `<div class="pd-stash-item" draggable="true" data-item-id="${i.id}"><img src="${esc(itemImg(i.img, i.name))}" alt="">${q > 1 ? `<span class="pd-qty">${q}</span>` : ""}</div>`;
-          })
-          .join("");
-        return `<div class="pd-stash-drop">
-          <div class="pd-stash-hint">${esc(L("WFRPPD.Stash.Hint"))}</div>
-          <div class="pd-stash-grid">${cells || `<div class="pd-stash-empty">${esc(L("WFRPPD.Stash.Empty"))}</div>`}</div>
-        </div>`;
+        return stashHtml();
       }
 
       _replaceHTML(result, content) {
@@ -192,50 +370,29 @@
       }
 
       _onRender() {
-        const stash = stashActor();
-        const root = this.element;
-        for (const el of root.querySelectorAll(".pd-stash-item")) {
-          const item = stash?.items.get(el.dataset.itemId);
-          if (!item) continue;
-          el.addEventListener("pointerenter", (ev) => PaperdollTooltip.show(item, ev, null));
-          el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
-          el.addEventListener("pointerleave", () => PaperdollTooltip.hide());
-          el.addEventListener("dragstart", (ev) => {
-            PaperdollTooltip.hide();
-            ev.dataTransfer.setData("text/plain", JSON.stringify({ ...item.toDragData(), fromStash: true }));
-          });
-          // Двойной клик - забрать себе
-          el.addEventListener("dblclick", async () => {
-            PaperdollTooltip.hide();
-            if (this.forActor) await requestTransfer(item, this.forActor);
-          });
-          el.addEventListener("contextmenu", (ev) => {
-            ev.preventDefault();
-            item.sheet?.render(true);
-          });
-        }
-        // Положить: вещь из окна снаряжения (или листа) своего персонажа
-        const drop = root.querySelector(".pd-stash-drop");
-        drop?.addEventListener("dragover", (ev) => ev.preventDefault());
-        drop?.addEventListener("drop", async (ev) => {
-          ev.preventDefault();
-          const TE = foundry.applications.ux.TextEditor.implementation;
-          const data = TE.getDragEventData(ev);
-          if (data?.type !== "Item" || !data.uuid || data.fromStash) return;
-          const item = await fromUuid(data.uuid);
-          if (item?.parent && item.parent !== stash) await requestTransfer(item, stash);
-        });
-        // Сундук обновляется сам, когда кто-то кладёт или забирает вещи
-        if (!this._hooks) {
-          const rerender = foundry.utils.debounce((doc) => {
-            if (this.rendered && doc?.parent?.id === stashActor()?.id) this.render();
-          }, 50);
-          this._hooks = [
-            ["createItem", Hooks.on("createItem", rerender)],
-            ["updateItem", Hooks.on("updateItem", rerender)],
-            ["deleteItem", Hooks.on("deleteItem", rerender)]
-          ];
-        }
+        bindStash(this.element, { forActor: this.forActor, rerender: () => this.render() });
+
+        // Сундук обновляется сам, когда кто-то кладёт или забирает вещи.
+        // Хуки переподключаем на каждой перерисовке (сняв прежние): окно - синглтон, и при
+        // переоткрытии старые замыкания иначе остаются висеть, а новые могут не встать.
+        for (const [name, id] of this._hooks ?? []) Hooks.off(name, id);
+        const stashUuid = () => stashActor()?.uuid ?? null;
+        // Сверяем по uuid, а не по id: у несвязанных токенов id совпадают, uuid - нет
+        const touchesStash = (doc) => {
+          const u = stashUuid();
+          if (!u) return false;
+          const actor = doc?.parent?.actor ?? doc?.parent ?? doc;
+          return actor?.uuid === u || doc?.uuid === u;
+        };
+        const rerender = foundry.utils.debounce((doc) => {
+          if (this.rendered && touchesStash(doc)) this.render();
+        }, 50);
+        this._hooks = [
+          ["createItem", Hooks.on("createItem", rerender)],
+          ["updateItem", Hooks.on("updateItem", rerender)],
+          ["deleteItem", Hooks.on("deleteItem", rerender)],
+          ["updateActor", Hooks.on("updateActor", rerender)]
+        ];
       }
 
       async _onClose(options) {
@@ -264,7 +421,7 @@
     function partyMembers() {
       if (partyCache) return partyCache;
       if (globalThis.__PD_MOCK__) return (partyCache = (window.__PD_actors ?? []).filter((a) => a.type === "character"));
-      const onlyOnline = GroupApp.scope === "online";
+      const onlyOnline = util.setting("groupScope", "all") === "online";
       const seen = new Set();
       const out = [];
       for (const t of canvas?.tokens?.placeables ?? []) {
@@ -276,7 +433,11 @@
         seen.add(a.uuid);
         out.push(a);
       }
-      return (partyCache = out.sort((x, y) => x.name.localeCompare(y.name)));
+      // Сначала те, чьи игроки в сети, потом остальные - внутри каждой группы по алфавиту
+      const online = (a) => (globalThis.__PD_MOCK__ ? true : ownersOf(a).some((u) => u.active));
+      return (partyCache = out.sort(
+        (x, y) => Number(online(y)) - Number(online(x)) || x.name.localeCompare(y.name, game.i18n?.lang)
+      ));
     }
     const invalidateParty = () => { partyCache = null; };
 
@@ -476,39 +637,46 @@
     }
 
     const pct = (value, max) => (max ? Math.max(0, Math.min(100, Math.round((value / max) * 100))) : 0);
-    const upDown = (...vals) => (vals.some((v) => v > 0) ? "is-up" : "is-zero");
 
     /** Общие цветовые классы и доля заполнения для строки/карточки персонажа */
     function rowVisuals(r) {
       return {
-        woundsCls: r.wounds.tier === "dying" || r.wounds.tier === "critical" ? "is-down" : r.wounds.tier === "full" ? "is-up" : "",
+        // По макету: 3/11 красным, 9/11 оранжевым, целый - обычным цветом
+        woundsCls: ["dying", "critical"].includes(r.wounds.tier) ? "is-down" : ["heavy", "wounded"].includes(r.wounds.tier) ? "is-warn" : "",
         woundsPct: pct(r.wounds.value, r.wounds.max),
         fortuneCls: r.fortune.max && r.fortune.value === 0 ? "is-down" : r.fortune.max && r.fortune.value >= r.fortune.max ? "is-up" : "",
         fortunePct: pct(r.fortune.value, r.fortune.max)
       };
     }
 
-    /** Броня - 4 локации компактно, общая для карточки и таблицы */
-    function groupApRow(r) {
-      return `
-        <span class="${upDown(r.ap.head)}" title="${esc(L("WFRPPD.Group.Head"))}">${esc(L("WFRPPD.Group.Abbr.Head"))} ${r.ap.head}</span>
-        <span class="${upDown(r.ap.body)}" title="${esc(L("WFRPPD.Group.Torso"))}">${esc(L("WFRPPD.Group.Abbr.Torso"))} ${r.ap.body}</span>
-        <span class="${upDown(r.ap.rArm, r.ap.lArm)}" title="${esc(L("WFRPPD.Stats.Arms"))}">${esc(L("WFRPPD.Group.Abbr.Arms"))} ${r.ap.rArm}/${r.ap.lArm}</span>
-        <span class="${upDown(r.ap.rLeg, r.ap.lLeg)}" title="${esc(L("WFRPPD.Stats.Legs"))}">${esc(L("WFRPPD.Group.Abbr.Legs"))} ${r.ap.rLeg}/${r.ap.lLeg}</span>`;
-    }
-
-    /** Точка «в сети / не в сети» - показываем только в режиме «все со статусом», иначе она лишний шум */
-    function statusDot(r) {
-      if (GroupApp.scope !== "status") return "";
+    /**
+     * Фото персонажа со значком «в сети / не в сети» в правом нижнем углу.
+     * Значок показываем всегда: отдельный режим «со статусом» убран, он только плодил варианты.
+     */
+    function portrait(r, cls = "") {
       const on = r.online;
-      return `<i class="pd-group-dot ${on ? "is-on" : "is-off"}" title="${esc(L(on ? "WFRPPD.Group.Online" : "WFRPPD.Group.Offline"))}"></i>`;
+      return `<span class="pd-group-portrait ${cls}">
+        <img src="${esc(r.img)}" alt="">
+        <i class="pd-group-dot ${on ? "is-on" : "is-off"}" title="${esc(L(on ? "WFRPPD.Group.Online" : "WFRPPD.Group.Offline"))}"></i>
+      </span>`;
     }
 
     /** Эффекты - иконки (подробности при наведении) + кнопка «+» добавить состояние, общие для карточки и таблицы */
     function groupFx(r) {
+      // Разметка как в ленте эффектов основного окна: иконка плюс значки уровня и длительности.
+      // Раньше тут была голая картинка, поэтому у ГМ не было видно ни уровня, ни «сколько осталось».
       const icons = r.effects.length
-        ? r.effects.map((e) => `<img class="pd-group-fx-icon" data-actor-uuid="${esc(r.uuid)}" data-effect-id="${esc(e.id)}" src="${esc(itemImg(e.img, e.name))}" alt="">`).join("")
-        : `<span class="pd-group-fx-none">-</span>`;
+        ? r.effects
+            .map(
+              (e) => `<span class="pd-group-fx-icon pd-effect pd-effect--${esc(e.kind)} ${e.passive ? "is-passive" : ""}"
+                        data-actor-uuid="${esc(r.uuid)}" data-effect-id="${esc(e.id)}" title="${esc(e.name)}">
+                        <img src="${esc(itemImg(e.img, e.name))}" alt="">
+                        ${e.value ? `<span class="pd-effect-value">${esc(e.value)}</span>` : ""}
+                        ${e.left?.short ? `<span class="pd-effect-left">${esc(e.left.short)}</span>` : ""}
+                      </span>`
+            )
+            .join("")
+        : "";
       return `${icons}<button type="button" class="pd-group-addfx-btn" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.AddCondition"))}">+</button>`;
     }
 
@@ -529,50 +697,108 @@
         .join("");
     }
 
-    /** Строка таблицы - компактно, одна строка на персонажа */
+    /** Что показывать: имя и фото всегда, остальное - по настройкам; карточки и таблица отдельно */
+    const show = (what) => util.option(`groupShow${what}`) !== false;
+    const showT = (what) => util.option(`groupTableShow${what}`) !== false;
+
+    /** Доп. колонки таблицы: значение и максимум считает тот же код, что вторую полосу карточек */
+    const TABLE_EXTRA = ["Xp", "Resolve", "Corruption", "Advantage"];
+    const extraKind = { Xp: "xp", Resolve: "resolve", Corruption: "corruption", Advantage: "advantage" };
+
+    /**
+     * Таблица - CSS Grid с одним шаблоном колонок на шапку и все строки разом:
+     * «Персонаж» по содержимому, числовые колонки по заголовку, всё оставшееся - эффектам.
+     * Шаблон собирается здесь же из включённых колонок, поэтому скрытие ничего не ломает.
+     */
     function groupTable(rows) {
+      const big = util.option("groupBigFx") !== false;
+      // [заголовок, html-ячейки]
+      const cols = [];
+      if (showT("Wounds"))
+        cols.push([
+          L("WFRPPD.Wounds"),
+          (r, v) => `<div class="pd-group-cell pd-group-cell--num pd-group-wounds" data-actor-uuid="${esc(r.uuid)}"><span class="${v.woundsCls}">${r.wounds.value} / ${r.wounds.max}</span></div>`
+        ]);
+      if (showT("Fortune"))
+        cols.push([L("WFRPPD.Stats.Fortune"), (r, v) => `<div class="pd-group-cell pd-group-cell--num pd-group-cell--fortune"><span class="${v.fortuneCls}">${r.fortune.value} / ${r.fortune.max}</span></div>`]);
+      for (const k of TABLE_EXTRA.filter(showT))
+        cols.push([
+          L(`WFRPPD.Vitals.Second.${extraKind[k]}`),
+          (r, v, actor) => {
+            const d = secondBarData(actor, extraKind[k]);
+            // Опыт - просто свободный, дробь «из заработанного» тут только шумит
+            const text = extraKind[k] === "xp" ? d.value : `${d.value}${d.max ? ` / ${d.max}` : ""}`;
+            return `<div class="pd-group-cell pd-group-cell--num pd-group-cell--extra" title="${esc(d.hint)}">${text}</div>`;
+          }
+        ]);
+      const fx = showT("Effects");
+      const template = `minmax(170px, max-content)${cols.map(() => " max-content").join("")}${fx ? " minmax(190px, 1fr)" : ""}`;
       const row = (r) => {
         const v = rowVisuals(r);
+        const actor = actorByUuid(r.uuid);
         return `
           <div class="pd-group-row pd-group-drop" data-actor-uuid="${esc(r.uuid)}">
-            <div class="pd-group-who pd-group-pick" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.PickHint"))}"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
-            <div class="pd-group-wounds" data-actor-uuid="${esc(r.uuid)}"><span class="${v.woundsCls}">${r.wounds.value} / ${r.wounds.max}</span></div>
-            <div><span class="${v.fortuneCls}">${r.fortune.value} / ${r.fortune.max}</span></div>
-            <div class="pd-group-ap">${groupApRow(r)}</div>
-            <div class="pd-group-coins">${groupCoinsHtml(r)}</div>
-            <div class="pd-group-fx">${groupFx(r)}</div>
+            <div class="pd-group-cell pd-group-who pd-group-pick" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.PickHint"))}">
+              ${portrait(r)}
+              <div class="pd-group-card-id">
+                <span class="pd-group-name">${esc(r.name)}</span>
+                ${showT("Money") ? `<div class="pd-group-coins pd-group-card-money">${groupCoinsHtml(r)}</div>` : ""}
+              </div>
+            </div>
+            ${cols.map(([, cell]) => cell(r, v, actor)).join("")}
+            ${fx ? `<div class="pd-group-cell"><div class="pd-group-fx ${big ? "is-big" : ""}">${groupFx(r)}</div></div>` : ""}
           </div>`;
       };
       return `
-        <div class="pd-group-head">
-          <div></div>
-          <div>${esc(L("WFRPPD.Wounds"))}</div>
-          <div>${esc(L("WFRPPD.Stats.Fortune"))}</div>
-          <div>${esc(L("WFRPPD.Group.Armour"))}</div>
-          <div>${esc(L("WFRPPD.Money.Title"))}</div>
-          <div>${esc(L("WFRPPD.Group.Effects"))}</div>
-        </div>
-        <div class="pd-group-body">${rows.map(row).join("")}</div>`;
+        <div class="pd-group-table">
+          <div class="pd-group-tbl" style="grid-template-columns: ${template}">
+            <div class="pd-group-head">
+              <div class="pd-group-cell">${esc(L("WFRPPD.Group.Character"))}</div>
+              ${cols
+                .map((c, i) => [c[0], i])
+                .map(([label, i]) => `<div class="pd-group-cell pd-group-cell--num ${i >= (showT("Wounds") ? 1 : 0) + (showT("Fortune") ? 1 : 0) ? "pd-group-cell--extra" : ""}">${esc(label)}</div>`)
+                .join("")}
+              ${fx ? `<div class="pd-group-cell">${esc(L("WFRPPD.Group.Effects"))}</div>` : ""}
+            </div>
+            ${rows.map(row).join("")}
+          </div>
+        </div>`;
     }
 
-    /** Карточка персонажа - просторнее, с полосками вместо голых чисел */
+    /**
+     * Карточка персонажа - по макету: фото с точкой статуса, рядом имя и монеты,
+     * ниже полосы ран и удачи с подписью прямо внутри, ниже сетка эффектов.
+     * Полоса показывает и заполнение, и число - цифры дублируются в подписи.
+     */
     function groupCard(r) {
-      const v = rowVisuals(r);
-      const bar = (cls, p, value, max) => `
-        <div class="pd-group-bar ${cls}"><div class="pd-group-bar-fill" style="width:${p}%"></div></div>
-        <span class="pd-group-card-num">${value} / ${max}</span>`;
+      // Полосы - та же разметка .pd-vital, что в основном окне: градиентные текстуры,
+      // тот же шрифт и цвет подписи. Вторая полоса выбирается шестерёнкой, как там же.
+      const actor = actorByUuid(r.uuid);
+      const second = secondBarData(actor, (util.setting("groupSecondBars", {}) ?? {})[r.uuid] ?? "fortune");
+      const vital = (cls, pct, label, value, max, extra = "") => `
+        <div class="pd-vital ${cls}">
+          <div class="pd-vital-fill" style="width: ${pct}%"></div>
+          <span>${esc(label)} ${value} / ${max}</span>
+          ${extra}
+        </div>`;
+      const opts = `
+        <button type="button" class="pd-vital-opts pd-group-vopts" title="${esc(L("WFRPPD.Vitals.SecondPick"))}"><img src="${esc(uiArt("ui-options"))}" alt=""></button>
+        <div class="pd-sortmenu pd-group-barmenu">
+          <div class="pd-sortmenu-title">${esc(L("WFRPPD.Vitals.SecondPick"))}</div>
+          ${second.options.map((o) => `<button type="button" class="pd-sortopt ${o.active ? "is-active" : ""}" data-gbar="${o.key}">${esc(o.label)}</button>`).join("")}
+        </div>`;
       return `
         <div class="pd-group-card pd-group-drop" data-actor-uuid="${esc(r.uuid)}">
-          <div class="pd-group-card-head pd-group-pick" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.PickHint"))}"><img src="${esc(r.img)}" alt="">${statusDot(r)}<span>${esc(r.name)}</span></div>
-          <div class="pd-group-card-stat pd-group-wounds" data-actor-uuid="${esc(r.uuid)}">
-            <span class="pd-group-card-label">${esc(L("WFRPPD.Wounds"))}</span>${bar(v.woundsCls, v.woundsPct, r.wounds.value, r.wounds.max)}
+          <div class="pd-group-card-head pd-group-pick" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.PickHint"))}">
+            ${portrait(r, "is-large")}
+            <div class="pd-group-card-id">
+              <span class="pd-group-name">${esc(r.name)}</span>
+              ${show("Money") ? `<div class="pd-group-coins pd-group-card-money">${groupCoinsHtml(r)}</div>` : ""}
+            </div>
           </div>
-          <div class="pd-group-card-stat">
-            <span class="pd-group-card-label">${esc(L("WFRPPD.Stats.Fortune"))}</span>${bar(v.fortuneCls, v.fortunePct, r.fortune.value, r.fortune.max)}
-          </div>
-          <div class="pd-group-card-ap">${groupApRow(r)}</div>
-          <div class="pd-group-card-stat pd-group-card-money"><span class="pd-group-card-label">${esc(L("WFRPPD.Money.Title"))}</span><div class="pd-group-coins">${groupCoinsHtml(r)}</div></div>
-          <div class="pd-group-card-fx">${groupFx(r)}</div>
+          ${show("Wounds") ? `<div class="pd-group-wounds" data-actor-uuid="${esc(r.uuid)}">${vital(`pd-vital--wounds is-${r.wounds.tier}`, rowVisuals(r).woundsPct, L("WFRPPD.Wounds"), r.wounds.value, r.wounds.max)}</div>` : ""}
+          ${show("Fortune") ? vital(`pd-vital--second pd-vital--${esc(second.kind)}`, second.pct, second.label, second.value, second.max, opts) : ""}
+          ${show("Effects") ? `<div class="pd-group-card-fx ${util.option("groupBigFx") !== false ? "is-big" : ""}">${groupFx(r)}</div>` : ""}
         </div>`;
     }
 
@@ -601,40 +827,82 @@
       async _renderHTML() {
         invalidateParty();
         const rows = (this._rows = partyMembers().map(groupRow));
-        const view = GroupApp.view ?? (GroupApp.view = "card");
-        const scope = GroupApp.scope ?? (GroupApp.scope = "online");
+        const view = util.setting("groupView", "card");
+        const scope = util.setting("groupScope", "all");
         const body = !rows.length
           ? `<div class="pd-group-empty">${esc(L("WFRPPD.Group.Empty"))}</div>`
           : view === "card"
             ? `<div class="pd-group-cards size-${esc(util.setting("groupCardSize", "m"))}">${rows.map(groupCard).join("")}</div>`
             : groupTable(rows);
         const stash = stashActor();
-        // Казна - такие же кликабельные монеты, как у персонажей, плюс вход в сам сундук
+        // Казна - такие же кликабельные монеты, как у персонажей. Сам сундук - аккордеоном ниже списка
         const treasury = stash
           ? `<div class="pd-group-treasury">
-              <button type="button" class="pd-group-stash-btn" title="${esc(L("WFRPPD.Group.OpenStash"))}">
-                <i class="fa-solid fa-box-archive"></i><span>${esc(L("WFRPPD.Group.Treasury"))}</span>
-              </button>
               <div class="pd-group-coins" title="${esc(L("WFRPPD.Group.TreasuryHint"))}">${coinsHtml(groupCoins(stash), stash.uuid)}</div>
             </div>`
+          : "";
+        // Сундук «под катом»: заголовок с числом предметов, внутри - та же разметка, что в отдельном окне
+        const { items: stashList, weight: stashWeight } = stashContents(stash);
+        const stashItems = stashList.length;
+        const stashBlock = stash
+          ? `<details class="pd-group-stashcut" ${GroupApp.stashOpen ? "open" : ""}>
+              <summary>
+                <i class="fa-solid fa-box-archive"></i> ${esc(stash.name)} <span class="pd-group-stashcount">${stashItems}</span>
+                <span class="pd-group-stashweight">${esc(L("WFRPPD.Bags.LooseShort"))} ${stashWeight}</span>
+                <span class="pd-stash-sumsort pd-sort">
+                  <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="pd-sortmenu">
+                    ${stashSortMenuHtml()}
+                  </div>
+                </span>
+              </summary>
+              <div class="pd-group-stashbody">${stashHtml()}</div>
+            </details>`
           : "";
         return `
           <div class="pd-group">
             <div class="pd-group-toolbar">
-              <button type="button" class="pd-group-session"><i class="fa-solid fa-sun"></i> ${esc(L("WFRPPD.Group.Session"))}</button>
-              <div class="pd-group-viewtoggle">
-                <button type="button" data-view="card" class="${view === "card" ? "is-active" : ""}">${esc(L("WFRPPD.Group.ViewCard"))}</button>
-                <button type="button" data-view="table" class="${view === "table" ? "is-active" : ""}">${esc(L("WFRPPD.Group.ViewTable"))}</button>
-              </div>
-              <div class="pd-group-viewtoggle pd-group-scope">
-                ${["all", "online", "status"]
-                  .map((k) => `<button type="button" data-scope="${k}" class="${scope === k ? "is-active" : ""}"
-                        title="${esc(L(`WFRPPD.Group.Scope.${k}Hint`))}">${esc(L(`WFRPPD.Group.Scope.${k}`))}</button>`)
-                  .join("")}
+              <button type="button" class="pd-btn pd-group-session"><i class="fa-solid fa-sun"></i> ${esc(L("WFRPPD.Group.Session"))}</button>
+              <div class="pd-group-display">
+                <button type="button" class="pd-btn pd-group-display-btn" title="${esc(L("WFRPPD.Group.DisplayHint"))}">
+                  <i class="fa-solid fa-sliders"></i> ${esc(L("WFRPPD.Group.Display"))}
+                </button>
+                <div class="pd-sortmenu pd-group-displaymenu ${GroupApp.displayOpen ? "is-open" : ""}">
+                  <div class="pd-sortmenu-title">${esc(L("WFRPPD.Group.View"))}</div>
+                  ${["card", "table"]
+                    .map((k) => `<button type="button" class="pd-sortopt ${view === k ? "is-active" : ""}" data-view="${k}">${esc(L(k === "card" ? "WFRPPD.Group.ViewCard" : "WFRPPD.Group.ViewTable"))}</button>`)
+                    .join("")}
+                  <div class="pd-sortmenu-title">${esc(L("WFRPPD.Group.ScopeTitle"))}</div>
+                  ${["all", "online"]
+                    .map((k) => `<button type="button" class="pd-sortopt ${scope === k ? "is-active" : ""}" data-scope="${k}"
+                          title="${esc(L(`WFRPPD.Group.Scope.${k}Hint`))}">${esc(L(`WFRPPD.Group.Scope.${k}`))}</button>`)
+                    .join("")}
+                  ${view === "card"
+                    ? `<div class="pd-sortmenu-title">${esc(L("WFRPPD.Group.Show"))}</div>
+                       ${["Wounds", "Fortune", "Money", "Effects"]
+                         .map((k) => `<button type="button" class="pd-sortopt pd-group-toggle ${show(k) ? "is-active" : ""}" data-show="${k}">${esc(
+                           L(k === "Fortune" ? "WFRPPD.Group.ShowSecond" : `WFRPPD.Group.Show${k}`)
+                         )}</button>`)
+                         .join("")}`
+                    : `<div class="pd-sortmenu-title">${esc(L("WFRPPD.Group.ShowTable"))}</div>
+                       ${["Wounds", "Fortune", "Money", "Effects", "Xp", "Resolve", "Corruption", "Advantage"]
+                         .map((k) => `<button type="button" class="pd-sortopt pd-group-toggle ${showT(k) ? "is-active" : ""}" data-show-table="${k}">${esc(
+                           ["Xp", "Resolve", "Corruption", "Advantage"].includes(k) ? L(`WFRPPD.Vitals.Second.${extraKind[k]}`) : L(`WFRPPD.Group.Show${k}`)
+                         )}</button>`)
+                         .join("")}`}
+                  ${(view === "card" ? show("Effects") : showT("Effects"))
+                    ? `<div class="pd-sortmenu-title">${esc(L("WFRPPD.Group.FxSize"))}</div>
+                       <button type="button" class="pd-sortopt ${util.option("groupBigFx") !== false ? "is-active" : ""}" data-bigfx="big">${esc(L("WFRPPD.Group.FxBig"))}</button>
+                       <button type="button" class="pd-sortopt ${util.option("groupBigFx") !== false ? "" : "is-active"}" data-bigfx="small">${esc(L("WFRPPD.Group.FxSmall"))}</button>`
+                    : ""}
+                </div>
               </div>
               ${treasury}
             </div>
             ${body}
+            ${stashBlock}
             <div class="pd-group-addmenu" hidden>
               <div class="pd-group-addmenu-top">
                 <input type="text" class="pd-group-addmenu-search" placeholder="${esc(L("WFRPPD.Group.AddConditionSearch"))}">
@@ -662,57 +930,95 @@
           await restoreFortune();
           this.render();
         });
-        for (const btn of root.querySelectorAll(".pd-group-viewtoggle [data-view]")) {
-          btn.addEventListener("click", () => {
-            if (GroupApp.view === btn.dataset.view) return;
-            GroupApp.view = btn.dataset.view;
-            this.render();
+        // Одна панель «Отображение»: вид, состав и какие данные показывать.
+        // Всё хранится в настройках, поэтому выбор переживает закрытие окна.
+        const displayMenu = root.querySelector(".pd-group-displaymenu");
+        if (GroupApp.displayOpen && displayMenu) fitDropdown(displayMenu);
+        root.querySelector(".pd-group-display-btn")?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          GroupApp.displayOpen = !GroupApp.displayOpen;
+          displayMenu?.classList.toggle("is-open", GroupApp.displayOpen);
+          if (GroupApp.displayOpen && displayMenu) fitDropdown(displayMenu);
+        });
+        const setAndRender = async (key, value, dropCache = false) => {
+          await game.settings.set(MODULE_ID, key, value);
+          if (dropCache) invalidateParty();
+          this.render();
+        };
+        for (const btn of root.querySelectorAll(".pd-group-displaymenu [data-view]"))
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            setAndRender("groupView", btn.dataset.view);
           });
-        }
-        for (const btn of root.querySelectorAll(".pd-group-scope [data-scope]")) {
-          btn.addEventListener("click", () => {
-            if (GroupApp.scope === btn.dataset.scope) return;
-            GroupApp.scope = btn.dataset.scope;
-            invalidateParty();
-            this.render();
+        for (const btn of root.querySelectorAll(".pd-group-displaymenu [data-scope]"))
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            setAndRender("groupScope", btn.dataset.scope, true);
           });
-        }
+        for (const btn of root.querySelectorAll(".pd-group-displaymenu [data-show]"))
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const key = `groupShow${btn.dataset.show}`;
+            setAndRender(key, !(util.option(key) !== false));
+          });
+        for (const btn of root.querySelectorAll(".pd-group-displaymenu [data-show-table]"))
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const key = `groupTableShow${btn.dataset.showTable}`;
+            setAndRender(key, !(util.option(key) !== false));
+          });
+        // Выбор второй полосы в карточках: шестерёнка на полосе, как в основном окне
+        for (const btn of root.querySelectorAll(".pd-group-vopts"))
+          btn.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const menu = btn.parentElement.querySelector(".pd-group-barmenu");
+            const wasOpen = menu?.classList.contains("is-open");
+            for (const m of root.querySelectorAll(".pd-group-barmenu")) m.classList.remove("is-open");
+            if (!wasOpen && menu) {
+              menu.classList.add("is-open");
+              fitDropdown(menu);
+            }
+          });
+        for (const btn of root.querySelectorAll(".pd-group-barmenu [data-gbar]"))
+          btn.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            // Выбор - только для этого персонажа: у каждого может быть свой показатель
+            const uuid = btn.closest(".pd-group-card")?.dataset.actorUuid;
+            if (!uuid) return;
+            const map = { ...(util.setting("groupSecondBars", {}) ?? {}) };
+            map[uuid] = btn.dataset.gbar;
+            setAndRender("groupSecondBars", map);
+          });
+        for (const btn of root.querySelectorAll(".pd-group-displaymenu [data-bigfx]"))
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            setAndRender("groupBigFx", btn.dataset.bigfx === "big");
+          });
         for (const el of root.querySelectorAll(".pd-group-fx-icon")) {
+          const actorOf = () => partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
           const entryOf = () => this._rows?.find((r) => r.uuid === el.dataset.actorUuid)?.effects.find((e) => e.id === el.dataset.effectId);
-          // ЛКМ - как в основном окне: у состояния снимает 1 уровень, у обычного эффекта открывает лист.
-          // Shift+ЛКМ - снять совсем (с подтверждением, кроме состояния - для него это тоже частое действие, без лишнего диалога).
+          // Поведение общее с лентой эффектов основного окна - один и тот же effectAction,
+          // чтобы «ЛКМ - снять, Shift+ЛКМ - снять совсем, ПКМ - подробнее» не разъезжалось по окнам
           el.addEventListener("click", async (ev) => {
             ev.preventDefault();
-            const actor = partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
-            const effect = actor?.effects.get(el.dataset.effectId);
-            if (!actor || !effect) return;
+            PaperdollTooltip.hide();
+            const actor = actorOf();
             const entry = entryOf();
-            if (ev.shiftKey) {
-              // Пассивку с предмета так не снять - её источник предмет или талант (та же защита, что в ядре)
-              if (effect.transfer === true && effect.origin) {
-                ui.notifications.info(L("WFRPPD.Effects.HintItemEffect"));
-                return;
-              }
-              if (entry?.kind === "condition" || (await confirmRemoveEffect(effect.name))) await effect.delete();
-              return;
-            }
-            if (entry?.kind === "condition") {
-              if (typeof actor.removeCondition === "function") await actor.removeCondition(entry.key, 1);
-              else await effect.delete();
-              return;
-            }
-            effect.sheet?.render(true);
+            if (actor && entry) await effectAction(actor, entry, ev);
           });
-          // ПКМ - всегда открыть лист
           el.addEventListener("contextmenu", (ev) => {
             ev.preventDefault();
-            const actor = partyMembers().find((a) => a.uuid === el.dataset.actorUuid);
-            actor?.effects.get(el.dataset.effectId)?.sheet?.render(true);
+            PaperdollTooltip.hide();
+            const actor = actorOf();
+            const entry = entryOf();
+            if (actor && entry) effectSheetFor(actor, entry);
           });
           // Подробности при наведении - та же карточка, что и в ленте эффектов основного окна
           el.addEventListener("pointerenter", (ev) => {
-            const row = this._rows?.find((r) => r.uuid === el.dataset.actorUuid);
-            const entry = row?.effects.find((e) => e.id === el.dataset.effectId);
+            const entry = entryOf();
             if (entry) PaperdollTooltip.showHtml(effectTooltip(entry), ev);
           });
           el.addEventListener("pointermove", (ev) => PaperdollTooltip.move(ev));
@@ -742,20 +1048,18 @@
             if (actor) await changeActorMoney(actor, el.dataset.coin, -step(ev));
           });
         }
-        // Казна: кнопка открывает сам сундук группы - забрать и положить вещи
-        root.querySelector(".pd-group-stash-btn")?.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          StashApp.open();
-        });
-
         // Имя и фото: ЛКМ - выбрать токен на сцене, двойной клик - ещё и перевести к нему камеру.
         // Таймер не нужен: двойной клик сначала выберет токен (дважды, что безвредно), потом переведёт камеру.
         for (const el of root.querySelectorAll(".pd-group-pick")) {
+          // Монеты лежат внутри кликабельной шапки: их клики - про деньги, не про выбор токена
+          const notCoin = (ev) => !ev.target.closest(".pd-coin");
           el.addEventListener("click", (ev) => {
+            if (!notCoin(ev)) return;
             ev.preventDefault();
             pickToken(el.dataset.actorUuid, false);
           });
           el.addEventListener("dblclick", (ev) => {
+            if (!notCoin(ev)) return;
             ev.preventDefault();
             pickToken(el.dataset.actorUuid, true);
           });
@@ -783,6 +1087,16 @@
             const item = await fromUuid(data.uuid);
             if (item && target) await requestTransfer(item, target);
           });
+        }
+
+        // Сундук под катом: та же разметка и те же обработчики, что в отдельном окне.
+        // Монеты не вешаем (bindCoins: false) - окно группы уже обрабатывает все .pd-coin у себя.
+        const cut = root.querySelector(".pd-group-stashcut");
+        if (cut) {
+          cut.addEventListener("toggle", () => {
+            GroupApp.stashOpen = cut.open;
+          });
+          bindStash(cut, { forActor: game.user.character ?? null, rerender: () => this.render(), bindCoins: false });
         }
 
         // «+» у ленты эффектов: поиск и выдача состояния, мутации или травмы (ГМ)
@@ -848,6 +1162,10 @@
           this._bound = true;
           root.addEventListener("click", (ev) => {
             if (!ev.target.closest(".pd-group-addfx-btn, .pd-group-addmenu")) this.element?.querySelector(".pd-group-addmenu")?.setAttribute("hidden", "");
+            if (!ev.target.closest(".pd-group-display")) {
+              GroupApp.displayOpen = false;
+              this.element?.querySelector(".pd-group-displaymenu")?.classList.remove("is-open");
+            }
           });
         }
         if (!this._hooks) {
@@ -859,6 +1177,7 @@
             // Сундука нет среди строк, но его казна висит в шапке - иначе она обновлялась бы только при переоткрытии
             return actor.uuid === stashActor()?.uuid || !!this._rows?.some((r) => r.uuid === actor.uuid);
           };
+          // Вещи сундука видны в аккордеоне, значит их создание и удаление тоже перерисовывает окно
           const onParty = (doc) => inParty(doc) && rerender();
           this._hooks = [
             ["updateActor", Hooks.on("updateActor", onParty)],
@@ -886,7 +1205,9 @@
       }
     }
 
-    game.keybindings?.register(ADDON_MODULE_ID, "openGroup", {
+    // Неймспейс ЯДРА: модуль теперь единый, отдельного "wfrp4e-paperdoll-party" у пользователя нет,
+    // а чужой неймспейс Foundry отвергает с ошибкой - из-за этого у чистой установки падал весь register()
+    game.keybindings?.register(MODULE_ID, "openGroup", {
       name: "WFRPPD.Group.Hotkey.Name",
       hint: "WFRPPD.Group.Hotkey.Hint",
       editable: [{ key: "KeyG" }],
@@ -925,6 +1246,27 @@
         { key: "tokenTransfer", default: true },
         // Ширина карточки в окне группы: от неё же зависит, сколько их влезет в ряд
         { key: "groupCardSize", type: String, default: "m", choices: { s: "WFRPPD.Group.Size.s", m: "WFRPPD.Group.Size.m", l: "WFRPPD.Group.Size.l" } },
+        // Вид и состав окна группы - запоминаются между сессиями, меняются из самого окна («Отображение»)
+        { key: "groupView", type: String, default: "card", choices: { card: "WFRPPD.Group.ViewCard", table: "WFRPPD.Group.ViewTable" } },
+        { key: "groupScope", type: String, default: "all", choices: { all: "WFRPPD.Group.Scope.all", online: "WFRPPD.Group.Scope.online" } },
+        // Что показывать в строке персонажа. Имя и фото скрыть нельзя - без них строку не опознать
+        // Крупные иконки эффектов: видно длительность и стаки прямо на карточке
+        { key: "groupBigFx", default: true },
+        // Вторая полоса карточек ГМ - как в основном окне; выбор хранится НА КАЖДОГО персонажа
+        { key: "groupSecondBars", type: Object, default: {} },
+        // Карточки и таблица настраиваются отдельно - у таблицы колонок больше
+        { key: "groupShowWounds", default: true },
+        { key: "groupShowFortune", default: true },
+        { key: "groupShowMoney", default: true },
+        { key: "groupShowEffects", default: true },
+        { key: "groupTableShowWounds", default: true },
+        { key: "groupTableShowFortune", default: true },
+        { key: "groupTableShowMoney", default: true },
+        { key: "groupTableShowEffects", default: true },
+        { key: "groupTableShowXp", default: false },
+        { key: "groupTableShowResolve", default: false },
+        { key: "groupTableShowCorruption", default: false },
+        { key: "groupTableShowAdvantage", default: false },
         {
           key: "stashActor",
           scope: "world",
@@ -936,16 +1278,29 @@
         }
       ],
       // Кнопка сундука в сумке
-      bagToolbar(app) {
-        if (!app.editable || !stashActor()) return "";
-        return `<button type="button" class="pd-stashbtn" title="${L("WFRPPD.Stash.Open")}" aria-label="${L("WFRPPD.Stash.Open")}"><i class="fa-solid fa-box-archive"></i></button>`;
-      },
+      // Сундук теперь не кнопка в панели, а отдельный блок под «При себе (вне сумок)» -
+      // рисуем его разметкой ядра, но вместо ячеек внутри одна кнопка «Открыть сундук группы»
       onRender(app, root) {
-        root.querySelector(".pd-stashbtn")?.addEventListener("click", (ev) => {
+        const list = root.querySelector(".pd-bag-list");
+        if (!list || !app.editable || !stashActor()) return;
+        if (list.querySelector(".pd-stash-section")) return;
+        const sec = document.createElement("section");
+        sec.className = "pd-bagsec pd-bagsec--loose pd-stash-section";
+        sec.innerHTML = `
+          <header class="pd-bagsec-head">
+            <img class="pd-bagsec-icon is-carried" src="${esc(uiArt("ui-carried"))}" alt="">
+            <div class="pd-bagsec-title"><span class="pd-bagsec-name">${esc(stashActor()?.name ?? L("WFRPPD.Stash.Title"))}</span></div>
+          </header>
+          <div class="pd-bag-grid pd-stash-section-body">
+            <button type="button" class="pd-btn pd-stash-open">${esc(L("WFRPPD.Group.OpenStashBlock"))}</button>
+          </div>`;
+        list.append(sec);
+        sec.querySelector(".pd-stash-open")?.addEventListener("click", (ev) => {
           ev.preventDefault();
           StashApp.open(app.actor);
         });
       },
+
       // Вещь из сундука, брошенная в сумку, - забрать себе
       async externalDrop(app, item, data) {
         if (!data?.fromStash || !app.editable) return false;
