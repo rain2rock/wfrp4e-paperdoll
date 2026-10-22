@@ -2148,10 +2148,12 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const sys = item.system;
     const pk = prostheticKind(item);
     if (pk) {
-      // Сначала туда, где конечности не хватает
+      // Сначала туда, где конечности не хватает И протеза ещё нет: иначе двойной клик
+      // «Инженерным чудом» вытеснял крюк с руки, хотя рядом сломанная нога без протеза
       const limbs = this._limbState();
       const fits = LIMB_LOCS.filter((loc) => this._canDrop(item, loc));
-      return fits.find((loc) => limbs[loc].lost || limbs[loc].disabled) ?? fits[0] ?? null;
+      const hurt = fits.filter((loc) => limbs[loc].lost || limbs[loc].disabled);
+      return hurt.find((loc) => !limbs[loc].prosthetic) ?? hurt[0] ?? fits[0] ?? null;
     }
     if (item.type === "armour") return LOCATIONS.find((l) => sys.protects?.[l]) ?? null;
     if (item.type === "container") {

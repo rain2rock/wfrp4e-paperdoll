@@ -1,0 +1,79 @@
+/* ============================================================================
+   ДИЗАЙН-СИСТЕМА WFRP4e Paperdoll. Подключается ПЕРВОЙ, до стилей ядра и дополнений.
+   Витрина со всеми токенами и компонентами: docs/styleguide.html (npm run styleguide).
+
+   Правила (см. CLAUDE.md, раздел «Дизайн-система»):
+   - отступы, зазоры и радиусы - ТОЛЬКО токенами --pd-space-* / --pd-radius*;
+   - размеры шрифтов - только шкалой --pd-fs-*;
+   - любая кнопка - класс .pd-btn (+ свой класс-модификатор при нужде);
+   - выпадающие меню - .pd-sortmenu / .pd-sortmenu-title / .pd-sortopt (стили в ядре);
+   - чипы-фильтры - .pd-filter (+ .pd-filter-count), панель - .pd-filters;
+   - размеры иконок эффектов и ячеек - токенами --pd-icon-* / --pd-cell;
+   - цвета - только готовыми переменными темы (--pd-text, --pd-muted, --pd-frame,
+     --pd-well, --pd-gold, --pd-up, --pd-down, --pd-warn, --pd-hover...) - сами
+     значения живут в styles/paperdoll.css (тёмная тема и пергамент).
+   Сырые пиксели в CSS дополнений ловит линт tools/qa/dslint.mjs (часть run-all.sh).
+   ============================================================================ */
+
+.wfrp-paperdoll,
+.wfrp-paperdoll-tooltip,
+.wfrp-paperdoll-flyout {
+  /* Шкала отступов: одно семейство значений на все окна модуля */
+  --pd-space-1: 4px;
+  --pd-space-2: 6px;
+  --pd-space-3: 8px;
+  --pd-space-4: 10px;
+  --pd-space-5: 14px;
+  --pd-space-6: 12px;
+  --pd-space-7: 16px;
+  --pd-window-pad: var(--pd-space-4);
+
+  /* Радиусы */
+  --pd-radius: 4px;
+  --pd-radius-lg: 6px;
+  --pd-radius-xl: 10px;
+
+  /* Шкала шрифтов: подписи и бейджи - xs/s, служебный текст - m, основной - base */
+  --pd-fs-xs: 10px;
+  --pd-fs-s: 11px;
+  --pd-fs-m: 12px;
+  --pd-fs-base: 13px;
+  --pd-fs-l: 14px;
+  --pd-fs-xl: 16px;
+  --pd-fs-xxl: 20px;
+
+  /* Размеры иконок: мелкие и крупные иконки эффектов, ячейка вещи */
+  --pd-icon-s: 24px;
+  --pd-icon-l: 42px;
+  --pd-cell: 48px;
+
+  /* Кнопка */
+  --pd-btn-pad-y: 4px;
+  --pd-btn-pad-x: 10px;
+  --pd-btn-font: var(--pd-fs-m);
+}
+
+/* --- Единая кнопка модуля. Любая кнопка в окнах - это .pd-btn, свои отступы не задаём. --- */
+.wfrp-paperdoll .pd-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--pd-space-2);
+  box-sizing: border-box; width: auto; height: auto; min-height: 0;
+  margin: 0; padding: var(--pd-btn-pad-y) var(--pd-btn-pad-x);
+  font-size: var(--pd-btn-font); line-height: 1.2; font-weight: 400; text-align: center;
+  background: var(--pd-well); border: 1px solid var(--pd-frame); border-radius: var(--pd-radius);
+  color: var(--pd-text); cursor: pointer;
+}
+.wfrp-paperdoll .pd-btn:hover { background: var(--pd-hover); color: var(--pd-text); }
+.wfrp-paperdoll .pd-btn[disabled] { opacity: 0.5; cursor: default; }
+.wfrp-paperdoll .pd-btn i { color: var(--pd-muted); }
+.wfrp-paperdoll .pd-btn--quiet { background: none; }
+
+/* --- Кружок номинала монеты: «6 ●» в подсказках и любом тексте --- */
+.wfrp-paperdoll .pd-coin-dot,
+.wfrp-paperdoll-tooltip .pd-coin-dot {
+  display: inline-block; vertical-align: middle; margin-left: 3px;
+  width: 12px; height: 12px; border-radius: 50%;
+  box-shadow: inset 0 -2px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.wfrp-paperdoll .pd-coin-dot--gc, .wfrp-paperdoll-tooltip .pd-coin-dot--gc { background: radial-gradient(circle at 35% 30%, #fff3a0, #e0b020 55%, #8a6408); }
+.wfrp-paperdoll .pd-coin-dot--ss, .wfrp-paperdoll-tooltip .pd-coin-dot--ss { background: radial-gradient(circle at 35% 30%, #ffffff, #c8ccd0 55%, #6e7378); }
+.wfrp-paperdoll .pd-coin-dot--bp, .wfrp-paperdoll-tooltip .pd-coin-dot--bp { background: radial-gradient(circle at 35% 30%, #ffd2a0, #c07a38 55%, #6a3a12); }

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "mock": "node tools/build-mock.mjs --loot --effects --cast"
+    "mock": "node tools/build-mock.mjs --loot --effects --cast",
+    "styleguide": "node tools/build-styleguide.mjs"
   },
   "devDependencies": {
     "handlebars": "^4.7.8",

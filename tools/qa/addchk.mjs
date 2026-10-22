@@ -14,5 +14,27 @@ for (const who of ["Хьюго", "Гюнтер"]) {
   await p.click('.pd-tab[data-tab="stats"]'); await p.waitForTimeout(200);
   out[who] = { tabs, maim: await p.$$eval(".pd-maim", (e) => e.length), extra: await p.$$eval(".pd-slot.is-extra", (e) => e.length), adv: await p.$$eval(".pd-adv", (e) => e.length), stashBtn: await p.$$eval(".pd-stash-section .pd-stash-open", (e) => e.length), effects: await p.$$eval(".pd-effect", (e) => e.length), talentAdd: await p.$$eval(".pd-talent-add", (e) => e.length) };
 }
+// --- Протезы Гюнтера: двойной клик ставит каждый на свою повреждённую конечность ---
+// (аддоны могут быть выключены - тогда Гюнтер без травм и проверка пропускается)
+if (out["Гюнтер"]?.maim > 0) {
+  const opts = await p.$$eval("#mock-cast option", (e) => e.map((o) => o.textContent));
+  await p.selectOption("#mock-cast", String(opts.findIndex((o) => /Гюнтер/.test(o)))); await p.waitForTimeout(800);
+  await p.click('.pd-tab[data-tab="bag"]'); await p.waitForTimeout(300);
+  const dbl = (id) => p.evaluate((id) => {
+    const el = [...document.querySelectorAll(`.pd-bag-grid .pd-item[data-item-id="${id}"]`)].find((e) => !e.classList.contains("is-ghost"));
+    el?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+  }, id);
+  const st = (slot) => p.evaluate((slot) => document.querySelector(`.pd-slot[data-slot="${slot}"]`)?.className.match(/is-(maimed|replaced|patched)/)?.[0] ?? "plain", slot);
+  await dbl("v-hook"); await p.waitForTimeout(400);
+  await dbl("v-wooden-leg"); await p.waitForTimeout(400);
+  await dbl("v-marvel"); await p.waitForTimeout(400);
+  out.prosthetics = {
+    hookOnArm: await st("lArm"),
+    legOnFoot: await st("rLeg"),
+    // «чудо» обязано пойти на сломанную ногу БЕЗ протеза, а не вытеснять крюк
+    marvelOnBrokenLeg: await st("lLeg"),
+    hookStillOn: await p.evaluate(() => window.__PD_actors.find((a) => a.id === "vet")?.items.find((i) => i.id === "v-hook")?.system.isEquipped ?? null)
+  };
+}
 console.log(JSON.stringify(out), "errors:", errs);
 await b.close();

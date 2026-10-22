@@ -219,7 +219,7 @@ const addonFiles = (id, sub, ext) => {
   const d = path.join(ADDON_DIR, id, sub);
   return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => f.endsWith(ext)).sort().map((f) => fs.readFileSync(path.join(d, f), "utf8")) : [];
 };
-const css = [read("styles/paperdoll.css"), ...activeAddons.flatMap((id) => addonFiles(id, "styles", ".css"))]
+const css = [read("styles/pd-system.css"), read("styles/paperdoll.css"), ...activeAddons.flatMap((id) => addonFiles(id, "styles", ".css"))]
   .join("\n")
   .replace(/url\("(?:\.\.\/)+(?:wfrp4e-paperdoll\/)?assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`)
   .replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);

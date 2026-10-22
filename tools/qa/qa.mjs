@@ -201,7 +201,7 @@ const fxRemoved = await p.evaluate(async () => {
   app.render();
   await new Promise((r) => setTimeout(r, 500));
   const before = a.effects.length;
-  const el = [...document.querySelectorAll('.pd-effect')].at(-1);
+  const el = [...document.querySelectorAll('.pd-effect')].find((e) => e.getAttribute('aria-label') === 'Тестовый дебафф');
   el?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   await new Promise((r) => setTimeout(r, 600));
   return `${before} -> ${a.effects.length}`;

@@ -77,6 +77,19 @@ else Hooks.once("wfrp4e-paperdoll.init", register);
 - В ядре дефолты «без дополнения»: конечности целы, лишних слотов нет, `_advInfo()` = null, нет дерева и вех.
 - Ассеты ядра из CSS дополнения: `url("../../wfrp4e-paperdoll/assets/...")`.
 
+## Дизайн-система
+
+Токены и базовые компоненты - `styles/pd-system.css` (подключается первым), витрина со всеми
+образцами - `docs/styleguide.html` (`npm run styleguide`). Правила, чтобы вёрстка не разъезжалась:
+
+- отступы/зазоры/радиусы - только `--pd-space-*` / `--pd-radius*`; шрифты - шкала `--pd-fs-*`;
+  размеры иконок эффектов и ячеек - `--pd-icon-s/l`, `--pd-cell`; цвета - переменными темы из `paperdoll.css`;
+- любая кнопка - `.pd-btn` (+ модификатор), меню - `.pd-sortmenu/.pd-sortopt`, чипы - `.pd-filter`,
+  полосы - `.pd-vital`, бейджи эффектов - `.pd-effect-value/.pd-effect-left`;
+- сырые px ловит `tools/qa/dslint.mjs` (входит в run-all.sh): FAIL только при РОСТЕ нарушений
+  против `tools/qa/dslint-baseline.json`; починил старое - обнови базлайн `node tools/qa/dslint.mjs --update`;
+- новые компоненты добавлять в pd-system.css и на витрину, а не в css окна.
+
 ## Мок и проверки
 
 Мок - настоящий код модуля поверх заглушки Foundry (`tools/mock-runtime.js`), один html-файл.

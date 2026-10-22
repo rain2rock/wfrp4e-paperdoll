@@ -360,18 +360,55 @@ export const CAST = [
       status: stats(14), details: { ...details("Серебро 1"), experience: xp(9000, 500) }, settings: { equipPoints: 2 }
     },
     items: [
-      // Травмы: левой кисти нет (на культе крюк), правая нога сломана
+      // --- Травмы: под каждый протез своя. Кисти нет (протез на культю руки),
+      // ступни нет (протез ноги), левая нога сломана временно - слот гаснет без протеза
       { id: "v-hand", name: "Потеря кисти", type: "injury", _icon: "icons:injuries/amputatedhand.png", img: icon("✋", "#7a2a1a"),
         system: { location: { value: "Левая рука", key: "lArm" }, penalty: { value: "-20 к проверкам, где нужны обе руки" }, duration: { value: "", active: false, permanent: true } } },
+      { id: "v-foot", name: "Потеря ступни", type: "injury", _icon: "icons:injuries/amputatedfoot.png", img: icon("🦶", "#7a2a1a"),
+        system: { location: { value: "Правая нога", key: "rLeg" }, penalty: { value: "Движение вдвое" }, duration: { value: "", active: false, permanent: true } } },
       { id: "v-leg", name: "Лёгкий перелом ноги", type: "injury", _icon: "icons:injuries/broken-leg.png", img: icon("🦴", "#7a4a2a"),
-        system: { location: { value: "Правая нога", key: "rLeg" }, penalty: { value: "" }, duration: { value: "12", active: true, permanent: false } } },
+        system: { location: { value: "Левая нога", key: "lLeg" }, penalty: { value: "" }, duration: { value: "12", active: true, permanent: false } } },
+
+      // --- Мутации: лишняя рука даёт третий слот оружия, вторая голова - второй слот шлема,
+      // чешуя - просто отметка в ленте без слота (грант выбирает ГМ по Shift+ЛКМ)
+      { id: "v-mut-arm", name: "Третья рука", type: "mutation", img: icon("💪", "#5a7a2a"),
+        system: { mutationType: { value: "physical" }, description: { value: "<p>Из лопатки растёт жилистая третья рука.</p>" } } },
+      { id: "v-mut-head", name: "Вторая голова", type: "mutation", img: icon("👥", "#5a7a2a"),
+        system: { mutationType: { value: "physical" }, description: { value: "<p>Маленькая голова на плече бормочет на тёмном наречии.</p>" } } },
+      { id: "v-mut-scale", name: "Чешуя", type: "mutation", img: icon("🐍", "#4a6a4a"),
+        system: { mutationType: { value: "physical" }, description: { value: "<p>Кожа местами покрыта зелёной чешуёй.</p>" } } },
+
+      // --- Протезы НЕ надеты - лежат в инвентаре, чтобы надевать руками в тестах
       { id: "v-hook", name: "Крюк", type: "trapping", _icon: own("prosthetics/basic-hook.png"), img: icon("🪝", "#5a5a5a"),
-        flags: { "wfrp4e-paperdoll": { limb: "lArm" } },
-        system: trapping({ equipped: { value: true }, encumbrance: { value: 1 }, price: { ss: 3, bp: 4 } }) },
+        system: trapping({ encumbrance: { value: 1 }, price: { ss: 3, bp: 4 },
+          description: { value: "<p>Железный крюк на кожаных ремнях. Ставится на культю руки.</p>" } }) },
+      { id: "v-wooden-leg", name: "Деревянная нога", type: "trapping", _icon: own("prosthetics/wooden-leg.png"), img: icon("🦿", "#7a5a3a"),
+        system: trapping({ encumbrance: { value: 1 }, price: { ss: 8 },
+          description: { value: "<p>Дубовый протез с ремнями. Ставится на культю ноги.</p>" } }) },
+      { id: "v-marvel", name: "Инженерное чудо", type: "trapping", _icon: own("prosthetics/engineering-marvel.png"), img: icon("⚙️", "#8a8a5a"),
+        system: trapping({ availability: { value: "exotic" }, encumbrance: { value: 1 }, price: { gc: 30 },
+          description: { value: "<p>Шестерни и пружины: механический протез не хуже живой конечности. Подходит на руку и ногу.</p>" } }) },
+
+      // --- Надетое: меч в правой руке и куртка ---
       { id: "v-sword", name: "Меч", type: "weapon", _icon: own("weapons/sword-hand-weapon.png"), img: icon("⚔️", "#5a6a7a"),
         system: weapon({ equipped: { value: true }, damage: { value: "SB+4" }, encumbrance: { value: 1 } }) },
       { id: "v-jack", name: "Кожаная куртка", type: "armour", _icon: own("armour/leather-jack.png"), img: icon("🧥", "#7a5230"),
-        system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 } }) }
+        system: armour({ body: 1, rArm: 1, lArm: 1 }, { equipped: { value: true }, encumbrance: { value: 1 } }) },
+
+      // --- Вещи под увечья и мутации: надевать в тестах ---
+      // кинжал - в третью руку от мутации; две шапки - на обе головы; сапоги и штаны - на ноги с протезом
+      { id: "v-dagger", name: "Кинжал", type: "weapon", _icon: own("weapons/dagger.png"), img: icon("🗡️", "#5a6a7a"),
+        system: weapon({ damage: { value: "SB+2" }, reach: { value: "vshort" }, encumbrance: { value: 0 } }) },
+      { id: "v-cap", name: "Кожаная шапка", type: "armour", _icon: own("armour/leather-skullcap.png"), img: icon("🪖", "#5a4030"),
+        system: armour({ head: 1 }, { encumbrance: { value: 0 } }) },
+      { id: "v-helm", name: "Открытый шлем", type: "armour", _icon: own("armour/helmet-open.png"), img: icon("⛑️", "#7a7a8a"),
+        system: armour({ head: 2 }, { armorType: { value: "plate" }, availability: { value: "scarce" }, encumbrance: { value: 1 } }) },
+      { id: "v-legs", name: "Кожаные штаны", type: "armour", _icon: own("armour/leather-leggings.png"), img: icon("👖", "#6a4a2a"),
+        system: armour({ rLeg: 1, lLeg: 1 }, { encumbrance: { value: 1 } }) },
+      { id: "v-boots", name: "Окованные сапоги", type: "armour", _icon: own("armour/boots-reinforced.png"), img: icon("🥾", "#5a4a3a"),
+        system: armour({ rLeg: 1, lLeg: 1 }, { armorType: { value: "mail" }, availability: { value: "scarce" }, encumbrance: { value: 1 } }) },
+      { id: "v-shield", name: "Щит", type: "weapon", _icon: own("shield/shield-round.png"), img: icon("🛡️", "#7a6a3a"),
+        system: weapon({ weaponGroup: { value: "parry" }, damage: { value: "SB+1" }, _qualities: ["Щит 2", "Защитное"], encumbrance: { value: 1 } }) }
     ]
   },
   // Жрица Шалльи: благословения с разными дальностями и целями - на ней проверяется выбор целей
