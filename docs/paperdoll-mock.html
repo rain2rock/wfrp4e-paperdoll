@@ -2800,6 +2800,21 @@
 .wfrp-paperdoll-stash .pd-stash-top { display: flex; align-items: center; gap: var(--pd-space-3); }
 .wfrp-paperdoll-stash .pd-stash-money { margin-right: auto; display: flex; gap: var(--pd-space-2); align-items: center; }
 .wfrp-paperdoll-stash .pd-stash-drop { flex: 1 1 auto; }
+/* Один внутренний отступ на всю секцию сундука: ядровые заголовок и списки несут свои
+   разные паддинги (12px и 8px), из-за них края заголовка, чипов, сетки и хинта не совпадали */
+.wfrp-paperdoll .pd-stash .pd-bagsec { padding: var(--pd-space-4); }
+.wfrp-paperdoll .pd-stash .pd-bagsec-head { padding: 0 0 var(--pd-space-3); }
+.wfrp-paperdoll .pd-stash .pd-bagsec-head .pd-bagsec-cap { margin-left: auto; font-size: 11px; color: var(--pd-muted); white-space: nowrap; }
+.wfrp-paperdoll .pd-stash .pd-bag-list { padding: 0; }
+.wfrp-paperdoll .pd-stash .pd-bag-grid { padding: 0; }
+.wfrp-paperdoll .pd-stash .pd-stash-hint { padding: 0; }
+
+/* Панель сундука: фильтры слева, вес и сортировка по правому краю - как в сумке игрока */
+.wfrp-paperdoll .pd-stash-filters { align-items: center; padding: 0 0 var(--pd-space-2); }
+.wfrp-paperdoll .pd-stash-filters .pd-filter-chips { display: flex; flex-wrap: wrap; gap: var(--pd-space-1); flex: 1 1 auto; min-width: 0; }
+.wfrp-paperdoll .pd-stash-filters .pd-sort { position: relative; flex: 0 0 auto; margin-left: auto; }
+.wfrp-paperdoll .pd-stash-filters .pd-sortbtn { padding: var(--pd-space-1) var(--pd-space-2); }
+.wfrp-paperdoll .pd-stash-filters .pd-sortbtn svg { width: 14px; height: 14px; display: block; }
 .wfrp-paperdoll .pd-stash-hint {
   font-size: 12px; color: var(--pd-muted); text-align: center;
   margin: var(--pd-space-3) 0 var(--pd-space-2); padding: 0 var(--pd-space-4);
@@ -2991,21 +3006,12 @@
 .wfrp-paperdoll-group .pd-group-stashcut[open] summary::before { transform: rotate(90deg); }
 .wfrp-paperdoll-group .pd-group-stashcut summary i { color: var(--pd-muted); }
 .wfrp-paperdoll-group .pd-group-stashcount { margin-left: var(--pd-space-1); padding: 0 var(--pd-space-2); font-size: 11px; font-weight: 400; color: var(--pd-muted); border: 1px solid var(--pd-frame); border-radius: 8px; }
-.wfrp-paperdoll-group .pd-group-stashweight { margin-left: var(--pd-space-1); font-size: 11px; font-weight: 400; color: var(--pd-muted); }
-/* Вес уже в заголовке ката - внутренняя строка с ним не нужна */
-.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-cap { display: none; }
 .wfrp-paperdoll-group .pd-group-stashbody { padding: 0 var(--pd-space-4) var(--pd-space-4); }
 .wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec { padding: var(--pd-space-3); }
-/* Внутри аккордеона свои деньги, заголовок и сортировка сундука не нужны:
-   казна в шапке окна, имя - на кате, сортировка - в строке заголовка ката */
-.wfrp-paperdoll-group .pd-group-stashbody .pd-stash-top { display: none; }
-.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head .pd-bagsec-icon,
-.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head .pd-bagsec-name { display: none; }
-/* Сортировка в заголовке ката: видна только когда аккордеон раскрыт */
-.wfrp-paperdoll-group .pd-stash-sumsort { position: relative; margin-left: auto; }
-.wfrp-paperdoll-group .pd-group-stashcut:not([open]) .pd-stash-sumsort { display: none; }
-.wfrp-paperdoll-group .pd-stash-sumsort .pd-sortbtn { padding: var(--pd-space-1) var(--pd-space-2); }
-.wfrp-paperdoll-group .pd-stash-sumsort svg { width: 14px; height: 14px; display: block; }
+/* Внутри аккордеона свои деньги и заголовок сундука не нужны: казна в шапке окна, имя и вес - на кате */
+.wfrp-paperdoll-group .pd-group-stashbody .pd-stash-top,
+.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head { display: none; }
+.wfrp-paperdoll-group .pd-group-stashweight { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--pd-muted); }
 
 </style>
 </head>
@@ -5087,6 +5093,26 @@ function itemRarity(item) {
   return RARITY[item?.system?.availability?.value] ?? "none";
 }
 
+/** Фильтры сумки - общие с сундуком группы, чтобы категории не разъезжались */
+function matchesFilter(item, filter) {
+  switch (filter) {
+    case "weapon":
+      return item.type === "weapon" || item.type === "ammunition";
+    case "armour":
+      return item.type === "armour";
+    case "clothing":
+      return (
+        item.type === "container" ||
+        (item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories")
+      );
+    case "other":
+      return !["weapon", "ammunition", "armour", "container"].includes(item.type) &&
+        !(item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories");
+    default:
+      return true;
+  }
+}
+
 /** Ключи сортировки вещей - общие для сумки и сундука группы, чтобы логика не двоилась */
 const SORT_KEYS = ["default", "type", "rarity-desc", "rarity-asc", "name-asc", "name-desc"];
 
@@ -6600,22 +6626,7 @@ class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _matchesFilter(item, filter) {
-    switch (filter) {
-      case "weapon":
-        return item.type === "weapon" || item.type === "ammunition";
-      case "armour":
-        return item.type === "armour";
-      case "clothing":
-        return (
-          item.type === "container" ||
-          (item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories")
-        );
-      case "other":
-        return !["weapon", "ammunition", "armour", "container"].includes(item.type) &&
-          !(item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories");
-      default:
-        return true;
-    }
+    return matchesFilter(item, filter);
   }
 
   /* -------------------------------------------- */
@@ -8762,7 +8773,7 @@ const PD_UTIL = {
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound, fitDropdown,
   L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
-  sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS,
+  sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS, matchesFilter, BAG_FILTERS,
   tokenOf, distanceBetween, tokensInRange, RANGE_BANDS, weaponRangeYards, weaponRangeBand, targetedAttack
 };
 
@@ -9594,7 +9605,7 @@ globalThis.__PD_API__ = PD_API;
     // Сундок рисуем разметкой ядра (сетка «При себе»), поэтому берём оттуда же сортировку, редкость и арт
     const { sortItems, SORT_KEYS, itemRarity, uiArt, fitDropdown } = util;
     // Действие по эффекту берём из ядра - одно на все окна
-    const { effectAction, effectSheetFor, secondBarData } = util;
+    const { effectAction, effectSheetFor, secondBarData, matchesFilter, BAG_FILTERS } = util;
 
     const SOCKET = `module.${MODULE_ID}`;
 
@@ -9763,7 +9774,13 @@ globalThis.__PD_API__ = PD_API;
     function stashHtml() {
       const stash = stashActor();
   // Деньги показываем отдельной строкой сверху, как в карточке персонажа, а не ячейками в сетке
-  const items = sortItems(stashContents(stash).items, StashApp.sort);
+  const all = stashContents(stash).items;
+  // Фильтры как в сумке игрока: пустые категории спрятаны, опустевший активный сбрасывается
+  const filterCount = (key) => all.filter((i) => matchesFilter(i, key)).length;
+  if (StashApp.filter !== "all" && !filterCount(StashApp.filter)) StashApp.filter = "all";
+  const filters = BAG_FILTERS.map((key) => ({ key, label: L(`WFRPPD.Filter.${key}`), active: key === StashApp.filter, count: filterCount(key) }))
+    .filter((f) => f.key === "all" || f.count > 0);
+  const items = sortItems(all.filter((i) => matchesFilter(i, StashApp.filter)), StashApp.sort);
   const cells = items
     .map((i) => {
       const q = Number(i.system?.quantity?.value ?? 1);
@@ -9783,14 +9800,6 @@ globalThis.__PD_API__ = PD_API;
   return `<div class="pd-stash">
     <div class="pd-stash-top">
       <div class="pd-group-coins pd-stash-money" title="${esc(L("WFRPPD.Group.TreasuryHint"))}">${money}</div>
-      <div class="pd-sort">
-        <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="pd-sortmenu ${StashApp.sortOpen ? "is-open" : ""}">
-          ${stashSortMenuHtml()}
-        </div>
-      </div>
     </div>
     <section class="pd-bagsec pd-bagsec--loose pd-stash-drop">
       <header class="pd-bagsec-head">
@@ -9798,6 +9807,19 @@ globalThis.__PD_API__ = PD_API;
         <div class="pd-bagsec-title"><span class="pd-bagsec-name">${esc(stash?.name ?? L("WFRPPD.Stash.Title"))}</span></div>
         <span class="pd-bagsec-cap">${esc(L("WFRPPD.Bags.LooseShort"))} ${Math.round(weight * 100) / 100}</span>
       </header>
+      <div class="pd-filters pd-stash-filters">
+        <div class="pd-filter-chips">
+          ${filters.map((f) => `<button type="button" class="pd-filter ${f.active ? "is-active" : ""}" data-stash-filter="${f.key}">${esc(f.label)} <span class="pd-filter-count">${f.count}</span></button>`).join("")}
+        </div>
+        <div class="pd-sort">
+          <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="pd-sortmenu ${StashApp.sortOpen ? "is-open" : ""}">
+            ${stashSortMenuHtml()}
+          </div>
+        </div>
+      </div>
       <div class="pd-bag-list ${StashApp.view === "list" ? "is-list" : ""}">
         <div class="pd-bag-grid">
           ${cells}
@@ -9862,6 +9884,14 @@ globalThis.__PD_API__ = PD_API;
           sortMenu?.classList.toggle("is-open", StashApp.sortOpen);
           if (StashApp.sortOpen && sortMenu) fitDropdown(sortMenu);
         });
+      for (const b of root.querySelectorAll("[data-stash-filter]")) {
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          StashApp.filter = b.dataset.stashFilter;
+          rerender();
+        });
+      }
       for (const b of root.querySelectorAll("[data-stash-view]")) {
         b.addEventListener("click", (ev) => {
           ev.preventDefault();
@@ -9931,10 +9961,11 @@ globalThis.__PD_API__ = PD_API;
         return stashActor()?.name ?? L("WFRPPD.Stash.Title");
       }
 
-      /** Сортировка и вид сундука - свои, но ключи и код общие с сумкой (PD_UTIL) */
+      /** Сортировка, вид и фильтр сундука - свои, но ключи и код общие с сумкой (PD_UTIL) */
       static sort = "type";
       static sortOpen = false;
       static view = "grid";
+      static filter = "all";
 
       async _renderHTML() {
         return stashHtml();
@@ -10424,14 +10455,6 @@ globalThis.__PD_API__ = PD_API;
               <summary>
                 <i class="fa-solid fa-box-archive"></i> ${esc(stash.name)} <span class="pd-group-stashcount">${stashItems}</span>
                 <span class="pd-group-stashweight">${esc(L("WFRPPD.Bags.LooseShort"))} ${stashWeight}</span>
-                <span class="pd-stash-sumsort pd-sort">
-                  <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <div class="pd-sortmenu">
-                    ${stashSortMenuHtml()}
-                  </div>
-                </span>
               </summary>
               <div class="pd-group-stashbody">${stashHtml()}</div>
             </details>`

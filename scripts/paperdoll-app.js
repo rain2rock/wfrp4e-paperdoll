@@ -583,6 +583,26 @@ function itemRarity(item) {
   return RARITY[item?.system?.availability?.value] ?? "none";
 }
 
+/** Фильтры сумки - общие с сундуком группы, чтобы категории не разъезжались */
+function matchesFilter(item, filter) {
+  switch (filter) {
+    case "weapon":
+      return item.type === "weapon" || item.type === "ammunition";
+    case "armour":
+      return item.type === "armour";
+    case "clothing":
+      return (
+        item.type === "container" ||
+        (item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories")
+      );
+    case "other":
+      return !["weapon", "ammunition", "armour", "container"].includes(item.type) &&
+        !(item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories");
+    default:
+      return true;
+  }
+}
+
 /** Ключи сортировки вещей - общие для сумки и сундука группы, чтобы логика не двоилась */
 export const SORT_KEYS = ["default", "type", "rarity-desc", "rarity-asc", "name-asc", "name-desc"];
 
@@ -2096,22 +2116,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _matchesFilter(item, filter) {
-    switch (filter) {
-      case "weapon":
-        return item.type === "weapon" || item.type === "ammunition";
-      case "armour":
-        return item.type === "armour";
-      case "clothing":
-        return (
-          item.type === "container" ||
-          (item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories")
-        );
-      case "other":
-        return !["weapon", "ammunition", "armour", "container"].includes(item.type) &&
-          !(item.type === "trapping" && item.system.trappingType?.value === "clothingAccessories");
-      default:
-        return true;
-    }
+    return matchesFilter(item, filter);
   }
 
   /* -------------------------------------------- */
@@ -4258,7 +4263,7 @@ export const PD_UTIL = {
   isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound, fitDropdown,
   L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
-  sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS,
+  sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS, matchesFilter, BAG_FILTERS,
   tokenOf, distanceBetween, tokensInRange, RANGE_BANDS, weaponRangeYards, weaponRangeBand, targetedAttack
 };
 

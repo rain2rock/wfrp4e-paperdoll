@@ -9,6 +9,21 @@
 .wfrp-paperdoll-stash .pd-stash-top { display: flex; align-items: center; gap: var(--pd-space-3); }
 .wfrp-paperdoll-stash .pd-stash-money { margin-right: auto; display: flex; gap: var(--pd-space-2); align-items: center; }
 .wfrp-paperdoll-stash .pd-stash-drop { flex: 1 1 auto; }
+/* Один внутренний отступ на всю секцию сундука: ядровые заголовок и списки несут свои
+   разные паддинги (12px и 8px), из-за них края заголовка, чипов, сетки и хинта не совпадали */
+.wfrp-paperdoll .pd-stash .pd-bagsec { padding: var(--pd-space-4); }
+.wfrp-paperdoll .pd-stash .pd-bagsec-head { padding: 0 0 var(--pd-space-3); }
+.wfrp-paperdoll .pd-stash .pd-bagsec-head .pd-bagsec-cap { margin-left: auto; font-size: 11px; color: var(--pd-muted); white-space: nowrap; }
+.wfrp-paperdoll .pd-stash .pd-bag-list { padding: 0; }
+.wfrp-paperdoll .pd-stash .pd-bag-grid { padding: 0; }
+.wfrp-paperdoll .pd-stash .pd-stash-hint { padding: 0; }
+
+/* Панель сундука: фильтры слева, вес и сортировка по правому краю - как в сумке игрока */
+.wfrp-paperdoll .pd-stash-filters { align-items: center; padding: 0 0 var(--pd-space-2); }
+.wfrp-paperdoll .pd-stash-filters .pd-filter-chips { display: flex; flex-wrap: wrap; gap: var(--pd-space-1); flex: 1 1 auto; min-width: 0; }
+.wfrp-paperdoll .pd-stash-filters .pd-sort { position: relative; flex: 0 0 auto; margin-left: auto; }
+.wfrp-paperdoll .pd-stash-filters .pd-sortbtn { padding: var(--pd-space-1) var(--pd-space-2); }
+.wfrp-paperdoll .pd-stash-filters .pd-sortbtn svg { width: 14px; height: 14px; display: block; }
 .wfrp-paperdoll .pd-stash-hint {
   font-size: 12px; color: var(--pd-muted); text-align: center;
   margin: var(--pd-space-3) 0 var(--pd-space-2); padding: 0 var(--pd-space-4);
@@ -200,18 +215,9 @@
 .wfrp-paperdoll-group .pd-group-stashcut[open] summary::before { transform: rotate(90deg); }
 .wfrp-paperdoll-group .pd-group-stashcut summary i { color: var(--pd-muted); }
 .wfrp-paperdoll-group .pd-group-stashcount { margin-left: var(--pd-space-1); padding: 0 var(--pd-space-2); font-size: 11px; font-weight: 400; color: var(--pd-muted); border: 1px solid var(--pd-frame); border-radius: 8px; }
-.wfrp-paperdoll-group .pd-group-stashweight { margin-left: var(--pd-space-1); font-size: 11px; font-weight: 400; color: var(--pd-muted); }
-/* Вес уже в заголовке ката - внутренняя строка с ним не нужна */
-.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-cap { display: none; }
 .wfrp-paperdoll-group .pd-group-stashbody { padding: 0 var(--pd-space-4) var(--pd-space-4); }
 .wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec { padding: var(--pd-space-3); }
-/* Внутри аккордеона свои деньги, заголовок и сортировка сундука не нужны:
-   казна в шапке окна, имя - на кате, сортировка - в строке заголовка ката */
-.wfrp-paperdoll-group .pd-group-stashbody .pd-stash-top { display: none; }
-.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head .pd-bagsec-icon,
-.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head .pd-bagsec-name { display: none; }
-/* Сортировка в заголовке ката: видна только когда аккордеон раскрыт */
-.wfrp-paperdoll-group .pd-stash-sumsort { position: relative; margin-left: auto; }
-.wfrp-paperdoll-group .pd-group-stashcut:not([open]) .pd-stash-sumsort { display: none; }
-.wfrp-paperdoll-group .pd-stash-sumsort .pd-sortbtn { padding: var(--pd-space-1) var(--pd-space-2); }
-.wfrp-paperdoll-group .pd-stash-sumsort svg { width: 14px; height: 14px; display: block; }
+/* Внутри аккордеона свои деньги и заголовок сундука не нужны: казна в шапке окна, имя и вес - на кате */
+.wfrp-paperdoll-group .pd-group-stashbody .pd-stash-top,
+.wfrp-paperdoll-group .pd-group-stashbody .pd-bagsec-head { display: none; }
+.wfrp-paperdoll-group .pd-group-stashweight { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--pd-muted); }

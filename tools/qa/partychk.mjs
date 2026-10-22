@@ -228,20 +228,46 @@ r.stashSortApplied = await p.evaluate(() => {
 });
 r.stashStillOpenAfterSort = await p.$$eval(".pd-group-stashcut[open]", (e) => e.length);
 // Вид «список с названиями» - как в сумке игрока; действует и на отдельное окно
-await p.evaluate(() => [...document.querySelectorAll('.pd-stash-sumsort [data-stash-view="list"]')].at(0)?.click());
+await p.evaluate(() => [...document.querySelectorAll('.pd-group-stashcut [data-stash-view="list"]')].at(0)?.click());
 await p.waitForTimeout(400);
 r.stashListView = await p.evaluate(() => {
   const n = document.querySelector(".pd-group-stashbody .pd-bag-list.is-list .pd-item-name");
   return !!n && getComputedStyle(n).display !== "none" && n.textContent.trim().length > 0;
 });
-await p.evaluate(() => [...document.querySelectorAll('.pd-stash-sumsort [data-stash-view="grid"]')].at(0)?.click());
+await p.evaluate(() => [...document.querySelectorAll('.pd-group-stashcut [data-stash-view="grid"]')].at(0)?.click());
 await p.waitForTimeout(400);
 r.stashGridBack = await p.evaluate(() => !document.querySelector(".pd-group-stashbody .pd-bag-list.is-list"));
-// Кнопка сортировки - в конце аккордеона, ниже сетки с вещами
-r.stashSortAtBottom = await p.evaluate(() => {
-  const top = document.querySelector(".pd-group-stashbody .pd-stash-top");
+// Панель как у игрока: фильтры слева, вес и сортировка по правому краю, над сеткой
+r.stashPanel = await p.evaluate(() => {
+  const panel = document.querySelector(".pd-group-stashbody .pd-stash-filters");
   const grid = document.querySelector(".pd-group-stashbody .pd-bag-grid");
-  return !!top && !!grid && top.getBoundingClientRect().top > grid.getBoundingClientRect().bottom;
+  if (!panel || !grid) return "нет панели";
+  const chips = panel.querySelector(".pd-filter-chips .pd-filter");
+  const sort = panel.querySelector(".pd-sortbtn");
+  const abovеGrid = panel.getBoundingClientRect().bottom <= grid.getBoundingClientRect().top + 1;
+  const chipsLeft = chips && sort && chips.getBoundingClientRect().left < sort.getBoundingClientRect().left;
+  // Вес - на кате, в линию с названием, по правому краю
+  const w = document.querySelector(".pd-group-stashcut summary .pd-group-stashweight");
+  const weightShown = !!w && getComputedStyle(w).display !== "none";
+  return abovеGrid && chipsLeft && weightShown;
+});
+// Сетка выровнена с панелью: левый край иконок = чипам, правый край сетки = сортировке
+r.stashAligned = await p.evaluate(() => {
+  const L = (sel) => Math.round(document.querySelector(".pd-group-stashcut " + sel)?.getBoundingClientRect().left ?? -1);
+  const R = (sel) => Math.round(document.querySelector(".pd-group-stashcut " + sel)?.getBoundingClientRect().right ?? -1);
+  return L(".pd-filter") === L(".pd-item") && R(".pd-sortbtn") === R(".pd-bag-grid");
+});
+// Фильтр работает: «Оружие» оставляет в сетке только оружие
+r.stashFilter = await p.evaluate(async () => {
+  const stash = game.actors.get("stash1");
+  const btn = [...document.querySelectorAll('.pd-group-stashcut [data-stash-filter]')].find((b) => b.dataset.stashFilter === "weapon");
+  if (!btn) return "нет кнопки";
+  btn.click();
+  await new Promise((res) => setTimeout(res, 400));
+  const shown = [...document.querySelectorAll(".pd-group-stashcut .pd-bag-grid .pd-item")].map((e) => stash.items.get(e.dataset.itemId)?.type);
+  document.querySelector('.pd-group-stashcut [data-stash-filter="all"]')?.click();
+  await new Promise((res) => setTimeout(res, 300));
+  return shown.length > 0 && shown.every((t) => t === "weapon" || t === "ammunition");
 });
 // живое обновление: удаление вещи из сундука перерисовывает окно само
 r.stashLive = await p.evaluate(async () => {

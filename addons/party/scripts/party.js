@@ -19,7 +19,7 @@
     // Сундок рисуем разметкой ядра (сетка «При себе»), поэтому берём оттуда же сортировку, редкость и арт
     const { sortItems, SORT_KEYS, itemRarity, uiArt, fitDropdown } = util;
     // Действие по эффекту берём из ядра - одно на все окна
-    const { effectAction, effectSheetFor, secondBarData } = util;
+    const { effectAction, effectSheetFor, secondBarData, matchesFilter, BAG_FILTERS } = util;
 
     const SOCKET = `module.${MODULE_ID}`;
 
@@ -188,7 +188,13 @@
     function stashHtml() {
       const stash = stashActor();
   // Деньги показываем отдельной строкой сверху, как в карточке персонажа, а не ячейками в сетке
-  const items = sortItems(stashContents(stash).items, StashApp.sort);
+  const all = stashContents(stash).items;
+  // Фильтры как в сумке игрока: пустые категории спрятаны, опустевший активный сбрасывается
+  const filterCount = (key) => all.filter((i) => matchesFilter(i, key)).length;
+  if (StashApp.filter !== "all" && !filterCount(StashApp.filter)) StashApp.filter = "all";
+  const filters = BAG_FILTERS.map((key) => ({ key, label: L(`WFRPPD.Filter.${key}`), active: key === StashApp.filter, count: filterCount(key) }))
+    .filter((f) => f.key === "all" || f.count > 0);
+  const items = sortItems(all.filter((i) => matchesFilter(i, StashApp.filter)), StashApp.sort);
   const cells = items
     .map((i) => {
       const q = Number(i.system?.quantity?.value ?? 1);
@@ -208,14 +214,6 @@
   return `<div class="pd-stash">
     <div class="pd-stash-top">
       <div class="pd-group-coins pd-stash-money" title="${esc(L("WFRPPD.Group.TreasuryHint"))}">${money}</div>
-      <div class="pd-sort">
-        <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="pd-sortmenu ${StashApp.sortOpen ? "is-open" : ""}">
-          ${stashSortMenuHtml()}
-        </div>
-      </div>
     </div>
     <section class="pd-bagsec pd-bagsec--loose pd-stash-drop">
       <header class="pd-bagsec-head">
@@ -223,6 +221,19 @@
         <div class="pd-bagsec-title"><span class="pd-bagsec-name">${esc(stash?.name ?? L("WFRPPD.Stash.Title"))}</span></div>
         <span class="pd-bagsec-cap">${esc(L("WFRPPD.Bags.LooseShort"))} ${Math.round(weight * 100) / 100}</span>
       </header>
+      <div class="pd-filters pd-stash-filters">
+        <div class="pd-filter-chips">
+          ${filters.map((f) => `<button type="button" class="pd-filter ${f.active ? "is-active" : ""}" data-stash-filter="${f.key}">${esc(f.label)} <span class="pd-filter-count">${f.count}</span></button>`).join("")}
+        </div>
+        <div class="pd-sort">
+          <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="pd-sortmenu ${StashApp.sortOpen ? "is-open" : ""}">
+            ${stashSortMenuHtml()}
+          </div>
+        </div>
+      </div>
       <div class="pd-bag-list ${StashApp.view === "list" ? "is-list" : ""}">
         <div class="pd-bag-grid">
           ${cells}
@@ -287,6 +298,14 @@
           sortMenu?.classList.toggle("is-open", StashApp.sortOpen);
           if (StashApp.sortOpen && sortMenu) fitDropdown(sortMenu);
         });
+      for (const b of root.querySelectorAll("[data-stash-filter]")) {
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          StashApp.filter = b.dataset.stashFilter;
+          rerender();
+        });
+      }
       for (const b of root.querySelectorAll("[data-stash-view]")) {
         b.addEventListener("click", (ev) => {
           ev.preventDefault();
@@ -356,10 +375,11 @@
         return stashActor()?.name ?? L("WFRPPD.Stash.Title");
       }
 
-      /** Сортировка и вид сундука - свои, но ключи и код общие с сумкой (PD_UTIL) */
+      /** Сортировка, вид и фильтр сундука - свои, но ключи и код общие с сумкой (PD_UTIL) */
       static sort = "type";
       static sortOpen = false;
       static view = "grid";
+      static filter = "all";
 
       async _renderHTML() {
         return stashHtml();
@@ -849,14 +869,6 @@
               <summary>
                 <i class="fa-solid fa-box-archive"></i> ${esc(stash.name)} <span class="pd-group-stashcount">${stashItems}</span>
                 <span class="pd-group-stashweight">${esc(L("WFRPPD.Bags.LooseShort"))} ${stashWeight}</span>
-                <span class="pd-stash-sumsort pd-sort">
-                  <button type="button" class="pd-btn pd-sortbtn pd-stash-sortbtn" title="${esc(L("WFRPPD.Sort.Title"))}" aria-label="${esc(L("WFRPPD.Sort.Title"))}">
-                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11M1.8 11.2 4 13.5l2.2-2.3M9 4h6M9 8h4.5M9 12h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <div class="pd-sortmenu">
-                    ${stashSortMenuHtml()}
-                  </div>
-                </span>
               </summary>
               <div class="pd-group-stashbody">${stashHtml()}</div>
             </details>`
