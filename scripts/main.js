@@ -22,6 +22,15 @@ Hooks.once("init", () => {
     }
   });
 
+  // Отметка о показанном приветствии. Храним версию, а не флаг: если позже понадобится
+  // сообщение «что нового», условие станет сравнением версий без миграции настройки
+  game.settings.register(MODULE_ID, "welcomeShown", {
+    scope: "world",
+    config: false,
+    type: String,
+    default: ""
+  });
+
   game.settings.register(MODULE_ID, "itemIcons", {
     name: "WFRPPD.Settings.ItemIcons.Name",
     hint: "WFRPPD.Settings.ItemIcons.Hint",
@@ -186,4 +195,46 @@ Hooks.on("renderActorSheetV2", (app, element) => {
     header.querySelector('[data-action="close"]');
   if (anchor) header.insertBefore(btn, anchor);
   else header.append(btn);
+});
+
+/**
+ * Приветствие в чат - один раз на мир, после установки модуля.
+ * Пишет только активный ГМ: иначе сообщение продублировал бы каждый подключённый клиент.
+ * Отметка в настройке мира, поэтому повторного показа не будет даже после перезахода.
+ */
+Hooks.once("ready", async () => {
+  if (game.system.id !== "wfrp4e" || !isEnabled()) return;
+  if (!game.user.isGM || game.users.activeGM?.id !== game.user.id) return;
+  if (game.settings.get(MODULE_ID, "welcomeShown")) return;
+
+  const version = game.modules.get(MODULE_ID)?.version ?? "";
+  // Ставим отметку СРАЗУ: если отправка сообщения упадёт, приветствие не полезет на каждый запуск
+  await game.settings.set(MODULE_ID, "welcomeShown", version || "shown");
+
+  // Клавиши берём из настроек Foundry - игрок мог их переназначить
+  const keyOf = (action, fallback) => {
+    try {
+      const binding = game.keybindings?.get(MODULE_ID, action)?.[0]?.key;
+      return binding ? String(binding).replace(/^Key/, "") : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const F = (k, d) => game.i18n.format(k, d);
+  const L = (k) => game.i18n.localize(k);
+
+  const lines = [
+    `<p>${F("WFRPPD.Welcome.Open", { key: keyOf("toggle", "I") })}</p>`,
+    game.modules.get(MODULE_ID)?.api?.hasAddon?.("party")
+      ? `<p>${F("WFRPPD.Welcome.Group", { key: keyOf("openGroup", "G") })}</p>`
+      : "",
+    `<p>${L("WFRPPD.Welcome.Settings")}</p>`
+  ];
+
+  await ChatMessage.create({
+    content: `<div class="wfrp-paperdoll-welcome">
+        <h3>${L("WFRPPD.Welcome.Title")}</h3>
+        ${lines.filter(Boolean).join("")}
+      </div>`
+  });
 });

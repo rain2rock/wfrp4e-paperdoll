@@ -501,6 +501,12 @@
       "Hint": "Shift+right-click to use",
       "Chat": "{who} uses {item}",
       "Empty": "{name}: none left"
+    },
+    "Welcome": {
+      "Title": "WFRP4e Equipment",
+      "Open": "Module installed. Open the window from the character sheet header or press “{key}”.",
+      "Group": "For the GM: party window is “{key}”, the party stash opens from there.",
+      "Settings": "Settings live in Game Settings → Configure Settings → WFRP4e Equipment."
     }
   }
 }

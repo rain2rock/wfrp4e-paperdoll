@@ -330,6 +330,7 @@ if (ROOTS.icons || ROOTS.core)
     .replace(/^const esc = \(s\) => String\(s \?\? ""\)\.replace\(\/\[&<>"\]\/g, \(c\) => \(\{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" \}\)\[c\]\);$/m, "");
   // Регистрация настроек ядра - как в scripts/main.js (хук init), без хоткея и патча токена: тут не нужны
   const coreSettings = `
+    game.settings.register(MODULE_ID, "welcomeShown", { scope: "world", config: false, type: String, default: "" });
     game.settings.register(MODULE_ID, "enabled", {
       name: "WFRPPD.Settings.Enabled.Name", hint: "WFRPPD.Settings.Enabled.Hint",
       scope: "world", config: false, type: Boolean, default: true,

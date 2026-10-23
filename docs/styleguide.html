@@ -21,7 +21,8 @@
 
 .wfrp-paperdoll,
 .wfrp-paperdoll-tooltip,
-.wfrp-paperdoll-flyout {
+.wfrp-paperdoll-flyout,
+.wfrp-paperdoll-welcome {
   /* Шкала отступов: одно семейство значений на все окна модуля */
   --pd-space-1: 4px;
   --pd-space-2: 6px;
@@ -90,6 +91,17 @@
   outline: 2px solid var(--pd-gold-soft);
   outline-offset: 1px;
 }
+
+/* --- Приветствие в чате. Карточка живёт ВНЕ корня модуля, поэтому класс самостоятельный
+   и стили не опираются на окружение Foundry --- */
+.wfrp-paperdoll-welcome h3 {
+  margin: 0 0 var(--pd-space-2);
+  font-size: var(--pd-fs-xl);
+  border-bottom: 1px solid var(--pd-frame);
+  padding-bottom: var(--pd-space-1);
+}
+.wfrp-paperdoll-welcome p { margin: 0 0 var(--pd-space-2); font-size: var(--pd-fs-base); line-height: 1.4; }
+.wfrp-paperdoll-welcome p:last-child { margin-bottom: 0; }
 
 /* ==========================================================
    WFRP4e Paperdoll - окно персонажа в стиле WoW
