@@ -88,7 +88,9 @@ else Hooks.once("wfrp4e-paperdoll.init", register);
   полосы - `.pd-vital`, бейджи эффектов - `.pd-effect-value/.pd-effect-left`;
 - сырые px ловит `tools/qa/dslint.mjs` (входит в run-all.sh): FAIL только при РОСТЕ нарушений
   против `tools/qa/dslint-baseline.json`; починил старое - обнови базлайн `node tools/qa/dslint.mjs --update`;
-- новые компоненты добавлять в pd-system.css и на витрину, а не в css окна.
+- новые компоненты добавлять в pd-system.css и на витрину, а не в css окна;
+- РЕШЕНО: базовые размеры шрифта 11px и 13px остаются нечётными - менять их не надо.
+  Остальная шкала чётная, но «очётнивание» этих двух сдвинуло бы плотность текста во всех окнах.
 
 ## Мок и проверки
 
