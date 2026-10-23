@@ -15,7 +15,7 @@
     const { PaperdollTooltip, util } = api;
     const { MODULE_ID, esc, itemImg, effectTooltip } = util;
     // Общее с ядром: локализация, деньги, тир ран и диалог снятия эффекта - чтобы логика не разъезжалась
-    const { L, F, COIN_VALUE, actorCoins, changeActorMoney, woundsTier, effectEntry } = util;
+    const { L, F, COIN_VALUE, actorCoins, changeActorMoney, woundsTier } = util;
     // Сундок рисуем разметкой ядра (сетка «При себе»), поэтому берём оттуда же сортировку, редкость и арт
     const { sortItems, SORT_KEYS, itemRarity, uiArt, fitDropdown } = util;
     // Действие по эффекту берём из ядра - одно на все окна
@@ -619,12 +619,9 @@
       const fortune = Number(st.fortune?.value) || 0;
       const ap = (loc) => Number(st.armour?.[loc]?.value) || 0;
       const [rArm, lArm, rLeg, lLeg] = [ap("rArm"), ap("lArm"), ap("rLeg"), ap("lLeg")];
-      // Разбор эффекта общий с лентой окна снаряжения: перенесённые с предметов пассивки оно вернёт как null -
-      // их источник предмет, и снимать их отсюда нельзя, иначе Shift+ЛКМ снёс бы эффект самого таланта
-      const effects = (actor.effects ?? [])
-        .filter((e) => !e.disabled && !e.isSuppressed)
-        .map((e) => effectEntry(e, actor))
-        .filter(Boolean);
+      // Лента - ТЕМ ЖЕ конвейером, что в окне куколки (PaperdollApp.effectsFor): иначе травмы,
+      // мутации, криты и болезни (это предметы, а не ActiveEffects) в окне группы не показывались
+      const effects = api.PaperdollApp.effectsFor(actor, { editable: true });
       return {
         uuid: actor.uuid,
         name: actor.name,
@@ -697,7 +694,7 @@
             )
             .join("")
         : "";
-      return `${icons}<button type="button" class="pd-group-addfx-btn" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.AddCondition"))}">+</button>`;
+      return `${icons}<button type="button" class="pd-group-addfx-btn" data-actor-uuid="${esc(r.uuid)}" title="${esc(L("WFRPPD.Group.AddCondition"))}" aria-label="${esc(L("WFRPPD.Group.AddCondition"))}">+</button>`;
     }
 
     /** Монетки персонажа - кликабельные иконки, как в основном окне (ЛКМ +1, ПКМ -1, Shift ×10) */
@@ -850,7 +847,7 @@
         const view = util.setting("groupView", "card");
         const scope = util.setting("groupScope", "all");
         const body = !rows.length
-          ? `<div class="pd-group-empty">${esc(L("WFRPPD.Group.Empty"))}</div>`
+          ? `<div class="pd-group-empty">${esc(L(scope === "online" ? "WFRPPD.Group.EmptyOnline" : "WFRPPD.Group.Empty"))}</div>`
           : view === "card"
             ? `<div class="pd-group-cards size-${esc(util.setting("groupCardSize", "m"))}">${rows.map(groupCard).join("")}</div>`
             : groupTable(rows);

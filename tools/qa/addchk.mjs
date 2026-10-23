@@ -36,5 +36,23 @@ if (out["Гюнтер"]?.maim > 0) {
     hookStillOn: await p.evaluate(() => window.__PD_actors.find((a) => a.id === "vet")?.items.find((i) => i.id === "v-hook")?.system.isEquipped ?? null)
   };
 }
+// Травма - такой же дебафф: ЛКМ в ленте снимает её (с подтверждением), ПКМ - только открывает
+if (out["Гюнтер"]?.maim > 0) {
+  const injCount = () => p.evaluate(() => window.__PD_actors.find((a) => a.id === "vet")?.items.filter((i) => i.type === "injury").length);
+  await p.evaluate(() => { const D = foundry.applications?.api?.DialogV2; if (D) D.confirm = async () => true; });
+  const before = await injCount();
+  await p.evaluate(() => {
+    const el = [...document.querySelectorAll(".pd-effect--injury")].at(0);
+    el?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+  });
+  await p.waitForTimeout(300);
+  const afterRmb = await injCount();
+  await p.evaluate(() => {
+    const el = [...document.querySelectorAll(".pd-effect--injury")].at(0);
+    el?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  });
+  await p.waitForTimeout(500);
+  out.injuryClicks = { before, afterRmb, afterLmb: await injCount() };
+}
 console.log(JSON.stringify(out), "errors:", errs);
 await b.close();

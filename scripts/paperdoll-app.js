@@ -491,7 +491,7 @@ function showMoney(escaped) {
 
 /** Броски в значении подсказки помечаем кубиком. На вход - УЖЕ экранированный текст */
 function valueChips(escaped) {
-  return showMoney(String(escaped ?? "").replace(DICE_RE, (m) => `<span class="pd-chip pd-chip--dice">${diceSvg("pd-chip-ico")}${m}</span>`));
+  return showMoney(String(escaped ?? "").replace(DICE_RE, (m) => `<span class="pd-vchip pd-vchip--dice">${diceSvg("pd-vchip-ico")}${m}</span>`));
 }
 
 /** Документ эффекта по записи ленты: пассивка лежит на предмете, остальное - на актёре */
@@ -527,7 +527,9 @@ async function effectAction(actor, entry, ev = null, { app = null, editable = tr
     }
 
     if (["injury", "critical", "disease", "mutation"].includes(entry.kind)) {
-      if (!ev?.shiftKey) return effectSheetFor(actor, entry);
+      // ЛКМ снимает, как у любого дебаффа (это предмет - удаление с подтверждением);
+      // подробности и лист - по ПКМ. У мутаций Shift+ЛКМ ГМа занят грантом - его
+      // перехватывает effectClick дополнения выше, сюда он не доходит
       const item = actor.items.get(entry.id);
       if (item && (await confirmRemoveEffect(item.name))) await item.delete();
       return;
@@ -2593,6 +2595,24 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const buffs = out.filter((e) => e.kind === "buff");
     const rest = out.filter((e) => e.kind !== "buff");
     return [...buffs, ...rest].map((e) => ({ ...e, isBuff: e.kind === "buff", lines: e.lines.filter(Boolean).map((l) => humanizeTerms(l)) }));
+  }
+
+  /**
+   * Лента эффектов для произвольного персонажа - тот же конвейер, что в окне куколки
+   * (условия, баффы, пассивки, травмы, криты, болезни, мутации из дополнений).
+   * Нужен окну группы: раньше оно собирало только ActiveEffects, и выданная из него же
+   * травма или мутация у ГМа не показывалась, хотя у игрока появлялась.
+   */
+  static effectsFor(actor, { editable = false } = {}) {
+    if (!actor) return [];
+    // Лёгкий контекст на прототипе: _effectsView и методы-миксины дополнений (_limbState и др.)
+    // работают только с this.actor и this.editable, окно приложения им не нужно
+    // actor и editable на прототипе - геттеры, поэтому собственные свойства задаём напрямую
+    const ctx = Object.create(PaperdollApp.prototype, {
+      actor: { value: actor },
+      editable: { value: editable }
+    });
+    return ctx._effectsView();
   }
 
   /** ЛКМ по эффекту */

@@ -161,12 +161,12 @@ if (useId) {
       : new MouseEvent(type, { bubbles: true, cancelable: true, shiftKey: shift }));
   }, [useId, type, shift]);
   await fire('pointerenter'); await p.waitForTimeout(400);
-  const dice = await p.$$eval('.wfrp-paperdoll-tooltip .pd-chip--dice', (e) => e.map((x) => x.textContent.trim()));
+  const dice = await p.$$eval('.wfrp-paperdoll-tooltip .pd-vchip--dice', (e) => e.map((x) => x.textContent.trim()));
   const coin = await p.$$eval('.wfrp-paperdoll-tooltip .pd-tt-prop .pd-tt-coin .pd-coin-dot', (e) => e.length);
   const hint = await p.$eval('.wfrp-paperdoll-tooltip .pd-tt-hint', (e) => e.textContent).catch(() => '');
   ok('tooltip dice chip', dice.includes('1d10'), JSON.stringify(dice));
   const samePath = await p.evaluate(() => {
-    const chip = document.querySelector('.wfrp-paperdoll-tooltip .pd-chip--dice svg path');
+    const chip = document.querySelector('.wfrp-paperdoll-tooltip .pd-vchip--dice svg path');
     const roll = document.querySelector('.pd-roll svg path');
     return !!chip && !!roll && chip.getAttribute('d') === roll.getAttribute('d');
   });

@@ -28,7 +28,7 @@
       "Session": "Start of session",
       "SessionConfirm": "Restore fortune to the fate value for the whole party?",
       "SessionNone": "Everyone's fortune is already at max",
-      "Empty": "No players are currently online",
+      "Empty": "No player characters on this scene",
       "NeedGM": "Only the GM can open the party window",
       "ViewCard": "Cards",
       "ViewTable": "Table",
@@ -37,7 +37,7 @@
       "AddConditionSearch": "Search...",
       "AddConditionNone": "The system doesn't provide a condition list",
       "AddLoading": "Searching compendiums...",
-      "AddFailed": "Couldn't add \"{name}\"",
+      "AddFailed": "Couldn't add “{name}”. See the console (F12) for details",
       "SectionConditions": "Conditions",
       "SectionMutations": "Mutations",
       "SectionInjuries": "Injuries",
@@ -91,7 +91,8 @@
       "FxBig": "Large",
       "FxSmall": "Small",
       "ShowTable": "Table columns",
-      "ShowSecond": "Second bar (fortune etc.)"
+      "ShowSecond": "Second bar (fortune etc.)",
+      "EmptyOnline": "No players are online. Change the roster in Display"
     },
     "Options": {
       "tokenTransfer": {

@@ -73,6 +73,9 @@ r.mutBefore = await mutCount();
 const mutBtn = await p.$('[data-add-type="mutation"]');
 if (mutBtn) { await mutBtn.click(); await p.waitForTimeout(500); }
 r.mutAfter = await mutCount();
+// Выданная мутация видна и в ленте карточки ГМ (раньше - только у игрока): лента группы
+// собирается тем же конвейером, что в окне куколки (PaperdollApp.effectsFor)
+r.mutInGMList = await p.$$eval(".pd-group-fx-icon.pd-effect--mutation", (e) => e.length) > 0;
 await p.click(".pd-group-toolbar"); await p.waitForTimeout(150);
 
 // Пассивку с таланта (transfer+origin) нельзя снять из окна группы и её вообще не должно быть в ленте

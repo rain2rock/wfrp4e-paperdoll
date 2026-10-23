@@ -1256,7 +1256,7 @@
   --pd-text: #2a2119;
   --pd-text-dim: #5f5444;
   --pd-text-2: #3d3326;
-  --pd-muted: #7a6e5a;
+  --pd-muted: #5f5444; /* = text-dim: прежний #7a6e5a не добирал контраст на подложках (WCAG 2.32) */
   --pd-ink: #1a140e;
   --pd-shadow: transparent;
   --pd-well: #b8b09e;
@@ -2688,10 +2688,11 @@
 .wfrp-paperdoll-settings .pd-set-tabs .item { white-space: nowrap; }
 
 /* Значения в подсказках: броски и деньги - значком с подписью, как на листе системы */
-/* Без рамки и подложки: только значок перед значением */
-.wfrp-paperdoll-tooltip .pd-chip {
+/* Фишка значения (.pd-vchip): значок перед числом в подсказках. НЕ путать с .pd-chip
+   флайаута - это чипы ограничений, другой паттерн с другим назначением */
+.wfrp-paperdoll-tooltip .pd-vchip {
   display: inline-flex; align-items: center; gap: var(--pd-space-1);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.wfrp-paperdoll-tooltip .pd-chip-ico { width: 12px; height: 12px; flex: 0 0 12px; opacity: 0.75; }
+.wfrp-paperdoll-tooltip .pd-vchip-ico { width: 12px; height: 12px; flex: 0 0 12px; opacity: 0.75; }
 

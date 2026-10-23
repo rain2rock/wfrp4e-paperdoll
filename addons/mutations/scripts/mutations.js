@@ -72,7 +72,7 @@
               sys.description?.value ? plainEnrichers(stripTags(sys.description.value)) : "",
               grant === "hand" || grant === "head" ? F("WFRPPD.Mutation.Grants", { slot: L(`WFRPPD.Mutation.Grant.${grant}`) }) : ""
             ],
-            hint: L(game.user?.isGM ? "WFRPPD.Mutation.GMHint" : "WFRPPD.Effects.HintOpen")
+            hint: L(game.user?.isGM ? "WFRPPD.Mutation.GMHint" : "WFRPPD.Mutation.Hint")
           });
         }
       },

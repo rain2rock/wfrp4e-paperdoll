@@ -250,9 +250,9 @@
       "NoFreeSlot": "All three bag slots are taken. Remove one or swap via the arrow.",
       "Overflow": "More than three bags worn, not in slots: {names}",
       "Pack": "Pack",
-      "PackHint": "Move the heaviest carried items into worn bags while there is room. Two-handed and polearm weapons stay out",
+      "PackHint": "Equips the roomiest spare bags first, then packs the heaviest carried items into them. Two-handed and polearm weapons stay out",
       "LooseHint": "Encumbrance of items outside bags",
-      "NoBags": "No bags worn",
+      "NoBags": "No bags at all. Get a bag to pack your things",
       "PackNothing": "Nothing to pack: heavy items are already in bags or don't fit",
       "Packed": "Packed {n} items, encumbrance down by {w}.",
       "PackSkipped": "Didn't fit: {names}.",
@@ -500,7 +500,7 @@
     "Use": {
       "Hint": "Shift+right-click to use",
       "Chat": "{who} uses {item}",
-      "Empty": "{name} - none left"
+      "Empty": "{name}: none left"
     }
   }
 }

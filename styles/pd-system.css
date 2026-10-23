@@ -77,3 +77,12 @@
 .wfrp-paperdoll .pd-coin-dot--gc, .wfrp-paperdoll-tooltip .pd-coin-dot--gc { background: radial-gradient(circle at 35% 30%, #fff3a0, #e0b020 55%, #8a6408); }
 .wfrp-paperdoll .pd-coin-dot--ss, .wfrp-paperdoll-tooltip .pd-coin-dot--ss { background: radial-gradient(circle at 35% 30%, #ffffff, #c8ccd0 55%, #6e7378); }
 .wfrp-paperdoll .pd-coin-dot--bp, .wfrp-paperdoll-tooltip .pd-coin-dot--bp { background: radial-gradient(circle at 35% 30%, #ffd2a0, #c07a38 55%, #6a3a12); }
+
+/* --- Видимый фокус с клавиатуры: кнопки, чипы и пункты меню (WCAG 2.4.7) --- */
+.wfrp-paperdoll .pd-btn:focus-visible,
+.wfrp-paperdoll .pd-filter:focus-visible,
+.wfrp-paperdoll .pd-sortopt:focus-visible,
+.wfrp-paperdoll .pd-group-addfx-btn:focus-visible {
+  outline: 2px solid var(--pd-gold-soft);
+  outline-offset: 1px;
+}
