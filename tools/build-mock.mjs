@@ -38,6 +38,11 @@ const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, arr) => (a.startsWith("--") ? [...acc, [a.slice(2), arr[i + 1]?.startsWith("--") ? true : arr[i + 1]]] : acc), [])
 );
 
+// Куда пишем. Страница настроек ложится РЯДОМ с моком («-settings» в имени), а не всегда в docs/:
+// иначе сборка с другими дополнениями затирала бы страницу настроек в репозитории
+const out = path.resolve(args.out ?? path.join(root, "docs/paperdoll-mock.html"));
+const settingsName = path.basename(out).replace(/\.html$/, "-settings.html");
+
 // ---------- Персонаж ----------
 let actor = "blank" in args ? structuredClone(blankActor) : demoActor;
 if (args.snapshot) actor = fromSnapshot(JSON.parse(fs.readFileSync(args.snapshot, "utf8")));
@@ -125,6 +130,14 @@ function resolveIcon(item) {
 const ASSETS = {};
 const assetUri = (rel) => (ASSETS[rel] ??= dataUri(path.join(root, "assets", rel)));
 for (const f of fs.readdirSync(path.join(root, "assets/ui"))) assetUri(`ui/${f}`);
+// Иконки ленты эффектов модуль выбирает САМ, уже в браузере (effectIconFor: состояние по ключу,
+// крит по локации, мутация и болезнь по названию), поэтому заранее угадать нечего -
+// встраиваем эти папки целиком. Наборы небольшие и закрытые, в отличие от снаряжения.
+for (const dir of ["conditions", "criticals", "diseases", "mutations", "careers"]) {
+  const d = path.join(root, "assets/icons", dir);
+  if (fs.existsSync(d)) for (const f of fs.readdirSync(d)) assetUri(`icons/${dir}/${f}`);
+}
+
 const OVERRIDES = new Set();
 (function walk(d, pre = "") {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -268,7 +281,7 @@ ${css}
 <label class="mock-gm"><input type="checkbox" id="mock-gm"> Смотреть как ГМ (видна цена предметов)</label>
 ${cast.length ? `<label class="mock-gm">Персонаж: <select id="mock-cast">${[actor, ...cast].map((a, i) => `<option value="${i}">${a.name}</option>`).join("")}</select></label>` : ""}
 <button id="mock-group" class="mock-gm" type="button">Окно группы (ГМ)</button>
-<a class="mock-gm" href="paperdoll-mock-settings.html" target="_blank">Окно настроек →</a>
+<a class="mock-gm" href="${settingsName}" target="_blank">Окно настроек →</a>
 <button id="mock-reopen" hidden>Открыть окно снова</button>
 <div id="mock-mount"></div>
 <script>${handlebars}</script>
@@ -312,7 +325,6 @@ open();
 </html>
 `;
 
-const out = path.resolve(args.out ?? path.join(root, "docs/paperdoll-mock.html"));
 fs.writeFileSync(out, html);
 console.log(`Мок собран: ${out} (${(html.length / 1024).toFixed(0)} КБ), персонаж: ${actor.name}, своих иконок: ${ownIcons}`);
 if (ROOTS.icons || ROOTS.core)
@@ -416,7 +428,7 @@ new PaperdollSettings().render();
 </body>
 </html>
 `;
-  const settingsOut = path.resolve(root, "docs/paperdoll-mock-settings.html");
+  const settingsOut = path.join(path.dirname(out), settingsName);
   fs.writeFileSync(settingsOut, settingsHtml);
   console.log(`Настройки собраны: ${settingsOut} (${(settingsHtml.length / 1024).toFixed(0)} КБ)`);
 }

@@ -18,9 +18,22 @@
 
   function register(api) {
     const { PaperdollApp, PaperdollTooltip, util } = api;
-    const { T, esc, safe, itemImg, option, uiArt, LOCATIONS, METAL_ARMOUR, LEATHER_ARMOUR } = util;
+    const { T, esc, safe, itemImg, option, uiArt, LOCATIONS, METAL_ARMOUR, LEATHER_ARMOUR, effectImg, stripTags } = util;
     const L = (k) => game.i18n.localize(k);
     const F = (k, d) => game.i18n.format(k, d);
+
+    /**
+     * Иконка заклинания или молитвы: своя по школе (у молитвы - по виду), иначе общая.
+     * Путь у этих предметов ведёт в платный арт системы, поэтому itemImg тут бессилен -
+     * решаем по сути записи, как у состояний и мутаций.
+     */
+    const magicImg = (it) => {
+      const sys = it.system ?? {};
+      const kind = it.type === "spell" ? "spell" : "prayer";
+      const key = kind === "spell" ? loreKey(sys.lore?.value) || "petty" : loreKey(sys.type?.value) || "blessing";
+      return effectImg(kind, { key, name: it.name }, it.img);
+    };
+
 
     // Методы окна: сводка магии, подсказка, сотворение, штраф брони к касту
     class Magic {
@@ -47,7 +60,7 @@
           stats.push({ label: L("WFRPPD.Magic.Cast"), value: cast.value, sub: cast.name, cls: "" });
           for (const ch of skills.filter((s) => /^(channelling|концентрац)/i.test(s.name)))
             stats.push({ label: T(ch.name), value: Number(safe(() => ch.system.total?.value, 0)) || 0, sub: L("WFRPPD.Magic.Channel"), cls: "" });
-          if (pen) stats.push({ label: L("WFRPPD.Stats.CastPenalty"), value: `-${pen} УУ`, sub: L("WFRPPD.Magic.ArmourHint"), cls: "is-down" });
+          if (pen) stats.push({ label: L("WFRPPD.Stats.CastPenalty"), value: `-${pen} ${L("WFRPPD.Terms.Abbr.sl")}`, sub: L("WFRPPD.Magic.ArmourHint"), cls: "is-down" });
         }
         if (prayers.length) {
           const pray = skillVal(/^(pray|молитвослов)/i, "fel");
@@ -72,7 +85,7 @@
           // У заклинаний «на себя» дальность и цель совпадают («You · You») - повтор не несёт смысла
           const seen = new Set();
           const uniq = bits.filter((x) => (seen.has(x.toLowerCase()) ? false : seen.add(x.toLowerCase())));
-          return { id: it.id, name: T(it.name), img: itemImg(it.img, it.name), info: uniq.join(" · "), memorized: !!sys.memorized?.value };
+          return { id: it.id, name: T(it.name), img: magicImg(it), info: uniq.join(" · "), memorized: !!sys.memorized?.value };
         };
         const groups = new Map();
         for (const sp of spells) {
@@ -108,11 +121,11 @@
           [L("WFRPPD.Magic.Target"), sys.target?.value],
           [L("WFRPPD.Magic.Duration"), sys.duration?.value]
         ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
-        const text = String(sys.description?.value ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        const text = stripTags(sys.description?.value);
         const short = text.length > 700 ? `${text.slice(0, 700).trim()}…` : text;
         return `
           <div class="pd-tt-head">
-            <div class="pd-tt-icon rarity-${it.type === "spell" ? "exotic" : "rare"}"><img src="${esc(itemImg(it.img, it.name))}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"></div>
+            <div class="pd-tt-icon rarity-${it.type === "spell" ? "exotic" : "rare"}"><img src="${esc(magicImg(it))}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"></div>
             <div class="pd-tt-title">
               <div class="pd-tt-name">${esc(T(it.name))}</div>
               <div class="pd-tt-sub">${esc([L(it.type === "spell" ? "WFRPPD.Magic.Spell" : "WFRPPD.Magic.Prayer"), kind].filter(Boolean).join(" · "))}</div>
@@ -240,7 +253,7 @@
       statSets(app, sets, { row, profile }) {
         if (!profile.caster) return;
         const pen = app._castPenalty(profile);
-        sets.mental.push(row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} УУ` : "0", pen ? "is-down" : ""));
+        sets.mental.push(row("WFRPPD.Stats.CastPenalty", pen ? `-${pen} ${L("WFRPPD.Terms.Abbr.sl")}` : "0", pen ? "is-down" : ""));
       },
       // Броня, которая мешает касту: предупреждение и минус к оценке в списке смены
       restrictions(app, item, slot, out, profile) {

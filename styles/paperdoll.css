@@ -2232,8 +2232,14 @@
 /* Опыта не хватает: плюс не виден, на наведении строки - бледный, с подсказкой сколько нужно */
 .wfrp-paperdoll .pd-adv.is-off { opacity: 0; background: none; color: var(--pd-text-dim); cursor: help; }
 .wfrp-paperdoll .pd-ecs-row:hover .pd-adv.is-off { opacity: 0.3; }
+/* «+» всегда виден только там, где шаг нужен для вехи ступени: у такой строки есть
+   прогресс «5/10» (.pd-goal). У остальных он появляется по наведению на строку -
+   иначе длинный список навыков рябит плюсами, среди которых не видно нужных */
+.wfrp-paperdoll .pd-adv:not(.is-off) { opacity: 0; }
+.wfrp-paperdoll .pd-ecs-row:has(.pd-goal) .pd-adv:not(.is-off) { opacity: 0.85; }
 .wfrp-paperdoll .pd-ecs-row:hover .pd-adv:not(.is-off) { opacity: 0.85; }
-.wfrp-paperdoll .pd-ecs-row .pd-adv:hover { opacity: 1; }
+.wfrp-paperdoll .pd-ecs-row .pd-adv:hover,
+.wfrp-paperdoll .pd-adv:focus-visible { opacity: 1; }
 .wfrp-paperdoll .pd-ecs-row .pd-ecs-info { margin-left: auto; }
 .wfrp-paperdoll .pd-adv.is-out { background: none; border: none; color: var(--pd-text-dim); }
 .wfrp-paperdoll .pd-adv.is-out:hover { color: #8a6418; background: rgba(176, 138, 58, 0.15); }

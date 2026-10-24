@@ -150,7 +150,13 @@
       "gc": "gold crown|gold crowns|gold crowns",
       "ss": "silver shilling|silver shillings|silver shillings",
       "bp": "brass penny|brass pennies|brass pennies",
-      "sl": "success level|success levels|success levels"
+      "sl": "success level|success levels|success levels",
+      "Abbr": {
+        "gc": "GC",
+        "ss": "SS",
+        "bp": "BP",
+        "sl": "SL"
+      }
     },
     "Restr": {
       "NoSkill": "No skill: {skill}",
@@ -507,6 +513,17 @@
       "Open": "Module installed. Open the window from the character sheet header or press “{key}”.",
       "Group": "For the GM: party window is “{key}”, the party stash opens from there.",
       "Settings": "Settings live in Game Settings → Configure Settings → WFRP4e Equipment."
+    },
+    "Skill": {
+      "Base": "Based on {name}",
+      "Steps": "Advances",
+      "Mod": "Modifier",
+      "Affects": "What it affects",
+      "Weapon": "Hit chance: {name}",
+      "Unarmed": "Unarmed: fists roll this skill",
+      "Rest": "Resting: sets how many Wounds come back",
+      "ArmourPenalty": "Worn armour gets in the way: -{n}",
+      "More": "and {n} more"
     }
   }
 }

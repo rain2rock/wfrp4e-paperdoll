@@ -9,7 +9,7 @@
 
   function register(api) {
     const { PaperdollApp, PaperdollTooltip, util } = api;
-    const { T, esc, safe, norm, option, talentImg, skillMatches, advanceCost, fitDropdown } = util;
+    const { T, esc, safe, norm, option, talentImg, skillMatches, advanceCost, fitDropdown, baseName } = util;
 
     class Progression {
       /** Входит ли навык или характеристика в карьеру (null - карьера неизвестна) */
@@ -17,6 +17,15 @@
         if (!career) return null;
         if (kind === "char") return career.chars.has(keyOrItem);
         return career.skills.some((e) => skillMatches(keyOrItem.name, e));
+      }
+
+      /**
+       * Шаг вне карьеры запрещён настройкой мира «Только навыки карьеры».
+       * Ведущего она не касается: он и есть то самое одобрение, а запрет сделал бы
+       * выдачу внекарьерного шага невозможной вообще.
+       */
+      _advLocked(inCareer) {
+        return inCareer === false && option("careerOnly") && !game.user.isGM;
       }
 
       /** Данные для кнопки «+» у навыка или характеристики */
@@ -32,12 +41,14 @@
         const cost = advanceCost(adv, kind === "char" ? "characteristic" : "skill") * mult;
         const exp = sys.details?.experience ?? {};
         const free = (Number(exp.total) || 0) - (Number(exp.spent) || 0);
-        const can = free >= cost;
+        const locked = this._advLocked(inCareer);
+        const enough = free >= cost;
+        const can = enough && !locked;
         // Разметка подсказки: «## » - заголовок блока, «! » - предупреждение, «~ » - мелкая сноска, TAB - значение справа
         const lines = [
           F("WFRPPD.Adv.Step", { from: adv, to: adv + 1, cost }),
-          inCareer === false ? `! ${L("WFRPPD.Adv.OutOfCareer")}` : inCareer ? L("WFRPPD.Adv.InCareer") : "",
-          can ? F("WFRPPD.Adv.Free", { n: free }) : `! ${F("WFRPPD.Adv.NotEnough", { n: cost - free })}`,
+          inCareer === false ? `! ${L(locked ? "WFRPPD.Adv.Locked" : "WFRPPD.Adv.OutOfCareer")}` : inCareer ? L("WFRPPD.Adv.InCareer") : "",
+          enough ? F("WFRPPD.Adv.Free", { n: free }) : `! ${F("WFRPPD.Adv.NotEnough", { n: cost - free })}`,
           career && inCareer ? F("WFRPPD.Adv.Milestone", { adv, need: career.need }) : "",
           ...(kind === "char" ? this._charImpact(keyOrItem) : []),
           adv > 0 ? `~ ${L("WFRPPD.Adv.RefundHint")}` : ""
@@ -47,6 +58,12 @@
           key: kind === "char" ? keyOrItem : keyOrItem.id,
           adv,
           cost,
+          // Цену шага и остаток опыта показывает не только сам «+», но и подсказка всей строки:
+          // плюс мелкий и у ненужных навыков прячется, вслепую качать не надо
+          free,
+          enough,
+          locked,
+          need: career?.need ?? null,
           can: can && this.editable,
           inCareer,
           reached: !!(career && inCareer && adv >= career.need),
@@ -154,7 +171,7 @@
         const own = offer.itemId ? actor.items.get(offer.itemId) : null;
         if (own) data = own.toObject();
         else {
-          const base = (n) => norm(String(n ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
+          const base = (n) => norm(baseName(n));
           try {
             for (const pack of game.packs ?? []) {
               if (pack.documentName !== "Item") continue;
@@ -218,6 +235,8 @@
               cls: adv.inCareer === false ? "is-outcareer" : "",
               done: adv.reached,
               child: true,
+              // Подсказка одна и та же в обоих видах - её строит ядро
+              hint: this._skillHint(sk, adv),
               adv
             });
           }
@@ -287,6 +306,10 @@
         if (dir < 0 && adv <= 0) return;
         const career = this._careerInfo();
         const inCareer = this._inCareer(kind === "skill" ? "skill" : "char", item ?? key, career);
+        if (dir > 0 && this._advLocked(inCareer)) {
+          ui.notifications?.warn(L("WFRPPD.Adv.LockedMsg"));
+          return;
+        }
         const type = kind === "skill" ? "skill" : "characteristic";
         const cost = advanceCost(dir > 0 ? adv : adv - 1, type) * (inCareer === false ? 2 : 1);
         const exp = actor.system.details?.experience ?? {};
@@ -344,7 +367,9 @@
       icon: "fa-arrow-trend-up",
       settings: [
         { key: "talentBuy", default: true },
-        { key: "showAllSkills", default: false }
+        { key: "showAllSkills", default: false },
+        // Настройка мира: её видит и меняет только ведущий, действует на весь стол
+        { key: "careerOnly", default: false, scope: "world" }
       ],
       onRender(app, root) {
         // Класс is-open ставит и шаблон (offersOpen), поэтому подгоняем высоту ПОСЛЕ каждой отрисовки,

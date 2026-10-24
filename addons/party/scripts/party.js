@@ -63,7 +63,7 @@
         const fromStash = item.parent.id === stashActor()?.id && target.testUserPermission?.(user, "OWNER");
         const mayTake = user && (user.isGM || item.parent.testUserPermission?.(user, "OWNER") || fromStash);
         if (!mayTake) {
-          console.warn(`${MODULE_ID} | передача отклонена: у пользователя нет прав на «${item.parent.name}»`);
+          console.warn(`${MODULE_ID} | transfer refused: user has no ownership of "${item.parent.name}"`);
           return;
         }
       }

@@ -9,7 +9,7 @@
 
   function register(api) {
     const { util } = api;
-    const { MODULE_ID, LIMB_LOCS, isArmLoc, baseName, itemImg, shieldValue, option } = util;
+    const { MODULE_ID, LIMB_LOCS, isArmLoc, fileStem, itemImg, shieldValue, option } = util;
     const L = (k) => game.i18n.localize(k);
     const F = (k, d) => game.i18n.format(k, d);
 
@@ -19,7 +19,7 @@
      * arm / hand / leg / foot - ампутация, broken / torn - временно не действует (книга: как ампутация, пока не заживёт)
      */
     function injuryLimbKind(item) {
-      const img = baseName(item.img);
+      const img = fileStem(item.img);
       const name = String(item.name ?? "").toLowerCase();
       const test = (imgRe, nameRe) => imgRe.test(img) || nameRe.test(name);
       if (test(/^amputatedhand/, /amputated hand|lost hand|кист/)) return "hand";
@@ -35,7 +35,7 @@
     function injuryLimbLoc(item, kind) {
       const key = item.system?.location?.key;
       if (LIMB_LOCS.includes(key)) return key;
-      const text = `${item.system?.location?.value ?? ""} ${item.name ?? ""} ${baseName(item.img)}`.toLowerCase();
+      const text = `${item.system?.location?.value ?? ""} ${item.name ?? ""} ${fileStem(item.img)}`.toLowerCase();
       const side = /\bleft\b|лев/.test(text) ? "l" : /\bright\b|прав/.test(text) ? "r" : null;
       const arm = ["hand", "arm"].includes(kind) || /arm|hand|рук|кист/.test(text);
       const leg = ["foot", "leg"].includes(kind) || /leg|foot|ног|стоп/.test(text);
@@ -46,7 +46,7 @@
     /** Протез: hook - крюк, leg - деревянная нога или стопа, marvel - инженерное чудо */
     function prostheticKind(item) {
       if (item.type !== "trapping") return null;
-      const img = baseName(item.img);
+      const img = fileStem(item.img);
       const name = String(item.name ?? "").toLowerCase();
       if (/engineering-marvel/.test(img) || /engineering marvel|инженерн\S* чуд/.test(name)) return "marvel";
       if (/hook/.test(img) || /\bhook\b|крюк/.test(name)) return "hook";

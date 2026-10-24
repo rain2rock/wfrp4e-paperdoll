@@ -26,7 +26,10 @@ for (let a = 0; a < nActors; a++) {
       await eq.click(); await p.waitForTimeout(250);
       const inSlot = await p.$$eval(`.pd-slot[data-slot="${slot}"] .pd-item`, els => els.map(e => e.dataset.itemId));
       const twoH = slot === 'off';
-      ok(`${name} ${slot} equip ${id}`, inSlot.includes(id) || twoH || /^bag/.test(slot) && await p.$(`.pd-bagsec-icon[data-slot="${slot}"]`) !== null, JSON.stringify(inSlot));
+      // Броню в WFRP можно носить слоями: шапка под капюшоном надевается, но слот рисует одну вещь
+      // и ставит значок «+N». Поэтому надетым считаем и слой под уже носимой вещью
+      const layered = await p.$(`.pd-slot[data-slot="${slot}"] .pd-layers`) !== null;
+      ok(`${name} ${slot} equip ${id}`, inSlot.includes(id) || layered || twoH || /^bag/.test(slot) && await p.$(`.pd-bagsec-icon[data-slot="${slot}"]`) !== null, JSON.stringify(inSlot));
     } else await p.keyboard.press('Escape');
     await p.mouse.click(3, 3); await p.waitForTimeout(80);
   }

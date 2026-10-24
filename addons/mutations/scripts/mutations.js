@@ -9,7 +9,7 @@
 
   function register(api) {
     const { util } = api;
-    const { MODULE_ID, EXTRA_HANDS, EXTRA_HEADS, option, itemImg, stripTags, plainEnrichers } = util;
+    const { MODULE_ID, EXTRA_HANDS, EXTRA_HEADS, option, itemImg, stripTags, plainEnrichers, effectImg } = util;
     const L = (k) => game.i18n.localize(k);
     const F = (k, d) => game.i18n.format(k, d);
 
@@ -63,7 +63,8 @@
             kind: "mutation",
             id: m.id,
             name: m.name,
-            img: itemImg(m.img, m.name),
+            // Своя иконка по названию мутации, иначе заглушка по типу (телесная / разума)
+            img: effectImg("mutation", { name: m.name, type }, m.img),
             debuff: true,
             grant,
             lines: [

@@ -177,8 +177,11 @@ const r = await p.evaluate(() => {
       vet.setTarget(true);
       const aim = U.targetedAttack(app, sling);
       eq("полоса до цели", aim.band.key, "pointBlank");
-      // Систему модификаторов считает сама - мы их НЕ складываем, только перечисляем справочно
-      eq("шанс остаётся базовым", [aim.hit.base, aim.hit.mod, aim.hit.total], [38, 0, 38]);
+      // Систему модификаторов считает сама - мы их НЕ складываем, только перечисляем справочно.
+      // Сверяем не число, а суть: база = навык оружия, полоса дальности в итог не попала
+      const slingSkill = hugo.items.find((i) => i.type === "skill" && /Sling/.test(i.name));
+      const slingVal = Number(slingSkill?.system.total?.value) || 0;
+      eq("шанс остаётся базовым", [aim.hit.base, aim.hit.mod, aim.hit.total], [slingVal, 0, slingVal]);
       eq("полоса дальности в справке", aim.willApply.some((x) => /упор/i.test(x)), true);
       eq("урон за вычетом стойкости и брони", [aim.damage.full, aim.damage.tb, aim.damage.ap, aim.damage.net], [6, 4, 1, 1]);
       eq("разбор урона непустой", aim.damage.parts.length > 0, true);

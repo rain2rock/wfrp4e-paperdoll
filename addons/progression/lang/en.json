@@ -13,7 +13,10 @@
       "LogUp": "{name}: advanced to {to}",
       "LogDown": "{name}: advance refunded (to {to})",
       "GoalHint": "Advances towards the current level milestone",
-      "NotEnoughMsg": "{n} XP short"
+      "NotEnoughMsg": "{n} XP short",
+      "Locked": "Out of career: the GM has disabled these advances",
+      "LockedMsg": "Out-of-career advances are disabled by the GM. Ask them to raise it.",
+      "Head": "Advancement"
     },
     "TalentBuy": {
       "Title": "Career level talents",
@@ -52,6 +55,10 @@
       "showAllSkills": {
         "Name": "Show all skills in Advance view",
         "Hint": "In the Advance view, list every skill of a characteristic, including untrained out-of-career skills (dimmed, cost ×2). Off - only career and already trained skills; the full list is in the + tooltip."
+      },
+      "careerOnly": {
+        "Name": "Career skills and characteristics only",
+        "Hint": "Players cannot spend XP outside their career: the '+' on those rows goes dim. The GM can still make the advance. Refunds stay available. This setting applies to the whole table."
       }
     },
     "Addon": {

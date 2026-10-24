@@ -1,7 +1,7 @@
 import { ICON_OVERRIDES } from "./icon-index.js";
 import { translateTerm } from "./glossary-ru.js";
 import { translateText, cachedTranslation, looksEnglish } from "./translate.js";
-import { ownIconFor, talentSlug } from "./icon-rules.js";
+import { ownIconFor, talentSlug, effectIconFor, baseName } from "./icon-rules.js";
 
 export const MODULE_ID = "wfrp4e-paperdoll";
 
@@ -83,6 +83,20 @@ export function talentImg(img, name = "") {
   return itemImg(img, name);
 }
 
+/**
+ * Иконка записи ленты эффектов. У этих записей картинка почти всегда чужая: состояния лежат
+ * в системе, мутации и криты - в компендиуме ядра, и itemImg их не переписывает.
+ * Поэтому сначала ищем своё по сути записи (ключ состояния, локация крита, название мутации),
+ * и только если не нашли - идём обычным путём.
+ */
+export function effectImg(kind, info = {}, img = "") {
+  if (setting("itemIcons", true)) {
+    const rel = effectIconFor(kind, info, ICON_OVERRIDES);
+    if (rel) return asset(`icons/${rel}`);
+  }
+  return itemImg(img, info.name ?? "");
+}
+
 /** Силуэты пустых слотов */
 const SLOT_ART = {
   head: "slot-head",
@@ -129,7 +143,9 @@ const STAT_ART = { tree: "stat-tree", general: "stat-general", experience: "stat
 
 const LIMB_LOCS = ["rArm", "lArm", "rLeg", "lLeg"];
 const isArmLoc = (loc) => loc === "rArm" || loc === "lArm";
-const baseName = (img) => String(img ?? "").split("/").pop().replace(/\.\w+$/, "").toLowerCase();
+// Имя файла без папок и расширения. Не путать с baseName из icon-rules:
+// тот про НАЗВАНИЕ предмета, этот - про путь к картинке
+const fileStem = (img) => String(img ?? "").split("/").pop().replace(/\.\w+$/, "").toLowerCase();
 
 /* -------------------------------------------- */
 /*  Мутации: лишние руки и головы               */
@@ -217,17 +233,29 @@ function shieldValue(item) {
 }
 
 /** Есть ли у предмета достоинство или изъян (ключ системы или подпись) */
-function hasProperty(item, key, rx) {
+/**
+ * Подписи качеств и изъянов система отдаёт на языке мира, поэтому ключу нужен
+ * ещё и образец названия. Держим пару в одном месте: раньше regexp передавали
+ * аргументом, и одна и та же пара была записана в коде дважды.
+ */
+const PROPERTY_RX = {
+  flexible: /flexible|гибк/i,
+  practical: /practical|практичн/i
+};
+
+function hasProperty(item, key) {
   const sys = item.system;
   const props = safe(() => sys.properties, null) ?? {};
   if (props.qualities?.[key] || props.flaws?.[key]) return true;
+  const rx = PROPERTY_RX[key];
+  if (!rx) return false;
   const labels = [...(safe(() => sys.Qualities, []) ?? []), ...(safe(() => sys.Flaws, []) ?? [])];
   return labels.some((q) => rx.test(q));
 }
 
 /** Гибкая броня или мягкая кожа - её можно поддеть под другой доспех (стр. 300) */
 function isUnderLayer(item) {
-  return item.system.armorType?.value === "softLeather" || hasProperty(item, "flexible", /flexible|гибк/i);
+  return item.system.armorType?.value === "softLeather" || hasProperty(item, "flexible");
 }
 
 /**
@@ -253,7 +281,7 @@ function armourSkillPenalties(item) {
     if (/great\s*helm|closed|топфхельм|глух|закрыт/i.test(item.name)) out.perception = 20;
     else if (/helm|coif|шлем|капюшон/i.test(item.name) && type !== "softLeather") out.perception = 10;
   }
-  if (hasProperty(item, "practical", /practical|практичн/i)) {
+  if (hasProperty(item, "practical")) {
     out.stealth = Math.max(0, out.stealth - 10);
     out.perception = Math.max(0, out.perception - 10);
   }
@@ -352,20 +380,28 @@ function plural(n, forms) {
   return forms[2];
 }
 
-/** Сокращение -> [формы слова для 1/2/5, как подписать сокращение] */
+/**
+ * Сокращение в тексте -> ключ термина. Распознаём оба языка: мир может быть и русским,
+ * и английским, а подпись в скобках берём из локализации клиента - иначе в английском
+ * окне рядом с «6 gold crowns» оставалась бы русская «(ЗК)».
+ * «МП» стоит раньше «П», иначе «6 МП» разобралось бы как «6 П».
+ */
 const TERMS = [
-  [/(ЗК|зк|GC)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.gc").split("|"))} (ЗК)`],
-  [/(СШ|сш|SS)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.ss").split("|"))} (СШ)`],
-  [/(П|п|BP)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.bp").split("|"))} (П)`],
-  [/(УУ|SL)/, (n) => `${plural(n, game.i18n.localize("WFRPPD.Terms.sl").split("|"))} (УУ)`]
+  ["gc", /(ЗК|зк|GC)/],
+  ["ss", /(СШ|сш|SS)/],
+  ["bp", /(МП|мп|П|п|BP)/],
+  ["sl", /(УУ|SL)/]
 ];
 
 /** «-2 УУ» -> «-2 уровня успеха (УУ)», «6 ЗК» -> «6 золотых крон (ЗК)» */
 function humanizeTerms(text) {
   let out = String(text ?? "");
-  for (const [abbr, word] of TERMS) {
+  for (const [key, abbr] of TERMS) {
     const re = new RegExp(`([+\\-–]?\\d+)\\s*${abbr.source}(?![\\p{L}])`, "gu");
-    out = out.replace(re, (_, num) => `${num} ${word(Number(num.replace("–", "-")))}`);
+    out = out.replace(re, (_, num) => {
+      const word = plural(Number(num.replace("–", "-")), L(`WFRPPD.Terms.${key}`).split("|"));
+      return `${num} ${word} (${L(`WFRPPD.Terms.Abbr.${key}`)})`;
+    });
   }
   return out;
 }
@@ -423,8 +459,11 @@ function parseDescription(html, { hidePrices = false } = {}) {
 }
 
 function stripTags(html) {
+  // Теги меняем на пробел ДО разбора: через textContent соседние абзацы склеивались
+  // («Первый абзац.Второй абзац.»), а разбор уже очищенной строки заодно не создаёт
+  // из чужого HTML ни одного элемента - только раскрывает сущности вроде &amp;
   const div = document.createElement("div");
-  div.innerHTML = html ?? "";
+  div.innerHTML = String(html ?? "").replace(/<[^>]+>/g, " ");
   return (div.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
@@ -472,8 +511,9 @@ const DICE_RE = /\b(\d*d\d+(?:\s*[+-]\s*\d+)?)\b/gi;
 // Деньги в описании («Цена ингредиентов: 6 ЗК») показываем монетой и числом - так же, как цену вещи.
 // Словами («6 золотых крон (ЗК)») это занимает полстроки, поэтому номинал до humanizeTerms прячем
 // в метку, а после разбора подставляем ту же разметку, что у цены.
-const COIN_BY_ABBR = { ЗК: "gc", зк: "gc", GC: "gc", gc: "gc", СШ: "ss", сш: "ss", SS: "ss", ss: "ss", МП: "bp", мп: "bp", BP: "bp", bp: "bp" };
-const MONEY_RE = /(\d+)\s*(ЗК|СШ|МП|зк|сш|мп|GC|SS|BP|gc|ss|bp)(?!\p{L})/gu;
+const COIN_BY_ABBR = { ЗК: "gc", зк: "gc", GC: "gc", gc: "gc", СШ: "ss", сш: "ss", SS: "ss", ss: "ss", МП: "bp", мп: "bp", П: "bp", п: "bp", BP: "bp", bp: "bp" };
+// «МП» перечислен раньше «П»: иначе «6 МП» разобралось бы как «6 П» с лишней «М» в тексте
+const MONEY_RE = /(\d+)\s*(ЗК|СШ|МП|зк|сш|мп|GC|SS|BP|gc|ss|bp|П|п)(?!\p{L})/gu;
 const MARK = "\u0001";
 
 /** Спрятать деньги в метку до humanizeTerms, иначе он развернёт номинал словами */
@@ -709,7 +749,7 @@ function effectEntry(effect, actor, { editable = true } = {}) {
       id: effect.id,
       key: condition,
       name: T(effect.name || L(cfg.conditions[condition])),
-      img: effect.img,
+      img: effectImg("condition", { key: condition, name: effect.name }, effect.img),
       value: value && value > 1 ? value : null,
       left: effectRemaining(effect),
       debuff: true,
@@ -1537,6 +1577,86 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return lines;
   }
 
+  /**
+   * Сколько стоит следующий шаг развития и хватает ли опыта.
+   * Те же строки, что и в подсказке «+», но показываем их на всей строке:
+   * плюс мелкий, а у навыков вне вехи ещё и появляется только по наведению.
+   * Без дополнения «Развитие» adv нет - и блока не будет.
+   */
+  _advCostLines(adv) {
+    if (!adv) return [];
+    const lines = [
+      `## ${L("WFRPPD.Adv.Head")}`,
+      F("WFRPPD.Adv.Step", { from: adv.adv, to: adv.adv + 1, cost: adv.cost })
+    ];
+    if (adv.inCareer && adv.need != null) lines.push(F("WFRPPD.Adv.Milestone", { adv: adv.adv, need: adv.need }));
+    if (adv.locked) lines.push(`! ${L("WFRPPD.Adv.Locked")}`);
+    lines.push(
+      adv.enough
+        ? F("WFRPPD.Adv.Free", { n: adv.free })
+        : `! ${F("WFRPPD.Adv.NotEnough", { n: adv.cost - adv.free })}`
+    );
+    return lines;
+  }
+
+  /**
+   * Подсказка навыка: из чего сложилось число и на что навык влияет.
+   * Книжный текст берём у самого предмета - в системе он есть, а строка «» » переводится
+   * общим путём, как у талантов. Роль навыка в самом окне знает только модуль,
+   * поэтому её дописываем отдельно - и только то, что ядро правда считает.
+   */
+  _skillHint(sk, adv = null) {
+    const sys = sk.system ?? {};
+    const key = String(sys.characteristic?.value ?? "");
+    const c = this.actor.system.characteristics?.[key] ?? {};
+    const base = Number(c.value) || 0;
+    const steps = Number(sys.advances?.value) || 0;
+    const mod = Number(sys.modifier?.value) || 0;
+    const total = Number(safe(() => sys.total?.value, null) ?? base + steps + mod) || 0;
+    const charName = L(game.wfrp4e.config.characteristics?.[key] ?? key);
+    const lines = [`${T(sk.name)}\t${total}`, `${F("WFRPPD.Skill.Base", { name: charName })}\t${base}`];
+    if (steps) lines.push(`${L("WFRPPD.Skill.Steps")}\t+${steps}`);
+    if (mod) lines.push(`${L("WFRPPD.Skill.Mod")}\t${mod > 0 ? "+" : "-"}${Math.abs(mod)}`);
+    // Карьеру и цену шага знает дополнение «Развитие»: без него adv нет, и блока не будет
+    if (adv) {
+      lines.push(adv.inCareer === false ? `! ${L("WFRPPD.Adv.OutOfCareer")}` : adv.inCareer ? L("WFRPPD.Adv.InCareer") : "");
+      lines.push(...this._advCostLines(adv));
+    }
+    const uses = this._skillUses(sk);
+    if (uses.length) lines.push(`## ${L("WFRPPD.Skill.Affects")}`, ...uses.map((u) => `· ${u}`));
+    const text = stripTags(safe(() => sys.description?.value, ""));
+    if (text) lines.push(`» ${text.length > 400 ? `${text.slice(0, 400).trim()}…` : text}`);
+    return lines.filter(Boolean).join("\n");
+  }
+
+  /**
+   * На что навык влияет в этом окне. Пишем только то, что считает само ядро:
+   * обещать «нужен для каста» нельзя - магия живёт в дополнении, которого может не быть.
+   */
+  _skillUses(sk) {
+    const out = [];
+    // Оружие, которое бьёт этим навыком: по нему окно считает шанс попасть
+    const names = [
+      ...new Set(
+        (this.actor.itemTypes.weapon ?? [])
+          .filter((w) => safe(() => w.system.skillToUse?.id, null) === sk.id)
+          .map((w) => T(w.name))
+      )
+    ];
+    for (const n of names.slice(0, 4)) out.push(F("WFRPPD.Skill.Weapon", { name: n }));
+    if (names.length > 4) out.push(F("WFRPPD.Skill.More", { n: names.length - 4 }));
+    if (/\((brawling|кулачн|драка)\)/i.test(sk.name)) out.push(L("WFRPPD.Skill.Unarmed"));
+    if (/^(endurance|стойкость)/i.test(sk.name)) out.push(L("WFRPPD.Skill.Rest"));
+    const pen = this._skillPenalties();
+    const n = /^(stealth|скрытност)/i.test(sk.name)
+      ? pen.stealth
+      : /^(perception|наблюдательност|восприятие)/i.test(sk.name)
+        ? pen.perception
+        : 0;
+    if (n) out.push(F("WFRPPD.Skill.ArmourPenalty", { n }));
+    return out;
+  }
+
   /** Отдых и восстановление: проверка Стойкости (+20), успех - [БВ + УУ] ран, день полного покоя - ещё +БВ */
   async _restRecover(fullDay = false) {
     if (!this.editable) return;
@@ -1650,7 +1770,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** Описание таланта из самого предмета (без разметки) */
   _talentText(t) {
-    const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const text = stripTags(safe(() => t.system.description?.value, ""));
     return text.length > 20 ? text : "";
   }
 
@@ -1660,7 +1780,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const lib = PaperdollApp._talentLib;
     if (lib.has(key)) return lib.get(key);
     lib.set(key, "");
-    const base = (n) => norm(String(n ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
+    const base = (n) => norm(baseName(n));
     try {
       for (const pack of game.packs ?? []) {
         if (pack.documentName !== "Item") continue;
@@ -1741,6 +1861,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         cls: mod > 0 ? "is-up" : mod < 0 ? "is-down" : "",
         hint: [
           c.bonus !== undefined || c.value !== undefined ? this._bonusInfo(key).join("\n") : "",
+          this._advCostLines(adv).join("\n"),
           mod ? game.i18n.format("WFRPPD.Stats.Modified", { mod: `${mod > 0 ? "+" : "-"}${Math.abs(mod)}` }) : ""
         ]
           .filter(Boolean)
@@ -1875,6 +1996,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           value: safe(() => sk.system.total?.value, null) ?? adv?.adv,
           cls: adv?.inCareer === false ? "is-outcareer" : "",
           done: !!adv?.reached,
+          hint: this._skillHint(sk, adv),
           adv
         }))
       });
@@ -1903,7 +2025,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
           : "",
         rows: talents.map(({ t, lvl }) => {
           const max = this._talentMax(t);
-          const text = String(safe(() => t.system.description?.value, "") ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          const text = stripTags(safe(() => t.system.description?.value, ""));
           const head = max ? game.i18n.format("WFRPPD.Talent.Level", { lvl, max }) : game.i18n.format("WFRPPD.Talent.LevelNoMax", { lvl });
           return {
             key: t.name,
@@ -1920,7 +2042,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     // У каждой строки - термины для поиска статьи правил (английские названия из книги + подпись)
     // Специализация в скобках статье не нужна: «Lore (Empire)» -> «Lore»
-    const baseName = (t) => String(t ?? "").replace(/:$/, "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+
     const withArticle = (r) => ({
       ...r,
       article: [ARTICLE_TERMS[r.key], baseName(r.label)].filter(Boolean).join("|"),
@@ -1998,7 +2120,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const list = [...terms].map((t) => norm(t)).filter(Boolean);
     const score = (name) => {
       // «Weapon Skill (WS)» в книге = «Weapon Skill»
-      const n = norm(String(name ?? "").replace(/\s*\([^)]*\)\s*$/, ""));
+      const n = norm(baseName(name));
       if (!n) return 0;
       let best = 0;
       for (const t of list) {
@@ -2558,7 +2680,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "critical",
         id: crit.id,
         name: crit.name,
-        img: itemImg(crit.img, crit.name),
+        img: effectImg("critical", { name: crit.name, location: sys.location?.key ?? sys.location?.value ?? "" }, crit.img),
         debuff: true,
         lines: [
           sys.location?.value ? `${L("WFRPPD.Effects.Location")}: ${locName(sys.location.key ?? sys.location.value)}` : "",
@@ -2581,7 +2703,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
         kind: "disease",
         id: disease.id,
         name: disease.name,
-        img: itemImg(disease.img, disease.name),
+        img: effectImg("disease", { name: disease.name }, disease.img),
         debuff: true,
         lines: [state, sys.symptoms?.value ? `${L("WFRPPD.Effects.Symptoms")}: ${sys.symptoms.value}` : ""],
         hint: L(this.editable ? "WFRPPD.Effects.HintRemovable" : "WFRPPD.Effects.HintOpen")
@@ -2613,22 +2735,6 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       editable: { value: editable }
     });
     return ctx._effectsView();
-  }
-
-  /** ЛКМ по эффекту */
-  /** Диалог подтверждения снятия (единый для травм/критов/болезней/эффектов) */
-  async _confirmRemoveEffect(name) {
-    return confirmRemoveEffect(name);
-  }
-
-  /** Сама запись ленты как ActiveEffect-документ: с предмета - из его effects, иначе - с самого актёра */
-  _effectDoc(entry) {
-    return effectDocOf(this.actor, entry);
-  }
-
-  /** Лист, который открывает запись ленты эффектов: пассивку - через её предмет, всё остальное - сама запись */
-  _effectSheet(entry) {
-    effectSheetFor(this.actor, entry);
   }
 
   /**
@@ -2824,7 +2930,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const pen = armourSkillPenalties(item);
       if (pen.stealth) warn.push({ label: F("WFRPPD.Restr.Stealth", { n: -pen.stealth }), hint: L("WFRPPD.Restr.SkillPenaltyHint"), info: true });
       if (pen.perception) warn.push({ label: F("WFRPPD.Restr.Perception", { n: -pen.perception }), hint: L("WFRPPD.Restr.SkillPenaltyHint"), info: true });
-      if (hasProperty(item, "practical", /practical|практичн/i)) warn.push({ label: L("WFRPPD.Restr.Practical"), good: true });
+      if (hasProperty(item, "practical")) warn.push({ label: L("WFRPPD.Restr.Practical"), good: true });
       score -= (pen.stealth + pen.perception) * 2;
     }
 
@@ -4280,9 +4386,10 @@ class PaperdollFlyout {
 
 /** Общие помощники ядра: дополнения берут их отсюда, а не копируют */
 export const PD_UTIL = {
+  effectImg,
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
-  isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, baseName,
+  isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, fileStem, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound, fitDropdown,
   L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
   sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS, matchesFilter, BAG_FILTERS,
