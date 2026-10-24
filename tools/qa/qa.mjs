@@ -276,6 +276,43 @@ ok('disabled closes windows', off.closed);
 ok('disabled blocks opening', off.blocked);
 ok('re-enabled opens again', off.back);
 
+// Отдых: лечит БВ + УУ, причём провал - это отрицательные УУ, а не «ноль лечения».
+// Раньше при провале окно не лечило вовсе и расходилось с листом персонажа системы
+const rest = await p.evaluate(async () => {
+  const app = [...window.PaperdollApp.instances.values()][0];
+  const a = app.actor;
+  const t = a.system.characteristics.t;
+  const tb = Number(t.bonus ?? Math.floor(Number(t.value) / 10)) || 0;
+  const sk = a.items.find((i) => i.type === "skill" && /^(endurance|стойкость)$/i.test(i.name));
+  const target = (Number(sk?.system.total?.value) || Number(t.value) || 0) + 20;
+  const real = globalThis.Roll;
+  const fixed = (n) => { globalThis.Roll = class { constructor(f) { this.formula = f; } async evaluate() { this.total = n; return this; } }; };
+  const run = async (roll, full = false) => {
+    await a.update({ "system.status.wounds.value": 1 });
+    fixed(roll);
+    await app._restRecover(full);
+    return (Number(a.system.status.wounds.value) || 0) - 1;
+  };
+  // Провал на один шаг десятки: лечит БВ - 1, а не ноль
+  const nearMiss = target - (target % 10) + 10 + 1;
+  const sl = (roll) => Math.floor(target / 10) - Math.floor(roll / 10);
+  const out = {
+    tb,
+    slNearMiss: sl(nearMiss),
+    slBadFail: sl(100),
+    healNearMiss: await run(nearMiss),
+    healBadFail: await run(100),
+    healFullDay: await run(nearMiss, true)
+  };
+  globalThis.Roll = real;
+  await a.update({ "system.status.wounds.value": Number(a.system.status.wounds.max) || 1 });
+  return out;
+});
+ok('rest heals TB+SL on a failed test', rest.healNearMiss === Math.max(0, rest.tb + rest.slNearMiss) && rest.healNearMiss > 0, JSON.stringify(rest));
+ok('rest follows TB+SL on a bad fail too', rest.healBadFail === Math.max(0, rest.tb + rest.slBadFail), JSON.stringify(rest));
+ok('rest never heals a negative amount', rest.healBadFail >= 0 && rest.healNearMiss >= 0, JSON.stringify(rest));
+ok('full day of rest adds TB', rest.healFullDay === rest.healNearMiss + rest.tb, JSON.stringify(rest));
+
 if (process.env.PD_QA_LIST) console.log(results.join('\n'));
 console.log(results.filter(r => r.startsWith('FAIL')).join('\n') || 'all pass', `(${results.length} checks)`);
 console.log('toasts', (await toasts()).slice(-5));

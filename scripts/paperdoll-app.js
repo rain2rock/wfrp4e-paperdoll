@@ -1673,7 +1673,11 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const w = actor.system.status?.wounds ?? {};
     const max = Number(w.max) || 0;
     const now = Number(w.value) || 0;
-    const heal = (ok ? tb + Math.max(0, sl) : 0) + (fullDay ? tb : 0);
+    // Отдых лечит БВ + УУ. Уровни успеха при провале отрицательные - они и ЕСТЬ штраф,
+    // отдельного «провалил - не лечишь ничего» в правилах нет. Раньше здесь стояло
+    // (ok ? tb + max(0, sl) : 0): при провале окно не лечило вовсе, а лист персонажа
+    // системы в той же ситуации лечил БВ + УУ - и расходился с нами на пару ран
+    const heal = Math.max(0, tb + sl) + (fullDay ? tb : 0);
     const next = Math.min(max, now + heal);
     if (next !== now) await actor.update({ "system.status.wounds.value": next });
     const content = `<div class="wfrp-paperdoll-rest"><b>${esc(L("WFRPPD.Rest.Title"))}</b><br>${esc(
