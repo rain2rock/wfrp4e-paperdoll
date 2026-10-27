@@ -42,7 +42,7 @@ export const actorData = {
     { name: "Melee (Basic)", ch: "ws", adv: 5 }, { name: "Melee (Flail)", ch: "ws", adv: 10 },
     { name: "Ranged (Sling)", ch: "bs", adv: 0 }, { name: "Language (Magick)", ch: "int", adv: 3 },
     { name: "Endurance", ch: "t", adv: 6 }, { name: "Stealth (Rural)", ch: "ag", adv: 4 },
-    { name: "Perception", ch: "i", adv: 2 }, { name: "Melee (Brawling)", ch: "ws", adv: 0 }
+    { name: "Perception", ch: "i", adv: 2 }, { name: "Melee (Brawling)", ch: "ws", adv: 8 }
   ],
   talents: [{ name: "Arcane Magic (Fire)" }],
   system: {

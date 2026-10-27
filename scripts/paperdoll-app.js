@@ -199,6 +199,14 @@ const GROUP_SKILL = {
 };
 
 /**
+ * Навык боя без оружия. В системе он называется «Melee (Brawling)», поэтому прежний якорь
+ * /^brawling/ не совпадал вовсе: в английском мире проверка уходила на голую характеристику ББ,
+ * и вкачанный навык в окне не учитывался. Специализацию ищем в скобках, как её и пишет система.
+ */
+const UNARMED_SKILL_RX = /\(\s*(brawling|драка|кулачн)\s*\)|^(brawling|драка)$/i;
+
+
+/**
  * Обеты культов, которые касаются снаряжения.
  * В базовой книге это только Ульрик; список легко расширить.
  */
@@ -319,6 +327,17 @@ function advanceCost(advances, type) {
   const table = safe(() => game.wfrp4e.config.xpCost?.[type], null) ?? XP_TABLE[type];
   const i = Math.min(Math.floor(Math.max(0, Number(advances) || 0) / 5), table.length - 1);
   return table[i];
+}
+
+/**
+ * Исход проверки d100 против цели (стр. 151): 01-05 - всегда успех, 96-100 - всегда провал,
+ * уровни успеха - разница десятков. Правило лежало в трёх местах (отдых, бросок из окна,
+ * запасной путь магии) - держим его одним куском, чтобы оно не разъехалось.
+ */
+function testResult(roll, target) {
+  const r = Number(roll) || 0;
+  const t = Number(target) || 0;
+  return { roll: r, target: t, ok: r <= 5 || (r <= t && r < 96), sl: Math.floor(t / 10) - Math.floor(r / 10) };
 }
 
 /** Навык из списка карьеры: точное совпадение или «Ближний бой (любое)» для любой специализации */
@@ -1645,7 +1664,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     ];
     for (const n of names.slice(0, 4)) out.push(F("WFRPPD.Skill.Weapon", { name: n }));
     if (names.length > 4) out.push(F("WFRPPD.Skill.More", { n: names.length - 4 }));
-    if (/\((brawling|кулачн|драка)\)/i.test(sk.name)) out.push(L("WFRPPD.Skill.Unarmed"));
+    if (UNARMED_SKILL_RX.test(sk.name)) out.push(L("WFRPPD.Skill.Unarmed"));
     if (/^(endurance|стойкость)/i.test(sk.name)) out.push(L("WFRPPD.Skill.Rest"));
     const pen = this._skillPenalties();
     const n = /^(stealth|скрытност)/i.test(sk.name)
@@ -1668,8 +1687,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const target = base + 20;
     const roll = await new Roll("1d100").evaluate();
     const r = roll.total;
-    const ok = r <= 5 || (r <= target && r < 96);
-    const sl = Math.floor(target / 10) - Math.floor(r / 10);
+    const { ok, sl } = testResult(r, target);
     const w = actor.system.status?.wounds ?? {};
     const max = Number(w.max) || 0;
     const now = Number(w.value) || 0;
@@ -1733,8 +1751,7 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const roll = await new Roll("1d100").evaluate();
     const r = roll.total;
-    const ok = r <= 5 || (r <= target && r < 96);
-    const sl = Math.floor(target / 10) - Math.floor(r / 10);
+    const { ok, sl } = testResult(r, target);
     const content = `<div class="wfrp-paperdoll-rest"><b>${esc(label)}</b><br>${esc(
       game.i18n.format("WFRPPD.Rest.Roll", { r, target, sl: sl > 0 ? `+${sl}` : sl })
     )}<br><b>${esc(ok ? L("WFRPPD.Rest.Success") : L("WFRPPD.Rest.Fail"))}</b></div>`;
@@ -1752,7 +1769,10 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    * считаем сами по тем же правилам: навык Brawling, а без него Ближний бой (ББ).
    */
   _unarmedTarget() {
-    const sk = (this.actor.itemTypes.skill ?? []).find((s) => /^(brawling|драка|рукопашн)/i.test(s.name));
+    const skills = this.actor.itemTypes.skill ?? [];
+    const sk =
+      skills.find((s) => norm(s.name) === norm(GROUP_SKILL.brawling)) ??
+      skills.find((s) => UNARMED_SKILL_RX.test(s.name));
     const val = Number(safe(() => sk?.system.total?.value, null));
     if (sk && val) return { target: val, from: T(sk.name) };
     const ws = this.actor.system.characteristics?.ws ?? {};
@@ -4393,7 +4413,7 @@ export const PD_UTIL = {
   effectImg,
   MODULE_ID, LOCATIONS, GROUP_SKILL, METAL_ARMOUR, LEATHER_ARMOUR, RANGED_FALLBACK, RARITY_RANK, LIMB_LOCS, EXTRA_HANDS, EXTRA_HEADS,
   esc, safe, T, norm, option, setting, asset, uiArt, itemImg, talentImg, skillMatches, stripTags, plainEnrichers, humanizeTerms,
-  isArmLoc, shieldValue, advanceCost, effectPolarity, prostheticKind, fileStem, baseName,
+  isArmLoc, shieldValue, advanceCost, testResult, effectPolarity, prostheticKind, fileStem, baseName,
   extraSlotOf, isExtraHand, isExtraHead, addonHook, effectTooltip, effectRemaining, playCoinSound, playGearSound, fitDropdown,
   L, F, COIN_VALUE, actorCoins, moneyPennies, formatMoney, changeActorMoney, woundsTier, confirmRemoveEffect, effectEntry,
   sortItems, SORT_KEYS, itemRarity, effectAction, effectSheetFor, effectDocOf, secondBarData, SECOND_BARS, matchesFilter, BAG_FILTERS,

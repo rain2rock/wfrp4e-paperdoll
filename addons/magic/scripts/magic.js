@@ -18,7 +18,7 @@
 
   function register(api) {
     const { PaperdollApp, PaperdollTooltip, util } = api;
-    const { T, esc, safe, itemImg, option, uiArt, LOCATIONS, METAL_ARMOUR, LEATHER_ARMOUR, effectImg, stripTags } = util;
+    const { T, esc, safe, itemImg, option, uiArt, LOCATIONS, METAL_ARMOUR, LEATHER_ARMOUR, effectImg, stripTags , testResult} = util;
     const L = (k) => game.i18n.localize(k);
     const F = (k, d) => game.i18n.format(k, d);
 
@@ -155,8 +155,8 @@
         const pen = it.type === "spell" ? this._castPenalty(this._profile()) : 0;
         const roll = await new Roll("1d100").evaluate();
         const r = roll.total;
-        const ok = r <= 5 || (r <= base && r < 96);
-        const sl = Math.floor(base / 10) - Math.floor(r / 10) - pen;
+        const { ok, sl: raw } = testResult(r, base);
+        const sl = raw - pen;
         const cn = Number(it.system.cn?.value) || 0;
         const done = it.type === "spell" ? ok && sl >= cn : ok;
         const content = `<div class="wfrp-paperdoll-rest"><b>${esc(T(it.name))}</b><br>${esc(

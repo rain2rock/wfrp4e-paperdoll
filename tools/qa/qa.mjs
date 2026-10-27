@@ -276,6 +276,16 @@ ok('disabled closes windows', off.closed);
 ok('disabled blocks opening', off.blocked);
 ok('re-enabled opens again', off.back);
 
+// Бой без оружия идёт по навыку «Melee (Brawling)», а не по голой характеристике.
+// Якорь /^brawling/ не совпадал с именем системы, и вкачанный навык терялся
+const unarmed = await p.evaluate(() => {
+  const app = [...window.PaperdollApp.instances.values()][0];
+  const sk = app.actor.itemTypes.skill.find((s) => /brawling|драка/i.test(s.name));
+  return { target: app._unarmedTarget(), skill: Number(sk?.system.total?.value) || 0, ws: Number(app.actor.system.characteristics.ws.value) || 0 };
+});
+ok('unarmed uses the Brawling skill, not raw WS',
+   unarmed.skill !== unarmed.ws && unarmed.target.target === unarmed.skill, JSON.stringify(unarmed));
+
 // Отдых: лечит БВ + УУ, причём провал - это отрицательные УУ, а не «ноль лечения».
 // Раньше при провале окно не лечило вовсе и расходилось с листом персонажа системы
 const rest = await p.evaluate(async () => {
