@@ -20,3 +20,5 @@ node tools/qa/magicchk.mjs "$OUT/mock-all.html"
 node tools/qa/smoke.mjs
 node tools/qa/welcomechk.mjs
 node tools/qa/dslint.mjs
+
+node tools/qa/spelliconchk.mjs

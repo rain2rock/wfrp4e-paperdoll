@@ -1,0 +1,1002 @@
+[
+  {
+    "name": "Decipher Curse",
+    "lore": "arcane",
+    "file": "magic/spells/decipher-curse.png"
+  },
+  {
+    "name": "Disrupt Magic",
+    "lore": "arcane",
+    "file": "magic/spells/disrupt-magic.png"
+  },
+  {
+    "name": "Fly-Infested Rotweed",
+    "lore": "arcane",
+    "file": "magic/spells/fly-infested-rotweed.png"
+  },
+  {
+    "name": "Lifebloom Silt",
+    "lore": "arcane",
+    "file": "magic/spells/lifebloom-silt.png"
+  },
+  {
+    "name": "Belligerence of the Bloodmarsh",
+    "lore": "arcane",
+    "file": "magic/spells/belligerence-of-the-bloodmarsh.png"
+  },
+  {
+    "name": "Collapse Construct",
+    "lore": "arcane",
+    "file": "magic/spells/collapse-construct.png"
+  },
+  {
+    "name": "Silence",
+    "lore": "arcane",
+    "file": "magic/spells/silence.png"
+  },
+  {
+    "name": "Succour Magical Servant",
+    "lore": "arcane",
+    "file": "magic/spells/succour-magical-servant.png"
+  },
+  {
+    "name": "Banishment",
+    "lore": "light",
+    "file": "magic/spells/banishment.png"
+  },
+  {
+    "name": "Blinding Light",
+    "lore": "light",
+    "file": "magic/spells/blinding-light.png"
+  },
+  {
+    "name": "Clarity of Thought",
+    "lore": "light",
+    "file": "magic/spells/clarity-of-thought.png"
+  },
+  {
+    "name": "Crevasse",
+    "lore": "light",
+    "file": "magic/spells/crevasse.png"
+  },
+  {
+    "name": "Abulla’s Snare",
+    "lore": "light",
+    "file": "magic/spells/abulla-s-snare.png"
+  },
+  {
+    "name": "Assault of Stone",
+    "lore": "light",
+    "file": "magic/spells/assault-of-stone.png"
+  },
+  {
+    "name": "Erect the Edifice",
+    "lore": "light",
+    "file": "magic/spells/erect-the-edifice.png"
+  },
+  {
+    "name": "Eyes of Volans",
+    "lore": "light",
+    "file": "magic/spells/eyes-of-volans.png"
+  },
+  {
+    "name": "Daemonbane",
+    "lore": "light",
+    "file": "magic/spells/daemonbane.png"
+  },
+  {
+    "name": "Healing Light",
+    "lore": "light",
+    "file": "magic/spells/healing-light.png"
+  },
+  {
+    "name": "Dazzling Brightness",
+    "lore": "light",
+    "file": "magic/spells/dazzling-brightness.png"
+  },
+  {
+    "name": "Driving Intent",
+    "lore": "light",
+    "file": "magic/spells/driving-intent.png"
+  },
+  {
+    "name": "Meissner’s Instantaneous Librarian",
+    "lore": "light",
+    "file": "magic/spells/meissner-s-instantaneous-librarian.png"
+  },
+  {
+    "name": "Net of Amyntok",
+    "lore": "light",
+    "file": "magic/spells/net-of-amyntok.png"
+  },
+  {
+    "name": "Orb of Hysh",
+    "lore": "light",
+    "file": "magic/spells/orb-of-hysh.png"
+  },
+  {
+    "name": "Hands of Karkora",
+    "lore": "light",
+    "file": "magic/spells/hands-of-karkora.png"
+  },
+  {
+    "name": "Illuminate the Edifice",
+    "lore": "light",
+    "file": "magic/spells/illuminate-the-edifice.png"
+  },
+  {
+    "name": "Light of Purity",
+    "lore": "light",
+    "file": "magic/spells/light-of-purity.png"
+  },
+  {
+    "name": "Speed of Thought",
+    "lore": "light",
+    "file": "magic/spells/speed-of-thought.png"
+  },
+  {
+    "name": "Time Amok",
+    "lore": "light",
+    "file": "magic/spells/time-amok.png"
+  },
+  {
+    "name": "Perfect Comprehension",
+    "lore": "light",
+    "file": "magic/spells/perfect-comprehension.png"
+  },
+  {
+    "name": "Phâ’s Protection",
+    "lore": "light",
+    "file": "magic/spells/ph-s-protection.png"
+  },
+  {
+    "name": "Pierce the Veil",
+    "lore": "light",
+    "file": "magic/spells/pierce-the-veil.png"
+  },
+  {
+    "name": "Shimmering Cloak",
+    "lore": "light",
+    "file": "magic/spells/shimmering-cloak.png"
+  },
+  {
+    "name": "Crucible of Chamon",
+    "lore": "metal",
+    "file": "magic/spells/crucible-of-chamon.png"
+  },
+  {
+    "name": "Curse of Rust",
+    "lore": "metal",
+    "file": "magic/spells/curse-of-rust.png"
+  },
+  {
+    "name": "Enchant Weapon",
+    "lore": "metal",
+    "file": "magic/spells/enchant-weapon.png"
+  },
+  {
+    "name": "Armour of Tin",
+    "lore": "metal",
+    "file": "magic/spells/armour-of-tin.png"
+  },
+  {
+    "name": "Breach the Unknown",
+    "lore": "metal",
+    "file": "magic/spells/breach-the-unknown.png"
+  },
+  {
+    "name": "Gehenna’s Golden Globe",
+    "lore": "metal",
+    "file": "magic/spells/gehenna-s-golden-globe.png"
+  },
+  {
+    "name": "Gilded Cage",
+    "lore": "metal",
+    "file": "magic/spells/gilded-cage.png"
+  },
+  {
+    "name": "Glittering Robe",
+    "lore": "metal",
+    "file": "magic/spells/glittering-robe.png"
+  },
+  {
+    "name": "Golden Touch",
+    "lore": "metal",
+    "file": "magic/spells/golden-touch.png"
+  },
+  {
+    "name": "Fault of Form",
+    "lore": "metal",
+    "file": "magic/spells/fault-of-form.png"
+  },
+  {
+    "name": "Feather of Lead",
+    "lore": "metal",
+    "file": "magic/spells/feather-of-lead.png"
+  },
+  {
+    "name": "Fool’s Gold",
+    "lore": "metal",
+    "file": "magic/spells/fool-s-gold.png"
+  },
+  {
+    "name": "Forge of Chamon",
+    "lore": "metal",
+    "file": "magic/spells/forge-of-chamon.png"
+  },
+  {
+    "name": "Knot Untied",
+    "lore": "metal",
+    "file": "magic/spells/knot-untied.png"
+  },
+  {
+    "name": "Metal Mended",
+    "lore": "metal",
+    "file": "magic/spells/metal-mended.png"
+  },
+  {
+    "name": "Meteoric Ironclad",
+    "lore": "metal",
+    "file": "magic/spells/meteoric-ironclad.png"
+  },
+  {
+    "name": "Goldsteel Shielding",
+    "lore": "metal",
+    "file": "magic/spells/goldsteel-shielding.png"
+  },
+  {
+    "name": "Inscription",
+    "lore": "metal",
+    "file": "magic/spells/inscription.png"
+  },
+  {
+    "name": "Transmutation of Chamon",
+    "lore": "metal",
+    "file": "magic/spells/transmutation-of-chamon.png"
+  },
+  {
+    "name": "Trial and Error",
+    "lore": "metal",
+    "file": "magic/spells/trial-and-error.png"
+  },
+  {
+    "name": "Mutable Metal",
+    "lore": "metal",
+    "file": "magic/spells/mutable-metal.png"
+  },
+  {
+    "name": "Prismatic Refraction of Habermas",
+    "lore": "metal",
+    "file": "magic/spells/prismatic-refraction-of-habermas.png"
+  },
+  {
+    "name": "Puchta’s Silver Compass",
+    "lore": "metal",
+    "file": "magic/spells/puchta-s-silver-compass.png"
+  },
+  {
+    "name": "Replication of Levorg",
+    "lore": "metal",
+    "file": "magic/spells/replication-of-levorg.png"
+  },
+  {
+    "name": "Dwellers Below",
+    "lore": "life",
+    "file": "magic/spells/dwellers-below.png"
+  },
+  {
+    "name": "Earthblood",
+    "lore": "life",
+    "file": "magic/spells/earthblood.png"
+  },
+  {
+    "name": "Earthpool",
+    "lore": "life",
+    "file": "magic/spells/earthpool.png"
+  },
+  {
+    "name": "Almanac",
+    "lore": "life",
+    "file": "magic/spells/almanac.png"
+  },
+  {
+    "name": "Barkskin",
+    "lore": "life",
+    "file": "magic/spells/barkskin.png"
+  },
+  {
+    "name": "Geyser",
+    "lore": "life",
+    "file": "magic/spells/geyser.png"
+  },
+  {
+    "name": "Invigorating Chant",
+    "lore": "life",
+    "file": "magic/spells/invigorating-chant.png"
+  },
+  {
+    "name": "Jade Casket",
+    "lore": "life",
+    "file": "magic/spells/jade-casket.png"
+  },
+  {
+    "name": "Fat of the Land",
+    "lore": "life",
+    "file": "magic/spells/fat-of-the-land.png"
+  },
+  {
+    "name": "Flesh of Stone",
+    "lore": "life",
+    "file": "magic/spells/flesh-of-stone.png"
+  },
+  {
+    "name": "Forest of Thorns",
+    "lore": "life",
+    "file": "magic/spells/forest-of-thorns.png"
+  },
+  {
+    "name": "Gardener’s Warcry",
+    "lore": "life",
+    "file": "magic/spells/gardener-s-warcry.png"
+  },
+  {
+    "name": "Nature’s Whisper",
+    "lore": "life",
+    "file": "magic/spells/nature-s-whisper.png"
+  },
+  {
+    "name": "Paranoth’s Pathway",
+    "lore": "life",
+    "file": "magic/spells/paranoth-s-pathway.png"
+  },
+  {
+    "name": "Regenerate",
+    "lore": "life",
+    "file": "magic/spells/regenerate.png"
+  },
+  {
+    "name": "Leaf Fall",
+    "lore": "life",
+    "file": "magic/spells/leaf-fall.png"
+  },
+  {
+    "name": "Leyfinding",
+    "lore": "life",
+    "file": "magic/spells/leyfinding.png"
+  },
+  {
+    "name": "Lie of the Land",
+    "lore": "life",
+    "file": "magic/spells/lie-of-the-land.png"
+  },
+  {
+    "name": "Lifebloom",
+    "lore": "life",
+    "file": "magic/spells/lifebloom.png"
+  },
+  {
+    "name": "Vital Growth",
+    "lore": "life",
+    "file": "magic/spells/vital-growth.png"
+  },
+  {
+    "name": "Wood Shape",
+    "lore": "life",
+    "file": "magic/spells/wood-shape.png"
+  },
+  {
+    "name": "Spiral Stair",
+    "lore": "life",
+    "file": "magic/spells/spiral-stair.png"
+  },
+  {
+    "name": "Vaunted Transmogrification of Colchis",
+    "lore": "life",
+    "file": "magic/spells/vaunted-transmogrification-of-colchis.png"
+  },
+  {
+    "name": "Verdant Apotheosis",
+    "lore": "life",
+    "file": "magic/spells/verdant-apotheosis.png"
+  },
+  {
+    "name": "Azure Blades",
+    "lore": "heavens",
+    "file": "magic/spells/azure-blades.png"
+  },
+  {
+    "name": "Cerulean Shield",
+    "lore": "heavens",
+    "file": "magic/spells/cerulean-shield.png"
+  },
+  {
+    "name": "Comet of Casandora",
+    "lore": "heavens",
+    "file": "magic/spells/comet-of-casandora.png"
+  },
+  {
+    "name": "Fantastic Foresight",
+    "lore": "heavens",
+    "file": "magic/spells/fantastic-foresight.png"
+  },
+  {
+    "name": "Fate’s Fickle Fingers",
+    "lore": "heavens",
+    "file": "magic/spells/fate-s-fickle-fingers.png"
+  },
+  {
+    "name": "Fate Illuminated",
+    "lore": "heavens",
+    "file": "magic/spells/fate-illuminated.png"
+  },
+  {
+    "name": "Curse of Fate",
+    "lore": "heavens",
+    "file": "magic/spells/curse-of-fate.png"
+  },
+  {
+    "name": "Divination",
+    "lore": "heavens",
+    "file": "magic/spells/divination.png"
+  },
+  {
+    "name": "Enemy Foreseen",
+    "lore": "heavens",
+    "file": "magic/spells/enemy-foreseen.png"
+  },
+  {
+    "name": "Mystic Mirror",
+    "lore": "heavens",
+    "file": "magic/spells/mystic-mirror.png"
+  },
+  {
+    "name": "Polish and Glean",
+    "lore": "heavens",
+    "file": "magic/spells/polish-and-glean.png"
+  },
+  {
+    "name": "Project Spirit",
+    "lore": "heavens",
+    "file": "magic/spells/project-spirit.png"
+  },
+  {
+    "name": "Sapphire Arch",
+    "lore": "heavens",
+    "file": "magic/spells/sapphire-arch.png"
+  },
+  {
+    "name": "Lens on the Sky",
+    "lore": "heavens",
+    "file": "magic/spells/lens-on-the-sky.png"
+  },
+  {
+    "name": "Let the Four Winds Blow!",
+    "lore": "heavens",
+    "file": "magic/spells/let-the-four-winds-blow.png"
+  },
+  {
+    "name": "Mistral From the Stratosphere",
+    "lore": "heavens",
+    "file": "magic/spells/mistral-from-the-stratosphere.png"
+  },
+  {
+    "name": "T’Essla’s Arc",
+    "lore": "heavens",
+    "file": "magic/spells/t-essla-s-arc.png"
+  },
+  {
+    "name": "The First Portent of Amul",
+    "lore": "heavens",
+    "file": "magic/spells/the-first-portent-of-amul.png"
+  },
+  {
+    "name": "The Second Portent of Amul",
+    "lore": "heavens",
+    "file": "magic/spells/the-second-portent-of-amul.png"
+  },
+  {
+    "name": "The Third Portent of Amul",
+    "lore": "heavens",
+    "file": "magic/spells/the-third-portent-of-amul.png"
+  },
+  {
+    "name": "Thorsen’s Thunderstorm",
+    "lore": "heavens",
+    "file": "magic/spells/thorsen-s-thunderstorm.png"
+  },
+  {
+    "name": "Starcrossed",
+    "lore": "heavens",
+    "file": "magic/spells/starcrossed.png"
+  },
+  {
+    "name": "Starshine",
+    "lore": "heavens",
+    "file": "magic/spells/starshine.png"
+  },
+  {
+    "name": "Storm of Shemtek",
+    "lore": "heavens",
+    "file": "magic/spells/storm-of-shemtek.png"
+  },
+  {
+    "name": "Black Horrors",
+    "lore": "shadow",
+    "file": "magic/spells/black-horrors.png"
+  },
+  {
+    "name": "Bridge of Shadows",
+    "lore": "shadow",
+    "file": "magic/spells/bridge-of-shadows.png"
+  },
+  {
+    "name": "Choking Shadows",
+    "lore": "shadow",
+    "file": "magic/spells/choking-shadows.png"
+  },
+  {
+    "name": "Dance of Despair",
+    "lore": "shadow",
+    "file": "magic/spells/dance-of-despair.png"
+  },
+  {
+    "name": "Bewilder",
+    "lore": "shadow",
+    "file": "magic/spells/bewilder.png"
+  },
+  {
+    "name": "Horn of Andar",
+    "lore": "shadow",
+    "file": "magic/spells/horn-of-andar.png"
+  },
+  {
+    "name": "Hush",
+    "lore": "shadow",
+    "file": "magic/spells/hush.png"
+  },
+  {
+    "name": "Illusion",
+    "lore": "shadow",
+    "file": "magic/spells/illusion.png"
+  },
+  {
+    "name": "Deep Pockets",
+    "lore": "shadow",
+    "file": "magic/spells/deep-pockets.png"
+  },
+  {
+    "name": "Doppelganger",
+    "lore": "shadow",
+    "file": "magic/spells/doppelganger.png"
+  },
+  {
+    "name": "Grand Illusion",
+    "lore": "shadow",
+    "file": "magic/spells/grand-illusion.png"
+  },
+  {
+    "name": "Grey Wings",
+    "lore": "shadow",
+    "file": "magic/spells/grey-wings.png"
+  },
+  {
+    "name": "Pit of Tarnus",
+    "lore": "shadow",
+    "file": "magic/spells/pit-of-tarnus.png"
+  },
+  {
+    "name": "Ribauld’s Retroactive Illusion",
+    "lore": "shadow",
+    "file": "magic/spells/ribauld-s-retroactive-illusion.png"
+  },
+  {
+    "name": "Shadow Grove",
+    "lore": "shadow",
+    "file": "magic/spells/shadow-grove.png"
+  },
+  {
+    "name": "Mindslip",
+    "lore": "shadow",
+    "file": "magic/spells/mindslip.png"
+  },
+  {
+    "name": "Mutable Visage",
+    "lore": "shadow",
+    "file": "magic/spells/mutable-visage.png"
+  },
+  {
+    "name": "Mystifying Miasma",
+    "lore": "shadow",
+    "file": "magic/spells/mystifying-miasma.png"
+  },
+  {
+    "name": "Substance of Shadow",
+    "lore": "shadow",
+    "file": "magic/spells/substance-of-shadow.png"
+  },
+  {
+    "name": "Traitor of Tarn",
+    "lore": "shadow",
+    "file": "magic/spells/traitor-of-tarn.png"
+  },
+  {
+    "name": "Wandering Shadow",
+    "lore": "shadow",
+    "file": "magic/spells/wandering-shadow.png"
+  },
+  {
+    "name": "Shadowsteed",
+    "lore": "shadow",
+    "file": "magic/spells/shadowsteed.png"
+  },
+  {
+    "name": "Shadowstep",
+    "lore": "shadow",
+    "file": "magic/spells/shadowstep.png"
+  },
+  {
+    "name": "Shroud of Invisibility",
+    "lore": "shadow",
+    "file": "magic/spells/shroud-of-invisibility.png"
+  },
+  {
+    "name": "Animus Imprisoned",
+    "lore": "death",
+    "file": "magic/spells/animus-imprisoned.png"
+  },
+  {
+    "name": "Ashes and Dust",
+    "lore": "death",
+    "file": "magic/spells/ashes-and-dust.png"
+  },
+  {
+    "name": "Acceptance of Fate",
+    "lore": "death",
+    "file": "magic/spells/acceptance-of-fate.png"
+  },
+  {
+    "name": "Amaranth",
+    "lore": "death",
+    "file": "magic/spells/amaranth.png"
+  },
+  {
+    "name": "Death’s Release",
+    "lore": "death",
+    "file": "magic/spells/death-s-release.png"
+  },
+  {
+    "name": "Dying Words",
+    "lore": "death",
+    "file": "magic/spells/dying-words.png"
+  },
+  {
+    "name": "Fate of Bjuna",
+    "lore": "death",
+    "file": "magic/spells/fate-of-bjuna.png"
+  },
+  {
+    "name": "Caress of Laniph",
+    "lore": "death",
+    "file": "magic/spells/caress-of-laniph.png"
+  },
+  {
+    "name": "Compel Spirits",
+    "lore": "death",
+    "file": "magic/spells/compel-spirits.png"
+  },
+  {
+    "name": "Crystal Maze",
+    "lore": "death",
+    "file": "magic/spells/crystal-maze.png"
+  },
+  {
+    "name": "Scythe of Shyish",
+    "lore": "death",
+    "file": "magic/spells/scythe-of-shyish.png"
+  },
+  {
+    "name": "Shyish Uncovered",
+    "lore": "death",
+    "file": "magic/spells/shyish-uncovered.png"
+  },
+  {
+    "name": "Soul Vortex",
+    "lore": "death",
+    "file": "magic/spells/soul-vortex.png"
+  },
+  {
+    "name": "Speed of Lykos",
+    "lore": "death",
+    "file": "magic/spells/speed-of-lykos.png"
+  },
+  {
+    "name": "Iyrtu’s Embrace",
+    "lore": "death",
+    "file": "magic/spells/iyrtu-s-embrace.png"
+  },
+  {
+    "name": "Limbwither",
+    "lore": "death",
+    "file": "magic/spells/limbwither.png"
+  },
+  {
+    "name": "Purple Pall of Shyish",
+    "lore": "death",
+    "file": "magic/spells/purple-pall-of-shyish.png"
+  },
+  {
+    "name": "Sanctify",
+    "lore": "death",
+    "file": "magic/spells/sanctify.png"
+  },
+  {
+    "name": "Telepathy",
+    "lore": "death",
+    "file": "magic/spells/telepathy.png"
+  },
+  {
+    "name": "Tide of Years",
+    "lore": "death",
+    "file": "magic/spells/tide-of-years.png"
+  },
+  {
+    "name": "Wild Kin of Zandox",
+    "lore": "death",
+    "file": "magic/spells/wild-kin-of-zandox.png"
+  },
+  {
+    "name": "Steal Life",
+    "lore": "death",
+    "file": "magic/spells/steal-life.png"
+  },
+  {
+    "name": "Swift Passing",
+    "lore": "death",
+    "file": "magic/spells/swift-passing.png"
+  },
+  {
+    "name": "Taste of Death",
+    "lore": "death",
+    "file": "magic/spells/taste-of-death.png"
+  },
+  {
+    "name": "Boiling Blood",
+    "lore": "fire",
+    "file": "magic/spells/boiling-blood.png"
+  },
+  {
+    "name": "Burning Head",
+    "lore": "fire",
+    "file": "magic/spells/burning-head.png"
+  },
+  {
+    "name": "Captivating Flame",
+    "lore": "fire",
+    "file": "magic/spells/captivating-flame.png"
+  },
+  {
+    "name": "Aqshy’s Aegis",
+    "lore": "fire",
+    "file": "magic/spells/aqshy-s-aegis.png"
+  },
+  {
+    "name": "Body of Fire",
+    "lore": "fire",
+    "file": "magic/spells/body-of-fire.png"
+  },
+  {
+    "name": "Flaming Hearts",
+    "lore": "fire",
+    "file": "magic/spells/flaming-hearts.png"
+  },
+  {
+    "name": "Firewall",
+    "lore": "fire",
+    "file": "magic/spells/firewall.png"
+  },
+  {
+    "name": "Flamestorm",
+    "lore": "fire",
+    "file": "magic/spells/flamestorm.png"
+  },
+  {
+    "name": "Flaming Sword of Rhuin",
+    "lore": "fire",
+    "file": "magic/spells/flaming-sword-of-rhuin.png"
+  },
+  {
+    "name": "Cauterise",
+    "lore": "fire",
+    "file": "magic/spells/cauterise.png"
+  },
+  {
+    "name": "Choleric",
+    "lore": "fire",
+    "file": "magic/spells/choleric.png"
+  },
+  {
+    "name": "Crown of Flame",
+    "lore": "fire",
+    "file": "magic/spells/crown-of-flame.png"
+  },
+  {
+    "name": "Kindleflame",
+    "lore": "fire",
+    "file": "magic/spells/kindleflame.png"
+  },
+  {
+    "name": "Kindred of the Hearth",
+    "lore": "fire",
+    "file": "magic/spells/kindred-of-the-hearth.png"
+  },
+  {
+    "name": "Magma Storm",
+    "lore": "fire",
+    "file": "magic/spells/magma-storm.png"
+  },
+  {
+    "name": "Forge of Tarnus",
+    "lore": "fire",
+    "file": "magic/spells/forge-of-tarnus.png"
+  },
+  {
+    "name": "Great Fires of U’Zhul",
+    "lore": "fire",
+    "file": "magic/spells/great-fires-of-u-zhul.png"
+  },
+  {
+    "name": "Ignite",
+    "lore": "fire",
+    "file": "magic/spells/ignite.png"
+  },
+  {
+    "name": "Inextinguishable Flame",
+    "lore": "fire",
+    "file": "magic/spells/inextinguishable-flame.png"
+  },
+  {
+    "name": "Taste of Fire",
+    "lore": "fire",
+    "file": "magic/spells/taste-of-fire.png"
+  },
+  {
+    "name": "Withering Heat",
+    "lore": "fire",
+    "file": "magic/spells/withering-heat.png"
+  },
+  {
+    "name": "Ygethmor’s Flaming Blizzard",
+    "lore": "fire",
+    "file": "magic/spells/ygethmor-s-flaming-blizzard.png"
+  },
+  {
+    "name": "Purge",
+    "lore": "fire",
+    "file": "magic/spells/purge.png"
+  },
+  {
+    "name": "Sanguine Swords",
+    "lore": "fire",
+    "file": "magic/spells/sanguine-swords.png"
+  },
+  {
+    "name": "Awakening of the Wood",
+    "lore": "beasts",
+    "file": "magic/spells/awakening-of-the-wood.png"
+  },
+  {
+    "name": "Beast Form",
+    "lore": "beasts",
+    "file": "magic/spells/beast-form.png"
+  },
+  {
+    "name": "Beast Master",
+    "lore": "beasts",
+    "file": "magic/spells/beast-master.png"
+  },
+  {
+    "name": "Amber Talons",
+    "lore": "beasts",
+    "file": "magic/spells/amber-talons.png"
+  },
+  {
+    "name": "Amber Trance",
+    "lore": "beasts",
+    "file": "magic/spells/amber-trance.png"
+  },
+  {
+    "name": "Curse of Anraheir",
+    "lore": "beasts",
+    "file": "magic/spells/curse-of-anraheir.png"
+  },
+  {
+    "name": "Eyes of the Pack",
+    "lore": "beasts",
+    "file": "magic/spells/eyes-of-the-pack.png"
+  },
+  {
+    "name": "Flock of Doom",
+    "lore": "beasts",
+    "file": "magic/spells/flock-of-doom.png"
+  },
+  {
+    "name": "Beast Tongue",
+    "lore": "beasts",
+    "file": "magic/spells/beast-tongue.png"
+  },
+  {
+    "name": "Beast Unbroken",
+    "lore": "beasts",
+    "file": "magic/spells/beast-unbroken.png"
+  },
+  {
+    "name": "Quick Passage",
+    "lore": "beasts",
+    "file": "magic/spells/quick-passage.png"
+  },
+  {
+    "name": "Summon Mount",
+    "lore": "beasts",
+    "file": "magic/spells/summon-mount.png"
+  },
+  {
+    "name": "The Amber Spear",
+    "lore": "beasts",
+    "file": "magic/spells/the-amber-spear.png"
+  },
+  {
+    "name": "Follow Scent",
+    "lore": "beasts",
+    "file": "magic/spells/follow-scent.png"
+  },
+  {
+    "name": "Hunter’s Hide",
+    "lore": "beasts",
+    "file": "magic/spells/hunter-s-hide.png"
+  },
+  {
+    "name": "Hunter’s Moons",
+    "lore": "beasts",
+    "file": "magic/spells/hunter-s-moons.png"
+  },
+  {
+    "name": "Merciw’s Monstrous Regiment",
+    "lore": "beasts",
+    "file": "magic/spells/merciw-s-monstrous-regiment.png"
+  },
+  {
+    "name": "Musk Spray",
+    "lore": "beasts",
+    "file": "magic/spells/musk-spray.png"
+  },
+  {
+    "name": "Vengeful Hood",
+    "lore": "beasts",
+    "file": "magic/spells/vengeful-hood.png"
+  },
+  {
+    "name": "Winter Coat",
+    "lore": "beasts",
+    "file": "magic/spells/winter-coat.png"
+  },
+  {
+    "name": "Writhing Worm",
+    "lore": "beasts",
+    "file": "magic/spells/writhing-worm.png"
+  },
+  {
+    "name": "The Ox Stands",
+    "lore": "beasts",
+    "file": "magic/spells/the-ox-stands.png"
+  },
+  {
+    "name": "Wyssan’s Wildform",
+    "lore": "beasts",
+    "file": "magic/spells/wyssan-s-wildform.png"
+  },
+  {
+    "name": "Transformation of Kadon",
+    "lore": "beasts",
+    "file": "magic/spells/transformation-of-kadon.png"
+  }
+]

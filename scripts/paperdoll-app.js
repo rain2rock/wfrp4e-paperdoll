@@ -91,7 +91,7 @@ export function talentImg(img, name = "") {
  */
 export function effectImg(kind, info = {}, img = "") {
   if (setting("itemIcons", true)) {
-    const rel = effectIconFor(kind, info, ICON_OVERRIDES);
+    const rel = effectIconFor(kind, { ...info, img }, ICON_OVERRIDES);
     if (rel) return asset(`icons/${rel}`);
   }
   return itemImg(img, info.name ?? "");
