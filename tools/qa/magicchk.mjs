@@ -6,12 +6,13 @@ const errs = []; p.on("pageerror", (e) => errs.push(e.message)); p.on("console",
 await p.goto("file://" + path.resolve(process.argv[2])); await p.waitForTimeout(1200);
 
 const r = await p.evaluate(() => {
-  const T = window.__PD_MAGIC_TARGETING__;
+  const T = globalThis.__PD_API__?.addons?.get("magic")?.targeting;
   if (!T) return { error: "targeting.js не загрузился" };
   const priest = (window.__PD_actors ?? []).find((a) => a.id === "priest");
   if (!priest) return { error: "в моке нет жрицы (нужен --cast)" };
   const fail = [];
-  const eq = (what, got, want) => { if (JSON.stringify(got) !== JSON.stringify(want)) fail.push(`${what}: ${JSON.stringify(got)} != ${JSON.stringify(want)}`); };
+  let checks = 0;
+  const eq = (what, got, want) => { checks++; if (JSON.stringify(got) !== JSON.stringify(want)) fail.push(`${what}: ${JSON.stringify(got)} != ${JSON.stringify(want)}`); };
 
   // Разбор дальностей. СВБ жрицы = 5, значит «Willpower Bonus yards» = 5 ярдов
   const wpb = priest.system.characteristics.wp.bonus;
@@ -25,6 +26,20 @@ const r = await p.evaluate(() => {
   // Нераспознанное не должно падать и не должно притворяться нулевой дальностью
   eq("мусор", kind("какая-то ерунда"), ["none", null]);
   eq("пусто", kind(""), ["none", null]);
+  // \b в JavaScript не выделяет границы кириллицы. Русские поля не должны терять смысл.
+  for (const self of ["Вы", "Себя", "На себя"]) {
+    eq(`русская дальность «${self}»`, kind(self), ["self", 0]);
+    eq(`русская цель «${self}»`, T.parseTargetCount(self, priest), 0);
+  }
+  eq("русское особое поле", T.parseRange("По описанию", priest).special, true);
+  eq("СВБ в дальности", kind("СВБ ярдов"), ["ranged", wpb]);
+  eq("бонус силы воли в дальности", kind("Бонус Силы Воли ярдов"), ["ranged", wpb]);
+  eq("русский счётчик целей", T.parseTargetCount("Бонус Силы Воли целей", priest), wpb);
+  eq("английский сокращённый счётчик", T.parseTargetCount("WPB targets", priest), wpb);
+  eq("себя или касание требует цели", T.parseTargetCount("You or Touch", priest), 1);
+  eq("русское касание", kind("Вы или касание"), ["touch", 1]);
+  eq("характеристика не распознаётся как Вы", T.parseRange("Выносливость", priest).kind === "self", false);
+
 
   // План каста: на себя цель не нужна, у «бодрости» целей столько же, сколько СВБ
   const plan = (part) => T.castPlan(priest, priest.items.find((i) => i.type === "prayer" && i.name.includes(part)));
@@ -198,8 +213,9 @@ const r = await p.evaluate(() => {
     }
   }
 
-  return { fail, checks: 83 };
+  return { fail, checks };
 });
 
 console.log(r.error ? `FAIL: ${r.error}` : r.fail.length ? `FAIL:\n${r.fail.join("\n")}` : `all pass (${r.checks} checks)`, "errors:", errs);
 await b.close();
+process.exitCode = r.error || r.fail.length || errs.length ? 1 : 0;

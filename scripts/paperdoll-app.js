@@ -337,7 +337,12 @@ function advanceCost(advances, type) {
 function testResult(roll, target) {
   const r = Number(roll) || 0;
   const t = Number(target) || 0;
-  return { roll: r, target: t, ok: r <= 5 || (r <= t && r < 96), sl: Math.floor(t / 10) - Math.floor(r / 10) };
+  let sl = Math.floor(t / 10) - Math.floor(r / 10);
+  // Системный TestWFRP: автоматический успех даёт минимум +1 УУ, провал - минимум -1.
+  // Этот путь нужен только без системных методов; обычный отдых считает сама система.
+  if (r <= 5) sl = Math.max(1, sl);
+  if (r >= 96) sl = Math.min(-1, sl);
+  return { roll: r, target: t, ok: r <= 5 || (r <= t && r < 96), sl };
 }
 
 /** Навык из списка карьеры: точное совпадение или «Ближний бой (любое)» для любой специализации */
@@ -1145,40 +1150,54 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   async _useItem(item) {
     if (!this.editable || !isUsable(item)) return false;
-    const have = Number(item.system?.quantity?.value ?? 1) || 0;
-    if (have <= 0) {
-      ui.notifications?.info(F("WFRPPD.Use.Empty", { name: item.name }));
+    const using = this._usingItems ??= new Set();
+    const key = item.uuid ?? item.id ?? item;
+    if (using.has(key)) return false;
+    using.add(key);
+    try {
+      const have = Number(item.system?.quantity?.value ?? 1) || 0;
+      if (have <= 0) {
+        ui.notifications?.info(F("WFRPPD.Use.Empty", { name: item.name }));
+        return false;
+      }
+      PaperdollTooltip.hide();
+      if (typeof item.postItem === "function") await item.postItem();
+      else
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker?.({ actor: this.actor }),
+          content: `<div class="wfrp-paperdoll-rest">${esc(F("WFRPPD.Use.Chat", { who: this.actor.name, item: item.name }))}</div>`
+        });
+      // Эффекты зелья или яда (бафф, дебафф) вешаем на персонажа: у расходника они лежат
+      // на самом предмете и сами не применяются - «момент использования» знает только наш клик.
+      // Копируем с origin на предмет, чтобы в ленте было видно, откуда эффект взялся.
+      const carried = [...(item.effects ?? [])].filter((e) =>
+        !e.disabled && !e.transfer && e.system?.transferData?.type !== "document"
+      );
+      if (carried.length) {
+        const data = carried.map((e) => {
+          // toObject есть у настоящего документа; в моке собираем копию из полей руками
+          const o =
+            typeof e.toObject === "function"
+              ? e.toObject()
+              : JSON.parse(JSON.stringify({ name: e.name, img: e.img, changes: e.changes ?? [], duration: e.duration ?? {}, statuses: [...(e.statuses ?? [])] }));
+          delete o._id;
+          o.origin = item.uuid;
+          o.transfer = false;
+          o.disabled = false;
+          return o;
+        });
+        await this.actor.createEmbeddedDocuments("ActiveEffect", data);
+      }
+      await item.update({ "system.quantity.value": have - 1 });
+      playGearSound("move");
+      return true;
+    } catch (err) {
+      console.warn("wfrp4e-paperdoll | use item", err);
+      ui.notifications?.error(L("WFRPPD.Use.Error"));
       return false;
+    } finally {
+      using.delete(key);
     }
-    PaperdollTooltip.hide();
-    if (typeof item.postItem === "function") await safe(() => item.postItem());
-    else
-      await ChatMessage.create({
-        speaker: ChatMessage.getSpeaker?.({ actor: this.actor }),
-        content: `<div class="wfrp-paperdoll-rest">${esc(F("WFRPPD.Use.Chat", { who: this.actor.name, item: item.name }))}</div>`
-      });
-    // Эффекты зелья или яда (бафф, дебафф) вешаем на персонажа: у расходника они лежат
-    // на самом предмете и сами не применяются - «момент использования» знает только наш клик.
-    // Копируем с origin на предмет, чтобы в ленте было видно, откуда эффект взялся.
-    const carried = [...(item.effects ?? [])].filter((e) => !e.disabled);
-    if (carried.length) {
-      const data = carried.map((e) => {
-        // toObject есть у настоящего документа; в моке собираем копию из полей руками
-        const o =
-          typeof e.toObject === "function"
-            ? e.toObject()
-            : JSON.parse(JSON.stringify({ name: e.name, img: e.img, changes: e.changes ?? [], duration: e.duration ?? {}, statuses: [...(e.statuses ?? [])] }));
-        delete o._id;
-        o.origin = item.uuid;
-        o.transfer = false;
-        o.disabled = false;
-        return o;
-      });
-      await safe(() => this.actor.createEmbeddedDocuments("ActiveEffect", data));
-    }
-    await item.update({ "system.quantity.value": have - 1 });
-    playGearSound("move");
-    return true;
   }
 
   static renderAll() {
@@ -1676,8 +1695,56 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return out;
   }
 
-  /** Отдых и восстановление: проверка Стойкости (+20), успех - [БВ + УУ] ран, день полного покоя - ещё +БВ */
+  /**
+   * Отдых через WFRP4e: тот же публичный путь, что у CharacterSheet._onRest в 9.5.4.
+   * rest задаёт сложность +20 и карточку Apply Healing; свои +20 не прибавляем.
+   * Отмена/ошибка не запускает запасной бросок. До применения карточки раны не меняются.
+   * За полный день отдельно начисляется БВ после принятого броска: это фиксированный бонус,
+   * он не входит в перебрасываемую проверку и не начисляется повторно при её перебросе.
+   */
   async _restRecover(fullDay = false) {
+    if (!this.editable || this._restPending) return false;
+    this._restPending = true;
+    try {
+      const actor = this.actor;
+      const skillName = game.i18n.localize("NAME.Endurance");
+      const skill = (actor.itemTypes.skill ?? []).find((s) => norm(s.name) === norm(skillName) || /^(endurance|стойкость)$/i.test(s.name));
+      const setup = skill && typeof actor.setupSkill === "function"
+        ? () => actor.setupSkill(skill, context)
+        : typeof actor.setupCharacteristic === "function"
+          ? () => actor.setupCharacteristic("t", context)
+          : null;
+      if (!setup) return await this._restRecoverFallback(fullDay);
+      const t = actor.system.characteristics?.t ?? {};
+      const tb = Number(t.bonus ?? Math.floor((Number(t.value) || 0) / 10)) || 0;
+      const context = { rest: true, tb, skipTargets: true };
+      const test = await setup();
+      if (typeof test?.roll !== "function") return false; // системный диалог отменён
+      await test.roll();
+      if (fullDay && tb > 0) {
+        // max(0, БВ + УУ) + БВ нельзя заменить на max(0, 2*БВ + УУ).
+        const wounds = actor.system.status?.wounds ?? {};
+        const now = Number(wounds.value) || 0;
+        const max = Number(wounds.max) || 0;
+        const next = Math.min(max, now + tb);
+        if (next !== now) await actor.update({ "system.status.wounds.value": next });
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker?.({ actor }),
+          content: `<div class="wfrp-paperdoll-rest"><b>${esc(L("WFRPPD.Rest.FullDay"))}</b><br>${esc(F("WFRPPD.Rest.Healed", { n: next - now, now: next, max }))}</div>`
+        });
+      }
+      return true;
+    } catch (err) {
+      console.warn("wfrp4e-paperdoll | rest", err);
+      ui.notifications?.error(L("WFRPPD.Rest.Error"));
+      return false;
+    } finally {
+      this._restPending = false;
+    }
+  }
+
+  /** Запасной путь для мока и окружений без setupSkill/setupCharacteristic. */
+  async _restRecoverFallback(fullDay = false) {
     if (!this.editable) return;
     const actor = this.actor;
     const t = actor.system.characteristics?.t ?? {};
@@ -1723,16 +1790,19 @@ export class PaperdollApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   async _rollTest(kind, ref) {
     const actor = this.actor;
-    try {
-      let test = null;
-      if (kind === "weapon" && actor.setupWeapon) test = await actor.setupWeapon(ref);
-      else if (kind === "skill" && actor.setupSkill) test = await actor.setupSkill(ref);
-      else if (kind === "char" && actor.setupCharacteristic) test = await actor.setupCharacteristic(ref);
-      else throw new Error("no system test");
-      if (test?.roll) await test.roll();
-      return;
-    } catch (err) {
-      if (!/no system test/.test(String(err?.message))) console.warn("wfrp4e-paperdoll | system test", err);
+    const method = { weapon: "setupWeapon", skill: "setupSkill", char: "setupCharacteristic" }[kind];
+    if (typeof actor[method] === "function") {
+      try {
+        const test = await actor[method](ref);
+        if (typeof test?.roll !== "function") return false;
+        await test.roll();
+        return true;
+      } catch (err) {
+        // Ошибка после частично выполненного системного броска - не повод бросать второй раз.
+        console.warn("wfrp4e-paperdoll | system test", err);
+        ui.notifications?.error(L("WFRPPD.Roll.Error"));
+        return false;
+      }
     }
     // Запасной бросок
     let label = "";

@@ -1110,6 +1110,7 @@
 .wfrp-paperdoll .pd-effect--injury::before { background-image: url("../assets/ui/frame-effect-injury.png"); }
 .wfrp-paperdoll .pd-effect--critical::before { background-image: url("../assets/ui/frame-effect-critical.png"); }
 .wfrp-paperdoll .pd-effect--disease::before { background-image: url("../assets/ui/frame-effect-disease.png"); }
+.wfrp-paperdoll .pd-effect--mutation::before { background-image: url("../assets/ui/frame-effect-mutation.png"); }
 .wfrp-paperdoll .pd-effect.is-disabled::after { z-index: 2; }
 .wfrp-paperdoll .pd-effect-value { z-index: 3; }
 
@@ -2522,6 +2523,7 @@
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-injury::after { background-image: url("../assets/ui/frame-effect-injury.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-critical::after { background-image: url("../assets/ui/frame-effect-critical.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-disease::after { background-image: url("../assets/ui/frame-effect-disease.png"); }
+.wfrp-paperdoll-tooltip .pd-tt-fx.fx-mutation::after { background-image: url("../assets/ui/frame-effect-mutation.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx.fx-buff::after { background-image: url("../assets/ui/frame-rarity-epic.png"); }
 .wfrp-paperdoll-tooltip .pd-tt-fx img { object-fit: contain; }
 .wfrp-paperdoll-tooltip .pd-tt-fx-value {

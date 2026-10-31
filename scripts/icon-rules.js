@@ -81,6 +81,18 @@ export function effectIconFor(kind, info = {}, has) {
     if (kind === "mutation") tries.push("mutations/mutation-physical.png");
   }
   if (kind === "spell" || kind === "prayer") {
+    // god.value в системе - свободный текст, а не ключ. Непонятное имя оставляем как есть:
+    // оно не должно ломать обычный подбор по виду молитвы или общей заглушке.
+    if (kind === "prayer" && typeof info.god === "string") {
+      const god = info.god.trim().toLowerCase();
+      const aliases = [
+        ["sigmar", "сигмар"], ["ulric", "ульрик"], ["shallya", "шаллия", "шалия"],
+        ["morr", "морр"], ["ranald", "ранальд"], ["rhya", "рия", "риа"], ["taal", "таал"],
+        ["verena", "верена"], ["manann", "мананн"], ["myrmidia", "мирмидия"]
+      ];
+      const match = aliases.find((names) => names.includes(god));
+      if (match) tries.push(`magic/gods/god-${match[0]}.png`);
+    }
     // Школа заклинания или вид молитвы - ключ из game.wfrp4e.config, он же имя файла
     if (key) tries.push(`magic/${kind}-${key}.png`);
     tries.push(`magic/${kind}.png`);

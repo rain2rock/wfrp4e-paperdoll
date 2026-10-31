@@ -448,17 +448,20 @@
     },
     "Rest": {
       "Title": "Rest and recover",
-      "Night": "Night of sleep: Endurance +20, heals TB + SL",
-      "Day": "Night + day of rest: +TB more",
+      "Night": "Night of sleep: system Endurance +20 test; apply healing from the chat card",
+      "Day": "Night + full day: apply night healing from the card; the day adds TB after the roll",
       "Roll": "Roll {r} vs {target}, SL {sl}",
       "Success": "Success.",
       "Fail": "Failure.",
-      "Healed": "Wounds recovered: {n} ({now} / {max})"
+      "Healed": "Wounds recovered: {n} ({now} / {max})",
+      "FullDay": "Full day of rest",
+      "Error": "The system rest test could not complete. No fallback healing was applied; check the chat card."
     },
     "Roll": {
       "Chance": "Hit chance",
       "Attack": "Attack: weapon test",
-      "Click": "Click the name to roll a test"
+      "Click": "Click the name to roll a test",
+      "Error": "The system test could not complete. Check the chat card; no fallback roll was made."
     },
     "StatsTabShort": "Stats",
     "SettingsMenu": {
@@ -506,7 +509,8 @@
     "Use": {
       "Hint": "Shift+right-click to use",
       "Chat": "{who} uses {item}",
-      "Empty": "{name}: none left"
+      "Empty": "{name}: none left",
+      "Error": "The item could not be fully used. Check its quantity and effects before trying again."
     },
     "Welcome": {
       "Title": "WFRP4e Equipment",

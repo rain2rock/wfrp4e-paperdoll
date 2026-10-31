@@ -1,3 +1,16 @@
+// Именованный импорт, не «import * as»: мок склеивает файлы дополнения в один скрипт,
+// и пространство имён такой склейки не переживает, а отдельные имена - переживают
+import {
+  TARGET_KIND,
+  parseRange,
+  parseTargetCount,
+  parseDuration,
+  targetsInRange,
+  castPlan,
+  overcastBudget,
+  setTargets
+} from "./targeting.js";
+
 /**
  * Дополнение «Магия и молитвы» для окна снаряжения WFRP4e.
  * Вкладка «Магия»: значения для сотворения и молитв, заклинания по лорам, благословения и чудеса,
@@ -31,7 +44,7 @@
       const sys = it.system ?? {};
       const kind = it.type === "spell" ? "spell" : "prayer";
       const key = kind === "spell" ? loreKey(sys.lore?.value) || "petty" : loreKey(sys.type?.value) || "blessing";
-      return effectImg(kind, { key, name: it.name }, it.img);
+      return effectImg(kind, { key, name: it.name, god: sys.god?.value }, it.img);
     };
 
 
@@ -139,30 +152,44 @@
 
       /** Сотворить заклинание или вознести молитву: через систему, иначе бросок против Языка (магического) / Молитвословия */
       async _castItem(it) {
-        const actor = this.actor;
-        const L = (k) => game.i18n.localize(k);
+        const pending = this._castingItems ??= new Set();
+        const key = it.uuid ?? it.id ?? it;
+        if (pending.has(key)) return false;
+        pending.add(key);
         try {
+          const actor = this.actor;
+          const L = (k) => game.i18n.localize(k);
           const fn = it.type === "spell" ? actor.setupCast : actor.setupPrayer;
-          if (!fn) throw new Error("no system test");
-          const test = await fn.call(actor, it);
-          if (test?.roll) await test.roll();
-          return;
-        } catch (err) {
-          if (!/no system test/.test(String(err?.message))) console.warn("wfrp4e-paperdoll | cast", err);
+          if (typeof fn === "function") {
+            try {
+              const test = await fn.call(actor, it);
+              if (typeof test?.roll !== "function") return false; // отмена системного диалога
+              await test.roll();
+              return true;
+            } catch (err) {
+              // После ошибки система могла уже создать карточку или списать ингредиент.
+              // Самодельный бросок здесь давал бы второй результат и скрывал причину ошибки.
+              console.warn("wfrp4e-paperdoll | cast", err);
+              ui.notifications?.error(L("WFRPPD.Magic.Error"));
+              return false;
+            }
+          }
+          const magic = this._magicView();
+          const base = magic?.stats.find((s) => s.label === L(it.type === "spell" ? "WFRPPD.Magic.Cast" : "WFRPPD.Magic.Pray"))?.value ?? 0;
+          const pen = it.type === "spell" ? this._castPenalty(this._profile()) : 0;
+          const roll = await new Roll("1d100").evaluate();
+          const r = roll.total;
+          const { ok, sl: raw } = testResult(r, base);
+          const sl = raw - pen;
+          const cn = Number(it.system.cn?.value) || 0;
+          const done = it.type === "spell" ? ok && sl >= cn : ok;
+          const content = `<div class="wfrp-paperdoll-rest"><b>${esc(T(it.name))}</b><br>${esc(
+            game.i18n.format("WFRPPD.Rest.Roll", { r, target: base, sl: sl > 0 ? `+${sl}` : sl })
+          )}${it.type === "spell" ? `<br>${esc(L("WFRPPD.Magic.CN"))} ${cn}` : ""}<br><b>${esc(done ? L("WFRPPD.Rest.Success") : L("WFRPPD.Rest.Fail"))}</b></div>`;
+          await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor }), content, rolls: [roll] });
+        } finally {
+          pending.delete(key);
         }
-        const magic = this._magicView();
-        const base = magic?.stats.find((s) => s.label === L(it.type === "spell" ? "WFRPPD.Magic.Cast" : "WFRPPD.Magic.Pray"))?.value ?? 0;
-        const pen = it.type === "spell" ? this._castPenalty(this._profile()) : 0;
-        const roll = await new Roll("1d100").evaluate();
-        const r = roll.total;
-        const { ok, sl: raw } = testResult(r, base);
-        const sl = raw - pen;
-        const cn = Number(it.system.cn?.value) || 0;
-        const done = it.type === "spell" ? ok && sl >= cn : ok;
-        const content = `<div class="wfrp-paperdoll-rest"><b>${esc(T(it.name))}</b><br>${esc(
-          game.i18n.format("WFRPPD.Rest.Roll", { r, target: base, sl: sl > 0 ? `+${sl}` : sl })
-        )}${it.type === "spell" ? `<br>${esc(L("WFRPPD.Magic.CN"))} ${cn}` : ""}<br><b>${esc(done ? L("WFRPPD.Rest.Success") : L("WFRPPD.Rest.Fail"))}</b></div>`;
-        await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor }), content, rolls: [roll] });
       }
 
       /** Даёт ли эта броня штраф к касту этому магу */
@@ -200,7 +227,7 @@
         .map(
           (g) => `<div class="pd-magic-group"><div class="pd-ecs-head">${esc(g.label)}</div>${g.rows
             .map(
-              (r) => `<button type="button" class="pd-spell ${r.memorized ? "is-memorized" : ""}" data-item-id="${r.id}"><img src="${esc(itemImg(r.img, r.name))}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"><span class="pd-spell-body"><b>${esc(r.name)}${r.memorized ? ' <i class="pd-star">✦</i>' : ""}</b><small>${esc(r.info)}</small></span></button>`
+              (r) => `<button type="button" class="pd-spell ${r.memorized ? "is-memorized" : ""}" data-item-id="${r.id}"><img src="${esc(itemImg(r.img, r.name))}" alt="" onerror="this.onerror=null;this.src='${esc(uiArt("ui-missing"))}'"><span class="pd-spell-body"><b>${esc(r.name)}${r.memorized ? ` <i class="pd-star"><img src="${esc(uiArt("ui-memorized"))}" alt="${esc(L("WFRPPD.Magic.StarTip"))}"></i>` : ""}</b><small>${esc(r.info)}</small></span></button>`
             )
             .join("")}</div>`
         )
@@ -235,6 +262,9 @@
 
     api.registerAddon({
       id: ADDON,
+      // Слой выбора целей: в самом окне пока не используется (UI не сделан),
+      // но так он доступен и дополнениям, и проверкам - без глобала
+      targeting: { TARGET_KIND, parseRange, parseTargetCount, parseDuration, targetsInRange, castPlan, overcastBudget, setTargets },
       title: "WFRPPD.Addon.magic.Title",
       intro: "WFRPPD.Addon.magic.Intro",
       icon: "fa-hat-wizard",
@@ -243,7 +273,7 @@
         {
           id: "magic",
           label: "WFRPPD.Magic.Tab",
-          icon: uiArt("stat-mind"),
+          icon: uiArt("stat-magic"),
           visible: (app) => !!app._magicView(),
           render: renderTab,
           onRender: bindTab

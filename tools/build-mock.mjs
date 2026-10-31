@@ -133,10 +133,17 @@ for (const f of fs.readdirSync(path.join(root, "assets/ui"))) assetUri(`ui/${f}`
 // Иконки ленты эффектов модуль выбирает САМ, уже в браузере (effectIconFor: состояние по ключу,
 // крит по локации, мутация и болезнь по названию), поэтому заранее угадать нечего -
 // встраиваем эти папки целиком. Наборы небольшие и закрытые, в отличие от снаряжения.
-for (const dir of ["conditions", "criticals", "diseases", "mutations", "careers"]) {
-  const d = path.join(root, "assets/icons", dir);
-  if (fs.existsSync(d)) for (const f of fs.readdirSync(d)) assetUri(`icons/${dir}/${f}`);
-}
+const embedIconDirectory = (rel) => {
+  const dir = path.join(root, "assets/icons", rel);
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) embedIconDirectory(`${rel}/${entry.name}`);
+    else if (/\.(png|webp|jpe?g|svg)$/i.test(entry.name)) assetUri(`icons/${rel}/${entry.name}`);
+  }
+};
+// Магия тоже выбирает иконки в браузере, включая вложенную папку богов.
+// Без встраивания картинка незаметно заменялась на ui-missing обработчиком onerror.
+for (const dir of ["conditions", "criticals", "diseases", "mutations", "careers", "magic"]) embedIconDirectory(dir);
 
 const OVERRIDES = new Set();
 (function walk(d, pre = "") {
@@ -232,11 +239,42 @@ const addonFiles = (id, sub, ext) => {
   const d = path.join(ADDON_DIR, id, sub);
   return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => f.endsWith(ext)).sort().map((f) => fs.readFileSync(path.join(d, f), "utf8")) : [];
 };
+
+/**
+ * Скрипты дополнения в порядке ЗАВИСИМОСТЕЙ, а не по алфавиту.
+ * В Foundry файлы - настоящие ES-модули и сами тянут друг друга импортами, а мок всё склеивает
+ * в один <script>. Раньше он брал readdir().sort(), и порядок расходился с живым окружением:
+ * у магии мок давал magic.js -> targeting.js, Foundry - наоборот. Проносило только потому,
+ * что targeting.js защищён проверкой, а magic.js читал глобал лениво.
+ * Теперь разбираем относительные импорты, укладываем файлы топологически
+ * и срезаем import/export - ровно так же, как мок уже поступает с модулями ядра.
+ */
+const addonScripts = (id) => {
+  const dir = path.join(ADDON_DIR, id, "scripts");
+  if (!fs.existsSync(dir)) return [];
+  const names = fs.readdirSync(dir).filter((f) => f.endsWith(".js")).sort();
+  const src = new Map(names.map((f) => [f, fs.readFileSync(path.join(dir, f), "utf8")]));
+  const deps = (f) =>
+    [...src.get(f).matchAll(/^\s*import\s[^;]*?from\s*["']\.\/([^"']+)["']/gm)]
+      .map((m) => m[1])
+      .filter((d) => src.has(d));
+  const done = new Set();
+  const out = [];
+  const visit = (f, chain = []) => {
+    if (done.has(f)) return;
+    if (chain.includes(f)) throw new Error(`Кольцо импортов в дополнении «${id}»: ${[...chain, f].join(" -> ")}`);
+    for (const d of deps(f)) visit(d, [...chain, f]);
+    done.add(f);
+    out.push(src.get(f).replace(/^\s*import\s[^;]*;\s*$/gm, "").replace(/^export /gm, ""));
+  };
+  for (const f of names) visit(f);
+  return out;
+};
 const css = [read("styles/pd-system.css"), read("styles/paperdoll.css"), ...activeAddons.flatMap((id) => addonFiles(id, "styles", ".css"))]
   .join("\n")
   .replace(/url\("(?:\.\.\/)+(?:wfrp4e-paperdoll\/)?assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`)
   .replace(/url\("\.\.\/assets\/([^"]+)"\)/g, (m, rel) => `url("${assetUri(rel)}")`);
-const addonSrc = activeAddons.flatMap((id) => addonFiles(id, "scripts", ".js")).join("\n");
+const addonSrc = activeAddons.flatMap((id) => addonScripts(id)).join("\n");
 const appSrc = [read("scripts/icon-index.js"), read("scripts/icon-rules.js").replace(/^export /gm, ""), read("scripts/glossary-ru.js").replace(/^export /gm, ""), read("scripts/translate.js").replace(/^export /gm, ""), read("scripts/paperdoll-app.js").replace(/^import .*$/gm, "")].join("\n");
 const template = read("templates/paperdoll.hbs");
 const runtime = read("tools/mock-runtime.js");

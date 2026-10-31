@@ -2,7 +2,7 @@
   "id": "wfrp4e-paperdoll",
   "title": "WFRP4e Paperdoll",
   "description": "Окно персонажа в стиле WoW для системы WFRP4e: слоты снаряжения, сумка, статы, смена снаряжения перетаскиванием. Один пакет: магия, травмы, мутации, развитие и группа внутри.",
-  "version": "0.59.2",
+  "version": "0.60.0",
   "authors": [
     {
       "name": "Mikhail"
@@ -30,7 +30,6 @@
   "esmodules": [
     "scripts/main.js",
     "addons/injuries/scripts/injuries.js",
-    "addons/magic/scripts/targeting.js",
     "addons/magic/scripts/magic.js",
     "addons/mutations/scripts/mutations.js",
     "addons/party/scripts/party.js",

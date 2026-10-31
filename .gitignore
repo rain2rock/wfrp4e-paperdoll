@@ -3,5 +3,5 @@
 Thumbs.db
 mock-*.html
 mock-qa.html
-node_modules/
+/node_modules
 tools/snapshot*.json

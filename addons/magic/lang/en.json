@@ -35,7 +35,8 @@
       },
       "Memorized": "✦ Memorised - cast without a grimoire",
       "NotMemorized": "Not memorised - cast from a grimoire at double CN",
-      "StarTip": "✦ - memorised\nCan be cast without a grimoire"
+      "StarTip": "✦ - memorised\nCan be cast without a grimoire",
+      "Error": "The system magic test could not complete. Check the chat card; no fallback roll was made."
     },
     "Restr": {
       "Cast": "{n} SL to casting",

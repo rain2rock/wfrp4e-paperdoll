@@ -328,3 +328,4 @@ console.log(results.filter(r => r.startsWith('FAIL')).join('\n') || 'all pass', 
 console.log('toasts', (await toasts()).slice(-5));
 console.log('errors', [...new Set(errs)].slice(0, 15));
 await b.close();
+process.exitCode = results.some((r) => r.startsWith("FAIL")) || errs.length ? 1 : 0;

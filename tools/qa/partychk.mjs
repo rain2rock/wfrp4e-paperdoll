@@ -93,9 +93,19 @@ const openDisplay = async () => {
   if (!(await p.$('.pd-group-displaymenu.is-open'))) await p.click('.pd-group-display-btn');
   await p.waitForTimeout(250);
 };
+// Панель нарочно остаётся открытой, поэтому после выбора её надо закрыть руками:
+// иначе она накрывает карточки, и клики по эффектам под ней не проходят.
+// На облегчённой сборке это не всплывало - там другая раскладка и перекрытия не было
+const closeDisplay = async () => {
+  if (await p.$('.pd-group-displaymenu.is-open')) {
+    await p.click('.pd-group-display-btn');
+    await p.waitForTimeout(200);
+  }
+};
 const pickDisplay = async (sel) => {
   await openDisplay();
   await p.click(`.pd-group-displaymenu ${sel}`); await p.waitForTimeout(400);
+  await closeDisplay();
 };
 await pickDisplay('[data-view="table"]'); await p.waitForTimeout(300);
 r.rows = await p.$$eval(".pd-group-row", (e) => e.length);

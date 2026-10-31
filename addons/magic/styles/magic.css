@@ -19,7 +19,7 @@
   background: none; border: 1px solid transparent; border-radius: var(--pd-radius); color: var(--pd-text); cursor: pointer; font-weight: 400;
 }
 .wfrp-paperdoll .pd-spell:hover { background: rgba(122, 76, 8, 0.1); border-color: var(--pd-frame); }
-.wfrp-paperdoll .pd-spell img { flex: 0 0 34px; width: 34px; min-width: 34px; height: 34px; margin-top: 1px; border: none; object-fit: cover; }
+.wfrp-paperdoll .pd-spell > img { flex: 0 0 34px; width: 34px; min-width: 34px; height: 34px; margin-top: 1px; border: none; object-fit: cover; }
 .wfrp-paperdoll .pd-spell-body { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
 .wfrp-paperdoll .pd-spell-body b { font-size: var(--pd-fs-base); }
 /* Описание переносим по словам, а не режем многоточием посреди слова: в узкой колонке
@@ -29,3 +29,5 @@
   overflow-wrap: break-word; word-break: normal; hyphens: none;
 }
 .wfrp-paperdoll .pd-star { font-style: normal; color: #7a5bd0; cursor: help; }
+
+.wfrp-paperdoll .pd-star img { display: inline-block; width: var(--pd-space-4); height: var(--pd-space-4); vertical-align: middle; border: none; object-fit: contain; }
