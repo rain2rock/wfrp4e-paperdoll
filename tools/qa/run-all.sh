@@ -22,3 +22,5 @@ node tools/qa/welcomechk.mjs
 node tools/qa/dslint.mjs
 
 node tools/qa/spelliconchk.mjs
+
+node tools/qa/iconassetcheck.mjs
