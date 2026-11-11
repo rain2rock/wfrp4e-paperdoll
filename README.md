@@ -220,3 +220,7 @@ node tools/build-mock.mjs --snapshot tools/snapshot.json \
 - Серый - ноль или прочерк: прибавки нет.
 - Красный - снижено или есть урон: модификатор в минус, раны меньше максимума, есть критические раны, штраф к сотворению.
 - Обычный цвет - без изменений.
+
+### v0.60.3 - New spell artwork
+
+65 engraved spell icons from Sullasara, Blood and Bramble, and the Elf Player Guide. English and Russian spell names resolve to individual artwork.

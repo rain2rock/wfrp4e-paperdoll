@@ -998,5 +998,395 @@
     "name": "Transformation of Kadon",
     "lore": "beasts",
     "file": "magic/spells/transformation-of-kadon.png"
+  },
+  {
+    "name": "Ceaseless Flame",
+    "name_ru": "Бесконечное пламя",
+    "lore": "Цветная магия (Школа Огня)",
+    "file": "magic/spells/ceaseless-flame.png"
+  },
+  {
+    "name": "Deathsight",
+    "name_ru": "Взгляд Смерти",
+    "lore": "Цветная магия (Школа Смерти)",
+    "file": "magic/spells/deathsight.png"
+  },
+  {
+    "name": "Track’s tale told",
+    "name_ru": "Говорящие следы",
+    "lore": "Цветная магия (Школа Жизни)",
+    "file": "magic/spells/track-s-tale-told.png"
+  },
+  {
+    "name": "Flashcook",
+    "name_ru": "Готовка мяса",
+    "lore": "Цветная магия (Школа Огня)",
+    "file": "magic/spells/flashcook.png"
+  },
+  {
+    "name": "Wildercall",
+    "name_ru": "Дикий зов",
+    "lore": "Цветная магия (Школа Зверей)",
+    "file": "magic/spells/wildercall.png"
+  },
+  {
+    "name": "Rigor of steel",
+    "name_ru": "Жесткость стали",
+    "lore": "Цветная магия (Школа Металла)",
+    "file": "magic/spells/rigor-of-steel.png"
+  },
+  {
+    "name": "Tale of Metal",
+    "name_ru": "История металла",
+    "lore": "Цветная магия (Школа Металла)",
+    "file": "magic/spells/tale-of-metal.png"
+  },
+  {
+    "name": "Beast Made Well",
+    "name_ru": "Исцеление зверя",
+    "lore": "Цветная магия (Школа Зверей)",
+    "file": "magic/spells/beast-made-well.png"
+  },
+  {
+    "name": "Comfort",
+    "name_ru": "Комфорт",
+    "lore": "Цветная магия (Школа Огня)",
+    "file": "magic/spells/comfort.png"
+  },
+  {
+    "name": "Preservation",
+    "name_ru": "Консервация",
+    "lore": "Цветная магия (Школа Смерти)",
+    "file": "magic/spells/preservation.png"
+  },
+  {
+    "name": "Timbervault",
+    "name_ru": "Лесной свод",
+    "lore": "Цветная магия (Школа Жизни)",
+    "file": "magic/spells/timbervault.png"
+  },
+  {
+    "name": "Illuminate",
+    "name_ru": "Освещение",
+    "lore": "Цветная магия (Школа Света)",
+    "file": "magic/spells/illuminate.png"
+  },
+  {
+    "name": "Stay Death’s Hand",
+    "name_ru": "Остановить руку смерти",
+    "lore": "Цветная магия (Школа Смерти)",
+    "file": "magic/spells/stay-death-s-hand.png"
+  },
+  {
+    "name": "Disgust",
+    "name_ru": "Отвращение",
+    "lore": "Цветная магия (Школа Света)",
+    "file": "magic/spells/disgust.png"
+  },
+  {
+    "name": "Cleansing Glow",
+    "name_ru": "Очищающее сияние",
+    "lore": "Цветная магия (Школа Света)",
+    "file": "magic/spells/cleansing-glow.png"
+  },
+  {
+    "name": "Cloak Activity",
+    "name_ru": "Плащ Теней",
+    "lore": "Цветная магия (Школа Теней)",
+    "file": "magic/spells/cloak-activity.png"
+  },
+  {
+    "name": "Pall of Darkness",
+    "name_ru": "Покров Тьмы",
+    "lore": "Цветная магия (Школа Теней)",
+    "file": "magic/spells/pall-of-darkness.png"
+  },
+  {
+    "name": "Birdspeech",
+    "name_ru": "Птичий говор",
+    "lore": "Цветная магия (Школа Небес)",
+    "file": "magic/spells/birdspeech.png"
+  },
+  {
+    "name": "Cruelty’s Deserts",
+    "name_ru": "Расплата за жестокость",
+    "lore": "Цветная магия (Школа Зверей)",
+    "file": "magic/spells/cruelty-s-deserts.png"
+  },
+  {
+    "name": "Wyssan’s Ally",
+    "name_ru": "Союзник Виссана",
+    "lore": "Цветная магия (Школа Зверей)",
+    "file": "magic/spells/wyssan-s-ally.png"
+  },
+  {
+    "name": "Shadows of Splendour",
+    "name_ru": "Тени великолепия",
+    "lore": "Цветная магия (Школа Теней)",
+    "file": "magic/spells/shadows-of-splendour.png"
+  },
+  {
+    "name": "Ferment",
+    "name_ru": "Фермент",
+    "lore": "Цветная магия (Школа Жизни)",
+    "file": "magic/spells/ferment.png"
+  },
+  {
+    "name": "Weathervane",
+    "name_ru": "Флюгер",
+    "lore": "Цветная магия (Школа Небес)",
+    "file": "magic/spells/weathervane.png"
+  },
+  {
+    "name": "Sense Metal",
+    "name_ru": "Чувство металла",
+    "lore": "Цветная магия (Школа Металла)",
+    "file": "magic/spells/sense-metal.png"
+  },
+  {
+    "name": "Gale",
+    "name_ru": "Штормовой ветер",
+    "lore": "Цветная магия (Школа Небес)",
+    "file": "magic/spells/gale.png"
+  },
+  {
+    "name": "Nameless Summons",
+    "name_ru": "Безымянный призыв",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/nameless-summons.png"
+  },
+  {
+    "name": "Congeal",
+    "name_ru": "Застывание",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/congeal.png"
+  },
+  {
+    "name": "Mirrored Abyss",
+    "name_ru": "Зеркальная бездна",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/mirrored-abyss.png"
+  },
+  {
+    "name": "Badwill",
+    "name_ru": "Злонамеренность",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/badwill.png"
+  },
+  {
+    "name": "Banishment of Böl",
+    "name_ru": "Изгнание Бедствия",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/banishment-of-b-l.png"
+  },
+  {
+    "name": "Wayward Path",
+    "name_ru": "Изменчивый путь",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/wayward-path.png"
+  },
+  {
+    "name": "Bonesnapper",
+    "name_ru": "Костолом",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/bonesnapper.png"
+  },
+  {
+    "name": "Bonesetter",
+    "name_ru": "Костоправ",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/bonesetter.png"
+  },
+  {
+    "name": "Lodestone",
+    "name_ru": "Магнетит",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/lodestone.png"
+  },
+  {
+    "name": "Fertilise",
+    "name_ru": "Обогащение почвы",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/fertilise.png"
+  },
+  {
+    "name": "Onerion",
+    "name_ru": "Онерион",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/onerion.png"
+  },
+  {
+    "name": "Stout Spirit",
+    "name_ru": "Отважный дух",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/stout-spirit.png"
+  },
+  {
+    "name": "Fatethief",
+    "name_ru": "Похититель Судьбы",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/fatethief.png"
+  },
+  {
+    "name": "Geistbane",
+    "name_ru": "Призрачная отрава",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/geistbane.png"
+  },
+  {
+    "name": "Outcast’s Curse",
+    "name_ru": "Проклятие изгоя",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/outcast-s-curse.png"
+  },
+  {
+    "name": "Curse of the Treacherous Tongue",
+    "name_ru": "Проклятие коварного языка",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/curse-of-the-treacherous-tongue.png"
+  },
+  {
+    "name": "Fetterfetch",
+    "name_ru": "Путы Оков",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/fetterfetch.png"
+  },
+  {
+    "name": "Kindle",
+    "name_ru": "Разжигание",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/kindle.png"
+  },
+  {
+    "name": "Pactbind",
+    "name_ru": "Связывающий Договор",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/pactbind.png"
+  },
+  {
+    "name": "Godspakt",
+    "name_ru": "Соглашение Богов",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/godspakt.png"
+  },
+  {
+    "name": "Painjar",
+    "name_ru": "Сосуд Боли",
+    "lore": "Ведьмовская магия (Школа Ведьмовства)",
+    "file": "magic/spells/painjar.png"
+  },
+  {
+    "name": "Woecharm",
+    "name_ru": "Талисман несчастья",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/woecharm.png"
+  },
+  {
+    "name": "Trankraft",
+    "name_ru": "Транкрафт",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/trankraft.png"
+  },
+  {
+    "name": "Cleanslate",
+    "name_ru": "Чист как стёклышко",
+    "lore": "Ведьмовская магия (Школа Знахарства)",
+    "file": "magic/spells/cleanslate.png"
+  },
+  {
+    "name": "Bless Arrow",
+    "name_ru": "Благословение стрелы",
+    "lore": "Простейшие заклинания",
+    "file": "magic/spells/bless-arrow.png"
+  },
+  {
+    "name": "Reveal Magic",
+    "name_ru": "Выявить магию",
+    "lore": "Простейшие заклинания",
+    "file": "magic/spells/reveal-magic.png"
+  },
+  {
+    "name": "Final Stroke of the Master",
+    "name_ru": "Заключительный удар мастера",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/final-stroke-of-the-master.png"
+  },
+  {
+    "name": "Identify Disease",
+    "name_ru": "Определение болезни",
+    "lore": "Простейшие заклинания",
+    "file": "magic/spells/identify-disease.png"
+  },
+  {
+    "name": "Remove Dirt",
+    "name_ru": "Очищение от грязи",
+    "lore": "Простейшие заклинания",
+    "file": "magic/spells/remove-dirt.png"
+  },
+  {
+    "name": "Flight of the Phoenix",
+    "name_ru": "Полёт феникса",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/flight-of-the-phoenix.png"
+  },
+  {
+    "name": "Path of the Storm",
+    "name_ru": "Путь бури",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/path-of-the-storm.png"
+  },
+  {
+    "name": "Path of the Rain",
+    "name_ru": "Путь дождя",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/path-of-the-rain.png"
+  },
+  {
+    "name": "Path of Frost",
+    "name_ru": "Путь мороза",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/path-of-frost.png"
+  },
+  {
+    "name": "Path of Falling Water",
+    "name_ru": "Путь падающей воды",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/path-of-falling-water.png"
+  },
+  {
+    "name": "Path of the Sun",
+    "name_ru": "Путь солнца",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/path-of-the-sun.png"
+  },
+  {
+    "name": "Path of the Hawk",
+    "name_ru": "Путь ястреба",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/path-of-the-hawk.png"
+  },
+  {
+    "name": "Ritual of Cleansing",
+    "name_ru": "Ритуал очищения",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/ritual-of-cleansing.png"
+  },
+  {
+    "name": "Shadows of Loec",
+    "name_ru": "Тени Лоэка",
+    "lore": "Техники танца меча",
+    "file": "magic/spells/shadows-of-loec.png"
+  },
+  {
+    "name": "Calm",
+    "name_ru": "Успокоение",
+    "lore": "Простейшие заклинания",
+    "file": "magic/spells/calm.png"
+  },
+  {
+    "name": "Greenfinger",
+    "name_ru": "Цветущее касание",
+    "lore": "Простейшие заклинания",
+    "file": "magic/spells/greenfinger.png"
   }
 ]
